@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(HUBSPOT_TOKEN=dummy npm run build)"
+    ]
+  }
+}
