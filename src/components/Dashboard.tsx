@@ -69,6 +69,7 @@ export default function Dashboard() {
     advisorType: "",
     tier: "",
     healthStatus: "",
+    search: "",
   });
 
   const fetchData = useCallback(async () => {
@@ -121,6 +122,14 @@ export default function Dashboard() {
 
     let result = allAdvisors;
 
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.email.toLowerCase().includes(q)
+      );
+    }
     if (filters.advisorType)
       result = result.filter((a) => a.advisorType === filters.advisorType);
     if (filters.tier)

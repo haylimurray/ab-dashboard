@@ -15,6 +15,7 @@ interface Props {
     advisorType: string;
     tier: string;
     healthStatus: string;
+    search: string;
   };
   onFilterChange: (key: string, value: string) => void;
   uniqueTiers: string[];
@@ -71,6 +72,13 @@ export default function AdvisorTable({
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50">
+        <input
+          type="search"
+          placeholder="Search name or email…"
+          value={filters.search}
+          onChange={(e) => onFilterChange("search", e.target.value)}
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-airvet-blue w-52"
+        />
         <select
           value={filters.advisorType}
           onChange={(e) => onFilterChange("advisorType", e.target.value)}

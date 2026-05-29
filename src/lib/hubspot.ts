@@ -36,7 +36,12 @@ export async function fetchAllAdvisors(): Promise<HubSpotResult[]> {
       filterGroups: [
         {
           filters: [
-            { propertyName: "airvet_advisory_board", operator: "HAS_PROPERTY" },
+            { propertyName: "airvet_advisory_board", operator: "EQ", value: "AB Member" },
+          ],
+        },
+        {
+          filters: [
+            { propertyName: "airvet_advisory_board", operator: "EQ", value: "BC Advisor" },
           ],
         },
       ],
