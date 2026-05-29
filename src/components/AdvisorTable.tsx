@@ -202,8 +202,9 @@ export default function AdvisorTable({
                     {/* Health Score */}
                     <td className="px-3 py-3 whitespace-nowrap">
                       <HealthBar
-                        score={a.healthScore}
                         color={a.healthColor}
+                        daysSinceContact={a.daysSinceContact}
+                        outboundEmailCount90d={a.outboundEmailCount90d}
                       />
                     </td>
 
