@@ -39,11 +39,6 @@ export async function fetchAllAdvisors(): Promise<HubSpotResult[]> {
             { propertyName: "airvet_advisory_board", operator: "EQ", value: "AB Member" },
           ],
         },
-        {
-          filters: [
-            { propertyName: "airvet_advisory_board", operator: "EQ", value: "BC Advisor" },
-          ],
-        },
       ],
       properties: PROPERTIES,
       limit: 100,
