@@ -1,14 +1,12 @@
 "use client";
 
 import { AdvisorContact, SortDir, SortField } from "@/types";
-import { isInCooldown } from "@/lib/health";
 import HealthBar from "./HealthBar";
 
 const HUBSPOT_BASE = "https://app.hubspot.com/contacts/21696780/record/0-1";
 
 interface Props {
   advisors: AdvisorContact[];
-  cooldown: number;
   sort: { field: SortField; dir: SortDir };
   onSort: (field: SortField) => void;
   filters: {
@@ -50,7 +48,6 @@ const TH_BTN = `${TH} cursor-pointer select-none hover:text-gray-800 transition-
 
 export default function AdvisorTable({
   advisors,
-  cooldown,
   sort,
   onSort,
   filters,
@@ -113,7 +110,7 @@ export default function AdvisorTable({
           <option value="">All Health Statuses</option>
           <option value="healthy">Healthy</option>
           <option value="caution">Caution</option>
-          <option value="cooldown">In Cooldown</option>
+          <option value="doNotContact">Do Not Contact</option>
         </select>
 
         <span className="ml-auto self-center text-xs text-gray-400">
@@ -139,7 +136,7 @@ export default function AdvisorTable({
                   />
                 </th>
               ))}
-              <th className={TH}>Cooldown</th>
+              <th className={TH}>Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -154,7 +151,6 @@ export default function AdvisorTable({
               </tr>
             ) : (
               advisors.map((a) => {
-                const inCooldown = isInCooldown(a.daysSinceContact, cooldown);
                 return (
                   <tr
                     key={a.id}
@@ -218,12 +214,12 @@ export default function AdvisorTable({
                       )}
                     </td>
 
-                    {/* Cooldown badge */}
+                    {/* Do Not Contact badge */}
                     <td className="px-3 py-3 whitespace-nowrap">
-                      {inCooldown && (
+                      {a.doNotContact && (
                         <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-600">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
-                          Cooldown
+                          Do Not Contact
                         </span>
                       )}
                     </td>

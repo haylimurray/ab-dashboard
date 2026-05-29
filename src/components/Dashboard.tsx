@@ -2,11 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AdvisorContact, DashboardData, SortDir, SortField } from "@/types";
-import { isInCooldown } from "@/lib/health";
 import SummaryCards from "./SummaryCards";
 import AdvisorTable from "./AdvisorTable";
-
-const DEFAULT_COOLDOWN = 30;
 
 function sortAdvisors(
   advisors: AdvisorContact[],
@@ -60,7 +57,6 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cooldown, setCooldown] = useState(DEFAULT_COOLDOWN);
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
     field: "healthScore",
     dir: "asc",
@@ -136,12 +132,9 @@ export default function Dashboard() {
       result = result.filter((a) => a.tier === filters.tier);
     if (filters.healthStatus) {
       result = result.filter((a) => {
-        if (filters.healthStatus === "cooldown")
-          return isInCooldown(a.daysSinceContact, cooldown);
-        if (filters.healthStatus === "healthy")
-          return a.healthColor === "green" && !isInCooldown(a.daysSinceContact, cooldown);
-        if (filters.healthStatus === "caution")
-          return a.healthColor === "yellow" || (a.healthColor === "red" && !isInCooldown(a.daysSinceContact, cooldown));
+        if (filters.healthStatus === "doNotContact") return a.doNotContact;
+        if (filters.healthStatus === "healthy") return a.healthColor === "green" && !a.doNotContact;
+        if (filters.healthStatus === "caution") return a.healthColor === "yellow" || (a.healthColor === "red" && !a.doNotContact);
         return true;
       });
     }
@@ -149,7 +142,7 @@ export default function Dashboard() {
     result = sortAdvisors(result, sort.field, sort.dir);
 
     return { filtered: result, uniqueTypes, uniqueTiers };
-  }, [data, filters, sort, cooldown]);
+  }, [data, filters, sort]);
 
   const fetchedAt = data?.fetchedAt
     ? new Date(data.fetchedAt).toLocaleTimeString("en-US", {
@@ -232,39 +225,10 @@ export default function Dashboard() {
           </div>
         ) : data ? (
           <>
-            <SummaryCards advisors={data.advisors} cooldown={cooldown} />
-
-            {/* Cooldown slider */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-4 mb-6 flex flex-wrap items-center gap-4">
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                Cooldown threshold
-              </label>
-              <input
-                type="range"
-                min={7}
-                max={90}
-                step={1}
-                value={cooldown}
-                onChange={(e) => setCooldown(Number(e.target.value))}
-                className="flex-1 min-w-[160px] max-w-xs accent-airvet-blue h-2 cursor-pointer"
-                style={{ accentColor: "#1E6CD9" }}
-              />
-              <span
-                className="text-sm font-bold tabular-nums px-2.5 py-0.5 rounded-full text-white"
-                style={{ backgroundColor: "#1E6CD9" }}
-              >
-                {cooldown} days
-              </span>
-              <p className="w-full sm:w-auto text-xs text-gray-400">
-                Advisors contacted within this window show the&nbsp;
-                <span className="text-red-500 font-medium">In Cooldown</span>
-                &nbsp;badge.
-              </p>
-            </div>
+            <SummaryCards advisors={data.advisors} />
 
             <AdvisorTable
               advisors={filtered}
-              cooldown={cooldown}
               sort={sort}
               onSort={handleSort}
               filters={filters}

@@ -1,33 +1,54 @@
-export function getDaysSince(raw: string | null | undefined): number | null {
-  if (!raw) return null;
-
-  let date: Date;
-  // HubSpot sometimes returns epoch-ms as a string
-  if (/^\d{10,}$/.test(raw.trim())) {
-    date = new Date(Number(raw));
-  } else {
-    date = new Date(raw);
-  }
-
-  if (isNaN(date.getTime())) return null;
-
-  const diffMs = Date.now() - date.getTime();
-  return Math.floor(diffMs / 86_400_000);
+function parseTimestamp(raw: string): Date | null {
+  const d = /^\d{10,}$/.test(raw.trim()) ? new Date(Number(raw)) : new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
 }
 
-export function getHealthScore(days: number | null): {
+export function getHealthScoreFromEmails(outboundTimestamps: string[]): {
   score: number;
   color: "green" | "yellow" | "red";
+  daysSinceLatest: number | null;
+  outboundCount90d: number;
+  latestTimestamp: string | null;
 } {
-  if (days === null) return { score: 100, color: "green" };
-  if (days < 15) return { score: 10, color: "red" };
-  if (days < 30) return { score: 25, color: "red" };
-  if (days < 60) return { score: 50, color: "yellow" };
-  if (days < 90) return { score: 75, color: "green" };
-  return { score: 90, color: "green" };
+  const now = Date.now();
+
+  const sorted = outboundTimestamps
+    .map((raw) => ({ raw, date: parseTimestamp(raw) }))
+    .filter((item): item is { raw: string; date: Date } => item.date !== null)
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  if (sorted.length === 0) {
+    return { score: 100, color: "green", daysSinceLatest: null, outboundCount90d: 0, latestTimestamp: null };
+  }
+
+  const { raw: latestTimestamp, date: latestDate } = sorted[0];
+  const daysSinceLatest = Math.floor((now - latestDate.getTime()) / 86_400_000);
+
+  const cutoff90 = now - 90 * 86_400_000;
+  const outboundCount90d = sorted.filter((item) => item.date.getTime() >= cutoff90).length;
+
+  let score: number;
+  if (daysSinceLatest < 15) score = 10;
+  else if (daysSinceLatest < 30) score = 25;
+  else if (daysSinceLatest < 60) score = 50;
+  else if (daysSinceLatest < 90) score = 75;
+  else score = 90;
+
+  // Frequency penalty: -10 per outbound email beyond the first in last 90 days
+  score = Math.max(5, score - Math.max(0, outboundCount90d - 1) * 10);
+
+  let color: "green" | "yellow" | "red";
+  if (score > 50) color = "green";
+  else if (score > 25) color = "yellow";
+  else color = "red";
+
+  return { score, color, daysSinceLatest, outboundCount90d, latestTimestamp };
 }
 
-export function isInCooldown(days: number | null, threshold: number): boolean {
-  if (days === null) return false;
-  return days < threshold;
+export function isDoNotContact(outboundTimestamps: string[]): boolean {
+  const cutoff30 = Date.now() - 30 * 86_400_000;
+  return outboundTimestamps.some((raw) => {
+    const d = parseTimestamp(raw);
+    return d !== null && d.getTime() >= cutoff30;
+  });
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { fetchAllAdvisors } from "@/lib/hubspot";
-import { getDaysSince, getHealthScore } from "@/lib/health";
+import { fetchAllAdvisors, fetchOutboundEmailTimestamps } from "@/lib/hubspot";
+import { getHealthScoreFromEmails, isDoNotContact } from "@/lib/health";
 import type { AdvisorContact, DashboardData } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +8,14 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const raw = await fetchAllAdvisors();
+    const contactIds = raw.map((c) => c.id);
+    const emailMap = await fetchOutboundEmailTimestamps(contactIds);
 
     const advisors: AdvisorContact[] = raw.map((contact) => {
       const p = contact.properties;
-      const days = getDaysSince(p.notes_last_contacted);
-      const { score, color } = getHealthScore(days);
+      const timestamps = emailMap.get(contact.id) ?? [];
+      const { score, color, daysSinceLatest, outboundCount90d, latestTimestamp } =
+        getHealthScoreFromEmails(timestamps);
 
       const firstName = p.firstname ?? "";
       const lastName = p.lastname ?? "";
@@ -26,10 +29,12 @@ export async function GET() {
         email: p.email ?? "",
         advisorType: p.airvet_advisory_board ?? null,
         tier: p.advisor_status ?? null,
-        lastContacted: p.notes_last_contacted ?? null,
-        daysSinceContact: days,
+        lastContacted: latestTimestamp,
+        daysSinceContact: daysSinceLatest,
+        outboundEmailCount90d: outboundCount90d,
         healthScore: score,
         healthColor: color,
+        doNotContact: isDoNotContact(timestamps),
         salesStatus: p.advisory_board_sales_status ?? null,
         requestAvailability: p.ab_request_availability ?? null,
         lastRequestType: p.ab_last_request_type ?? null,

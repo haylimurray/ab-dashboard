@@ -1,24 +1,20 @@
 import { AdvisorContact } from "@/types";
-import { isInCooldown } from "@/lib/health";
 
 interface Props {
   advisors: AdvisorContact[];
-  cooldown: number;
 }
 
-export default function SummaryCards({ advisors, cooldown }: Props) {
+export default function SummaryCards({ advisors }: Props) {
   const total = advisors.length;
   const healthy = advisors.filter((a) => a.healthColor === "green").length;
   const caution = advisors.filter((a) => a.healthColor === "yellow").length;
-  const inCooldown = advisors.filter((a) =>
-    isInCooldown(a.daysSinceContact, cooldown)
-  ).length;
+  const doNotContact = advisors.filter((a) => a.doNotContact).length;
 
   const cards = [
     { label: "Total Advisors", value: total, bg: "bg-white", text: "text-gray-900" },
     { label: "Healthy", value: healthy, bg: "bg-green-50", text: "text-green-700" },
     { label: "Caution", value: caution, bg: "bg-yellow-50", text: "text-yellow-700" },
-    { label: "In Cooldown", value: inCooldown, bg: "bg-red-50", text: "text-red-700" },
+    { label: "Do Not Contact", value: doNotContact, bg: "bg-red-50", text: "text-red-700" },
   ];
 
   return (
