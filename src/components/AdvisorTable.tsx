@@ -3,10 +3,9 @@
 import { AdvisorContact, SortDir, SortField } from "@/types";
 import HealthBar from "./HealthBar";
 
-const HUBSPOT_BASE = "https://app.hubspot.com/contacts/21696780/record/0-1";
-
 interface Props {
   advisors: AdvisorContact[];
+  onSelectAdvisor: (advisor: AdvisorContact) => void;
   sort: { field: SortField; dir: SortDir };
   onSort: (field: SortField) => void;
   filters: {
@@ -48,6 +47,7 @@ const TH_BTN = `${TH} cursor-pointer select-none hover:text-gray-800 transition-
 
 export default function AdvisorTable({
   advisors,
+  onSelectAdvisor,
   sort,
   onSort,
   filters,
@@ -154,14 +154,14 @@ export default function AdvisorTable({
                 return (
                   <tr
                     key={a.id}
-                    className="hover:bg-blue-50 cursor-pointer transition-colors"
-                    onClick={() =>
-                      window.open(`${HUBSPOT_BASE}/${a.id}`, "_blank")
-                    }
+                    className="hover:bg-blue-50 transition-colors"
                   >
-                    {/* Name */}
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      <div className="font-medium text-gray-900 text-sm">
+                    {/* Name — click opens drawer */}
+                    <td
+                      className="px-3 py-3 whitespace-nowrap cursor-pointer"
+                      onClick={() => onSelectAdvisor(a)}
+                    >
+                      <div className="font-medium text-gray-900 text-sm hover:text-airvet-blue hover:underline">
                         {a.name}
                       </div>
                       {a.email && (
