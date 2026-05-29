@@ -35,3 +35,24 @@ export type SortField =
   | "salesStatus";
 
 export type SortDir = "asc" | "desc";
+
+export type SignalLevel = "HIGH" | "MEDIUM" | "LOW";
+
+export interface NewsArticle {
+  headline: string;
+  url: string;
+  publishedAt: string;
+  signal: SignalLevel;
+  blurb: string;
+}
+
+export interface CompanyNews {
+  company: string;
+  domain: string;
+  articles: NewsArticle[];
+}
+
+export interface NewsData {
+  companies: CompanyNews[];
+  fetchedAt: string;
+}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AdvisorContact, DashboardData, SortDir, SortField } from "@/types";
 import SummaryCards from "./SummaryCards";
 import AdvisorTable from "./AdvisorTable";
+import NewsIntelligence from "./NewsIntelligence";
 
 function sortAdvisors(
   advisors: AdvisorContact[],
@@ -236,6 +237,8 @@ export default function Dashboard() {
               uniqueTiers={uniqueTiers}
               uniqueTypes={uniqueTypes}
             />
+
+            <NewsIntelligence />
           </>
         ) : null}
       </main>
