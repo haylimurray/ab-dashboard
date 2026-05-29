@@ -66,7 +66,7 @@ export default function AdvisorTable({
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50">
         <input
