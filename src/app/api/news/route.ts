@@ -69,18 +69,21 @@ async function scoreArticle(
       messages: [
         {
           role: "user",
-          content: `You analyze news for Airvet — a veterinary telehealth platform connecting pet owners with licensed vets.
+          content: `You are a business intelligence analyst for Airvet, a veterinary telehealth platform.
+
+Evaluate this news article for business relevance to Airvet's advisory board strategy.
 
 Headline: ${headline}
 Summary: ${description ?? "N/A"}
 
-Rate as an opportunity signal for Airvet's advisory board engagement:
-HIGH = directly about veterinary care, pet health, telehealth, animal hospital acquisition, or pet industry funding
-MEDIUM = general healthcare trends, company expansion, or adjacent industries that could intersect with veterinary care
-LOW = unrelated to pets, animals, or veterinary industry
+ONLY assign HIGH or MEDIUM for genuinely business-significant events:
+HIGH = funding rounds, M&A, major layoffs/restructuring, C-suite leadership changes, earnings results, significant expansion announcements, or major product launches at a company directly relevant to veterinary or pet health
+MEDIUM = business events (partnerships, hiring surges, office expansions, regulatory approvals) at companies adjacent to veterinary care
+
+Assign LOW — and write a blurb of "Not business-relevant." — for anything that is NOT a concrete business event: sports sponsorships, awards, lifestyle content, general industry opinion, community events, or vague company mentions.
 
 Reply ONLY with valid JSON, no other text:
-{"signal":"HIGH","blurb":"one sentence why this matters for Airvet"}`,
+{"signal":"HIGH","blurb":"one sentence on the specific business event and why it matters for Airvet"}`,
         },
       ],
     });
