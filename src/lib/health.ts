@@ -12,6 +12,7 @@ export function getHealthScoreFromEmails(outboundTimestamps: string[]): {
 } {
   const now = Date.now();
 
+  // Descending sort: sorted[0] is the most recent email
   const sorted = outboundTimestamps
     .map((raw) => ({ raw, date: parseTimestamp(raw) }))
     .filter((item): item is { raw: string; date: Date } => item.date !== null)

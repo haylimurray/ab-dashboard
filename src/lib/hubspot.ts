@@ -68,29 +68,71 @@ export async function fetchAllAdvisors(): Promise<HubSpotResult[]> {
   return all;
 }
 
+// Per-contact result shape from the v3 associations batch endpoint.
+// HubSpot can include a paging cursor per-contact when a contact has
+// more associations than the page limit — we must follow it.
+interface AssocResult {
+  from: { id: string };
+  to: Array<{ id: string }>;
+  paging?: { next?: { after: string; link: string } };
+}
+
+async function fetchAssocPage(
+  inputs: Array<{ id: string; after?: string }>,
+  token: string
+): Promise<AssocResult[]> {
+  const res = await fetch(`${BASE}/crm/v3/associations/contacts/emails/batch/read`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ inputs }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HubSpot associations ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.results ?? [];
+}
+
 async function batchFetchAssociations(
   contactIds: string[],
   token: string
 ): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
+
   for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
     const batch = contactIds.slice(i, i + BATCH_SIZE);
-    const res = await fetch(`${BASE}/crm/v3/associations/contacts/emails/batch/read`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ inputs: batch.map((id) => ({ id })) }),
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`HubSpot associations ${res.status}: ${await res.text()}`);
-    const page = await res.json();
-    for (const result of (page.results ?? []) as Array<{
-      from: { id: string };
-      to: Array<{ id: string }>;
-    }>) {
+
+    // Initial page for this batch of contacts
+    let results = await fetchAssocPage(batch.map((id) => ({ id })), token);
+
+    // Collect IDs and track which contacts need another page
+    for (const result of results) {
       const ids = result.to.map((t) => t.id);
-      if (ids.length) map.set(result.from.id, ids);
+      if (ids.length) {
+        const existing = map.get(result.from.id) ?? [];
+        map.set(result.from.id, existing.concat(ids));
+      }
+    }
+
+    // Follow per-contact cursors until every contact is fully loaded
+    while (true) {
+      const nextInputs: Array<{ id: string; after: string }> = results
+        .filter((r) => r.paging?.next?.after)
+        .map((r) => ({ id: r.from.id, after: r.paging!.next!.after }));
+
+      if (nextInputs.length === 0) break;
+
+      results = await fetchAssocPage(nextInputs, token);
+
+      for (const result of results) {
+        const ids = result.to.map((t) => t.id);
+        if (ids.length) {
+          const existing = map.get(result.from.id) ?? [];
+          map.set(result.from.id, existing.concat(ids));
+        }
+      }
     }
   }
+
   return map;
 }
 
@@ -100,33 +142,43 @@ async function batchFetchEmailDetails(
 ): Promise<Map<string, { direction: string; timestamp: string | null }>> {
   const map = new Map<string, { direction: string; timestamp: string | null }>();
   const unique = Array.from(new Set(emailIds));
+
   for (let i = 0; i < unique.length; i += BATCH_SIZE) {
     const batch = unique.slice(i, i + BATCH_SIZE);
     const res = await fetch(`${BASE}/crm/v3/objects/emails/batch/read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        properties: ["hs_email_direction", "hs_timestamp"],
+        // Fetch both date fields: hs_email_send_date is the explicit send
+        // date (populated for emails logged via Gmail/Outlook sync);
+        // hs_timestamp is the fallback creation time on the CRM object.
+        properties: ["hs_email_direction", "hs_email_send_date", "hs_timestamp"],
         inputs: batch.map((id) => ({ id })),
       }),
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`HubSpot email details ${res.status}: ${await res.text()}`);
     const page = await res.json();
+
     for (const result of (page.results ?? []) as Array<{
       id: string;
       properties: Record<string, string | null>;
     }>) {
+      const sendDate = result.properties.hs_email_send_date ?? null;
+      const createdAt = result.properties.hs_timestamp ?? null;
       map.set(result.id, {
         direction: result.properties.hs_email_direction ?? "",
-        timestamp: result.properties.hs_timestamp ?? null,
+        // Prefer the explicit send date; fall back to the object timestamp
+        timestamp: sendDate ?? createdAt,
       });
     }
   }
+
   return map;
 }
 
-// Returns a map of contactId -> outbound email timestamps (hs_email_direction = "EMAIL")
+// Returns contactId -> outbound email timestamps (hs_email_direction = "EMAIL").
+// Direction check is case-insensitive to guard against API value variations.
 export async function fetchOutboundEmailTimestamps(
   contactIds: string[]
 ): Promise<Map<string, string[]>> {
@@ -146,7 +198,7 @@ export async function fetchOutboundEmailTimestamps(
     const timestamps: string[] = [];
     for (const emailId of emailIds) {
       const email = emailMap.get(emailId);
-      if (email?.direction === "EMAIL" && email.timestamp) {
+      if (email && email.direction.toUpperCase() === "EMAIL" && email.timestamp) {
         timestamps.push(email.timestamp);
       }
     }
