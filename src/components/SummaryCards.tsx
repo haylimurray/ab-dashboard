@@ -6,15 +6,17 @@ interface Props {
 
 export default function SummaryCards({ advisors }: Props) {
   const total = advisors.length;
-  const healthy = advisors.filter((a) => a.healthColor === "green").length;
-  const caution = advisors.filter((a) => a.healthColor === "yellow").length;
-  const doNotContact = advisors.filter((a) => a.doNotContact).length;
+  // Only count contacts whose health has finished loading
+  const loaded = advisors.filter((a) => a.healthLoaded);
+  const healthy     = loaded.filter((a) => a.healthColor === "green").length;
+  const caution     = loaded.filter((a) => a.healthColor === "yellow").length;
+  const doNotContact = loaded.filter((a) => a.doNotContact).length;
 
   const cards = [
-    { label: "Total Advisors", value: total, bg: "bg-white", text: "text-gray-900" },
-    { label: "Healthy", value: healthy, bg: "bg-green-50", text: "text-green-700" },
-    { label: "Caution", value: caution, bg: "bg-yellow-50", text: "text-yellow-700" },
-    { label: "Do Not Contact", value: doNotContact, bg: "bg-red-50", text: "text-red-700" },
+    { label: "Total Advisors",  value: total,       bg: "bg-white",      text: "text-gray-900"   },
+    { label: "Healthy",         value: healthy,     bg: "bg-green-50",   text: "text-green-700"  },
+    { label: "Caution",         value: caution,     bg: "bg-yellow-50",  text: "text-yellow-700" },
+    { label: "Do Not Contact",  value: doNotContact, bg: "bg-red-50",    text: "text-red-700"    },
   ];
 
   return (

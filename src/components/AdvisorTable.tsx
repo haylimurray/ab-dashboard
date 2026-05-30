@@ -323,7 +323,14 @@ export default function AdvisorTable({
                   )}
                   {visibility.healthScore && (
                     <td className="px-3 py-3 whitespace-nowrap">
-                      <HealthBar color={a.healthColor} daysSinceContact={a.daysSinceContact} outboundEmailCount90d={a.outboundEmailCount90d} />
+                      {a.healthLoaded ? (
+                        <HealthBar color={a.healthColor} daysSinceContact={a.daysSinceContact} outboundEmailCount90d={a.outboundEmailCount90d} />
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="h-5 w-20 rounded-full bg-gray-100 animate-pulse" />
+                          <div className="h-3 w-28 rounded bg-gray-100 animate-pulse" />
+                        </div>
+                      )}
                     </td>
                   )}
                   {visibility.salesStatus && (
@@ -333,7 +340,7 @@ export default function AdvisorTable({
                   )}
                   {visibility.status && (
                     <td className="px-3 py-3 whitespace-nowrap">
-                      {a.doNotContact && (
+                      {a.healthLoaded && a.doNotContact && (
                         <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-600">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
                           Do Not Contact

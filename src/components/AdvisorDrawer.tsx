@@ -114,38 +114,47 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
 
                 <hr className="border-gray-100" />
 
-                <Field label="Last Contacted">
-                  {formatDate(advisor.lastContacted)}
-                </Field>
+                {advisor.healthLoaded ? (
+                  <>
+                    <Field label="Last Contacted">
+                      {formatDate(advisor.lastContacted)}
+                    </Field>
 
-                <Field label="Days Since Contact">
-                  {advisor.daysSinceContact === null ? (
-                    <span className="text-gray-400">Never contacted</span>
-                  ) : (
-                    `${advisor.daysSinceContact} day${advisor.daysSinceContact !== 1 ? "s" : ""}`
-                  )}
-                </Field>
+                    <Field label="Days Since Contact">
+                      {advisor.daysSinceContact === null ? (
+                        <span className="text-gray-400">Never contacted</span>
+                      ) : (
+                        `${advisor.daysSinceContact} day${advisor.daysSinceContact !== 1 ? "s" : ""}`
+                      )}
+                    </Field>
 
-                <Field label="Outbound Emails (last 90 days)">
-                  {advisor.outboundEmailCount90d}{" "}
-                  {advisor.outboundEmailCount90d === 1 ? "email" : "emails"}
-                </Field>
+                    <Field label="Outbound Emails (last 90 days)">
+                      {advisor.outboundEmailCount90d}{" "}
+                      {advisor.outboundEmailCount90d === 1 ? "email" : "emails"}
+                    </Field>
 
-                <hr className="border-gray-100" />
+                    <hr className="border-gray-100" />
 
-                <Field label="Health Status">
-                  <div className="mt-1">
-                    <HealthBar
-                      color={advisor.healthColor}
-                      daysSinceContact={advisor.daysSinceContact}
-                      outboundEmailCount90d={advisor.outboundEmailCount90d}
-                    />
-                  </div>
-                </Field>
+                    <Field label="Health Status">
+                      <div className="mt-1">
+                        <HealthBar
+                          color={advisor.healthColor}
+                          daysSinceContact={advisor.daysSinceContact}
+                          outboundEmailCount90d={advisor.outboundEmailCount90d}
+                        />
+                      </div>
+                    </Field>
 
-                {advisor.doNotContact && (
-                  <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700">
-                    <strong>Do Not Contact</strong> — outbound email sent within the last 30 days.
+                    {advisor.doNotContact && (
+                      <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700">
+                        <strong>Do Not Contact</strong> — outbound email sent within the last 30 days.
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-gray-400">
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    Loading health score…
                   </div>
                 )}
               </dl>

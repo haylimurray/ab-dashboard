@@ -1,4 +1,6 @@
-export interface AdvisorContact {
+// ── Contact list (from GET /api/contacts) ────────────────────────────────────
+
+export interface ContactListItem {
   id: string;
   firstName: string;
   lastName: string;
@@ -6,12 +8,6 @@ export interface AdvisorContact {
   email: string;
   advisorType: string | null;
   tier: string | null;
-  lastContacted: string | null;       // most recent outbound email timestamp
-  daysSinceContact: number | null;    // days since most recent outbound email
-  outboundEmailCount90d: number;      // outbound emails in the last 90 days
-  healthScore: number;
-  healthColor: "green" | "yellow" | "red";
-  doNotContact: boolean;              // any outbound email in last 30 days
   salesStatus: string | null;
   requestAvailability: string | null;
   lastRequestType: string | null;
@@ -19,11 +15,37 @@ export interface AdvisorContact {
   notesLastUpdated: string | null;
 }
 
-export interface DashboardData {
-  advisors: AdvisorContact[];
+export interface ContactListResponse {
+  contacts: ContactListItem[];
   fetchedAt: string;
   total: number;
 }
+
+// ── Health score (from GET /api/health?id=X) ─────────────────────────────────
+
+export interface ContactHealth {
+  lastContacted: string | null;
+  daysSinceContact: number | null;
+  outboundEmailCount90d: number;
+  healthScore: number;
+  healthColor: "green" | "yellow" | "red";
+  doNotContact: boolean;
+}
+
+// ── Combined — composed in the dashboard ─────────────────────────────────────
+
+export interface AdvisorContact extends ContactListItem {
+  healthLoaded: boolean;
+  // health fields — defaults filled in until healthLoaded is true
+  lastContacted: string | null;
+  daysSinceContact: number | null;
+  outboundEmailCount90d: number;
+  healthScore: number;
+  healthColor: "green" | "yellow" | "red";
+  doNotContact: boolean;
+}
+
+// ── Table / sort ──────────────────────────────────────────────────────────────
 
 export type SortField =
   | "name"
@@ -35,6 +57,8 @@ export type SortField =
   | "salesStatus";
 
 export type SortDir = "asc" | "desc";
+
+// ── News intelligence ─────────────────────────────────────────────────────────
 
 export type SignalLevel = "HIGH" | "MEDIUM" | "LOW";
 
