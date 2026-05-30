@@ -60,11 +60,12 @@ export default function Dashboard() {
     search: "",
   });
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/contacts", { cache: "no-store" });
+      const url = forceRefresh ? "/api/contacts?refresh=1" : "/api/contacts";
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${res.status}`);
@@ -141,7 +142,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             {fetchedAt && <span className="text-blue-300 text-xs hidden sm:block">Updated {fetchedAt}</span>}
             <button
-              onClick={fetchData}
+              onClick={() => fetchData(true)}
               disabled={loading}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
               style={{ backgroundColor: "#1E6CD9" }}
