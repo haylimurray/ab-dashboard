@@ -127,11 +127,14 @@ export default function Dashboard() {
       <header style={{ backgroundColor: "#1B3A6B" }} className="shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-sm" style={{ backgroundColor: "#1E6CD9" }}>
-              AV
-            </div>
+            <img
+              src="/airvet-logo.png"
+              alt="Airvet"
+              className="h-7 w-auto"
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
             <div>
-              <h1 className="text-white text-lg font-bold leading-tight">Airvet Advisory Board</h1>
+              <h1 className="text-white text-lg font-bold leading-tight">Advisory Board</h1>
               <p className="text-blue-200 text-xs">Health Score Dashboard</p>
             </div>
           </div>
