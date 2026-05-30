@@ -47,10 +47,7 @@ export async function fetchAllAdvisors(): Promise<HubSpotResult[]> {
 
     const res = await fetch(`${BASE}/crm/v3/objects/contacts/search`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
     });
@@ -68,13 +65,11 @@ export async function fetchAllAdvisors(): Promise<HubSpotResult[]> {
   return all;
 }
 
-// Per-contact result shape from the v3 associations batch endpoint.
-// HubSpot can include a paging cursor per-contact when a contact has
-// more associations than the page limit — we must follow it.
+// Per-contact result from the v3 associations batch endpoint.
 interface AssocResult {
   from: { id: string };
   to: Array<{ id: string }>;
-  paging?: { next?: { after: string; link: string } };
+  paging?: { next?: { after: string } };
 }
 
 async function fetchAssocPage(
@@ -92,48 +87,75 @@ async function fetchAssocPage(
   return data.results ?? [];
 }
 
+function mergeAssocResults(
+  map: Map<string, string[]>,
+  results: AssocResult[]
+): void {
+  for (const r of results) {
+    const ids = r.to.map((t) => t.id);
+    if (ids.length) {
+      const existing = map.get(r.from.id) ?? [];
+      map.set(r.from.id, existing.concat(ids));
+    }
+  }
+}
+
 async function batchFetchAssociations(
   contactIds: string[],
   token: string
 ): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
 
+  // Split into batches and fire all in parallel
+  const batches: Array<Array<{ id: string }>> = [];
   for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
-    const batch = contactIds.slice(i, i + BATCH_SIZE);
+    batches.push(contactIds.slice(i, i + BATCH_SIZE).map((id) => ({ id })));
+  }
 
-    // Initial page for this batch of contacts
-    let results = await fetchAssocPage(batch.map((id) => ({ id })), token);
+  const settled = await Promise.allSettled(
+    batches.map((inputs) => fetchAssocPage(inputs, token))
+  );
 
-    // Collect IDs and track which contacts need another page
-    for (const result of results) {
-      const ids = result.to.map((t) => t.id);
-      if (ids.length) {
-        const existing = map.get(result.from.id) ?? [];
-        map.set(result.from.id, existing.concat(ids));
-      }
+  let allResults: AssocResult[] = [];
+  for (const r of settled) {
+    if (r.status === "rejected") {
+      console.warn("[associations] batch failed:", r.reason);
+      continue;
+    }
+    mergeAssocResults(map, r.value);
+    allResults = allResults.concat(r.value);
+  }
+
+  // Follow per-contact pagination cursors in parallel rounds (rare: contacts with >100 emails)
+  while (true) {
+    const nextInputs = allResults
+      .filter((r) => r.paging?.next?.after)
+      .map((r) => ({ id: r.from.id, after: r.paging!.next!.after }));
+
+    if (nextInputs.length === 0) break;
+
+    const pageBatches: Array<Array<{ id: string; after: string }>> = [];
+    for (let i = 0; i < nextInputs.length; i += BATCH_SIZE) {
+      pageBatches.push(nextInputs.slice(i, i + BATCH_SIZE));
     }
 
-    // Follow per-contact cursors until every contact is fully loaded
-    while (true) {
-      const nextInputs: Array<{ id: string; after: string }> = results
-        .filter((r) => r.paging?.next?.after)
-        .map((r) => ({ id: r.from.id, after: r.paging!.next!.after }));
+    const pageSettled = await Promise.allSettled(
+      pageBatches.map((inputs) => fetchAssocPage(inputs, token))
+    );
 
-      if (nextInputs.length === 0) break;
-
-      results = await fetchAssocPage(nextInputs, token);
-
-      for (const result of results) {
-        const ids = result.to.map((t) => t.id);
-        if (ids.length) {
-          const existing = map.get(result.from.id) ?? [];
-          map.set(result.from.id, existing.concat(ids));
-        }
-      }
+    allResults = [];
+    for (const r of pageSettled) {
+      if (r.status === "rejected") continue;
+      mergeAssocResults(map, r.value);
+      allResults = allResults.concat(r.value);
     }
   }
 
   return map;
+}
+
+interface EmailDetailPage {
+  results: Array<{ id: string; properties: Record<string, string | null> }>;
 }
 
 async function batchFetchEmailDetails(
@@ -143,32 +165,41 @@ async function batchFetchEmailDetails(
   const map = new Map<string, { direction: string; timestamp: string | null }>();
   const unique = Array.from(new Set(emailIds));
 
+  // Split into batches and fire all in parallel
+  const batches: string[][] = [];
   for (let i = 0; i < unique.length; i += BATCH_SIZE) {
-    const batch = unique.slice(i, i + BATCH_SIZE);
-    const res = await fetch(`${BASE}/crm/v3/objects/emails/batch/read`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        // Fetch both date fields: hs_email_send_date is the explicit send
-        // date (populated for emails logged via Gmail/Outlook sync);
-        // hs_timestamp is the fallback creation time on the CRM object.
-        properties: ["hs_email_direction", "hs_email_send_date", "hs_timestamp"],
-        inputs: batch.map((id) => ({ id })),
-      }),
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error(`HubSpot email details ${res.status}: ${await res.text()}`);
-    const page = await res.json();
+    batches.push(unique.slice(i, i + BATCH_SIZE));
+  }
 
-    for (const result of (page.results ?? []) as Array<{
-      id: string;
-      properties: Record<string, string | null>;
-    }>) {
+  const settled = await Promise.allSettled(
+    batches.map((batch) =>
+      fetch(`${BASE}/crm/v3/objects/emails/batch/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // hs_email_send_date is the actual send time for Gmail/Outlook-synced
+          // emails; hs_timestamp is the CRM object creation fallback.
+          properties: ["hs_email_direction", "hs_email_send_date", "hs_timestamp"],
+          inputs: batch.map((id) => ({ id })),
+        }),
+        cache: "no-store",
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`HubSpot email details ${res.status}: ${await res.text()}`);
+        return res.json() as Promise<EmailDetailPage>;
+      })
+    )
+  );
+
+  for (const r of settled) {
+    if (r.status === "rejected") {
+      console.warn("[email details] batch failed:", r.reason);
+      continue;
+    }
+    for (const result of r.value.results ?? []) {
       const sendDate = result.properties.hs_email_send_date ?? null;
       const createdAt = result.properties.hs_timestamp ?? null;
       map.set(result.id, {
         direction: result.properties.hs_email_direction ?? "",
-        // Prefer the explicit send date; fall back to the object timestamp
         timestamp: sendDate ?? createdAt,
       });
     }
