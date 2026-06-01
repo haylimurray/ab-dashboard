@@ -92,6 +92,7 @@ export default function Dashboard() {
 
   const loadHealth = useCallback(async (
     ids: string[],
+    fallbacks: Record<string, string | null>,
     force: boolean,
     gen: number
   ) => {
@@ -103,16 +104,18 @@ export default function Dashboard() {
 
       const batch = ids.slice(i, i + HEALTH_BATCH);
       const results = await Promise.allSettled(
-        batch.map((id) =>
-          fetch(`/api/health?id=${id}${force ? "&refresh=1" : ""}`, {
-            cache: "no-store",
-          })
+        batch.map((id) => {
+          const fb = fallbacks[id];
+          const params = new URLSearchParams({ id });
+          if (fb) params.set("fallback", fb);
+          if (force) params.set("refresh", "1");
+          return fetch(`/api/health?${params}`, { cache: "no-store" })
             .then((r) => {
               if (!r.ok) throw new Error(`${r.status}`);
               return r.json() as Promise<ContactHealth>;
             })
-            .then((data) => ({ id, data }))
-        )
+            .then((data) => ({ id, data }));
+        })
       );
 
       if (genRef.current !== gen) return;
@@ -143,8 +146,13 @@ export default function Dashboard() {
       setContacts(data.contacts);
       setFetchedAt(data.fetchedAt);
       setContactsLoading(false);
+      // Build fallback map: contact ID → notes_last_contacted (used by health
+      // route when outbound email fetch returns empty for a contact)
+      const fallbacks: Record<string, string | null> = Object.fromEntries(
+        data.contacts.map((c) => [c.id, c.notesLastContacted])
+      );
       // Fire health loading without awaiting — it updates state progressively
-      loadHealth(data.contacts.map((c) => c.id), force, gen);
+      loadHealth(data.contacts.map((c) => c.id), fallbacks, force, gen);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load data");
       setContactsLoading(false);

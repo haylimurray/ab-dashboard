@@ -11,6 +11,7 @@ const PROPERTIES = [
   "ab_last_request_type",
   "ab_request_availability",
   "advisory_board_sales_status",
+  "notes_last_contacted",
   "notes_last_updated",
 ];
 

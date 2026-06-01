@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         requestAvailability: p.ab_request_availability ?? null,
         lastRequestType: p.ab_last_request_type ?? null,
         lastRequestDate: p.ab_last_request_date ?? null,
+        notesLastContacted: p.notes_last_contacted ?? null,
         notesLastUpdated: p.notes_last_updated ?? null,
       };
     });
