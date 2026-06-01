@@ -4,7 +4,7 @@ import type { ContactListItem, ContactListResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 let cachedData: ContactListResponse | null = null;
 let cacheExpiresAt = 0;
 

@@ -5,7 +5,7 @@ import type { ContactHealth } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 const cache = new Map<string, { data: ContactHealth; expiresAt: number }>();
 
 export async function GET(request: NextRequest) {
