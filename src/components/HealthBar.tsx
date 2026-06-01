@@ -5,15 +5,15 @@ interface Props {
 }
 
 const LABEL: Record<Props["color"], string> = {
-  green: "Healthy",
+  green:  "Healthy",
   yellow: "Caution",
-  red: "In Cooldown",
+  red:    "In Cooldown",
 };
 
 const PILL: Record<Props["color"], string> = {
-  green: "bg-green-100 text-green-700",
-  yellow: "bg-yellow-100 text-yellow-700",
-  red: "bg-red-100 text-red-600",
+  green:  "bg-green-100 text-green-700",
+  yellow: "bg-amber-100 text-amber-700",
+  red:    "bg-red-100 text-red-600",
 };
 
 function getReason(days: number | null, count90d: number): string {
@@ -27,10 +27,12 @@ function getReason(days: number | null, count90d: number): string {
 export default function HealthBar({ color, daysSinceContact, outboundEmailCount90d }: Props) {
   return (
     <div className="flex flex-col gap-1 min-w-[9rem]">
-      <span className={`inline-flex items-center self-start rounded-full px-2.5 py-0.5 text-xs font-semibold ${PILL[color]}`}>
+      <span
+        className={`inline-flex items-center self-start rounded-full px-3 py-1 text-xs font-medium ${PILL[color]}`}
+      >
         {LABEL[color]}
       </span>
-      <span className="text-xs text-gray-400 leading-tight">
+      <span className="text-[11px] text-gray-400 leading-tight">
         {getReason(daysSinceContact, outboundEmailCount90d)}
       </span>
     </div>

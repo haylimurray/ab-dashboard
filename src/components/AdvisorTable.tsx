@@ -65,7 +65,7 @@ function formatDate(raw: string | null): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const TH = "px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap relative";
+const TH = "px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap relative";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -252,14 +252,14 @@ export default function AdvisorTable({
 
       {/* ── Table ───────────────────────────────────────────────────────── */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full">
           <colgroup>
             {visibleCols.map((c) => (
               <col key={c.id} style={widths[c.id] ? { width: widths[c.id] } : undefined} />
             ))}
           </colgroup>
 
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {visibleCols.map((col) => (
                 <th
@@ -294,35 +294,35 @@ export default function AdvisorTable({
               </tr>
             ) : (
               advisors.map((a) => (
-                <tr key={a.id} className="hover:bg-blue-50 transition-colors">
+                <tr key={a.id} className="hover:bg-slate-50/80 transition-colors">
                   {visibility.name && (
-                    <td className="px-3 py-3 whitespace-nowrap cursor-pointer" onClick={() => onSelectAdvisor(a)}>
+                    <td className="px-3 py-2.5 whitespace-nowrap cursor-pointer" onClick={() => onSelectAdvisor(a)}>
                       <div className="font-medium text-gray-900 hover:text-airvet-blue hover:underline">{a.name}</div>
                       {a.email && <div className="text-xs text-gray-400 mt-0.5">{a.email}</div>}
                     </td>
                   )}
                   {visibility.advisorType && (
-                    <td className="px-3 py-3 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {a.advisorType
                         ? <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">{a.advisorType}</span>
                         : <span className="text-gray-300">—</span>}
                     </td>
                   )}
                   {visibility.tier && (
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-700">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-gray-700">
                       {a.tier ?? <span className="text-gray-300">—</span>}
                     </td>
                   )}
                   {visibility.lastContacted && (
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-600">{formatDate(a.lastContacted)}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-gray-600">{formatDate(a.lastContacted)}</td>
                   )}
                   {visibility.daysSinceContact && (
-                    <td className="px-3 py-3 whitespace-nowrap font-medium text-gray-700">
+                    <td className="px-3 py-2.5 whitespace-nowrap font-medium text-gray-700">
                       {a.daysSinceContact === null ? <span className="text-gray-300">Never</span> : `${a.daysSinceContact}d`}
                     </td>
                   )}
                   {visibility.healthScore && (
-                    <td className="px-3 py-3 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {a.healthLoaded ? (
                         <HealthBar color={a.healthColor} daysSinceContact={a.daysSinceContact} outboundEmailCount90d={a.outboundEmailCount90d} />
                       ) : (
@@ -334,12 +334,12 @@ export default function AdvisorTable({
                     </td>
                   )}
                   {visibility.salesStatus && (
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-600">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-gray-600">
                       {a.salesStatus ?? <span className="text-gray-300">—</span>}
                     </td>
                   )}
                   {visibility.status && (
-                    <td className="px-3 py-3 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {a.healthLoaded && a.doNotContact && (
                         <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-600">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
