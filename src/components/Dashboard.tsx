@@ -15,7 +15,7 @@ import AdvisorDrawer from "./AdvisorDrawer";
 import NewsIntelligence from "./NewsIntelligence";
 
 type Tab = "advisors" | "news";
-const HEALTH_BATCH = 5;
+const HEALTH_BATCH = 20;
 
 const HEALTH_DEFAULTS: ContactHealth = {
   lastContacted: null,

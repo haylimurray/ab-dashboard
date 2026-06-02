@@ -23,8 +23,11 @@ export async function GET(request: NextRequest) {
   const cached = cache.get(id);
 
   if (!forceRefresh && cached && now < cached.expiresAt) {
+    // Suppress per-contact noise in logs — only log on miss below
     return NextResponse.json(cached.data);
   }
+
+  console.log(`[/api/health] Cache MISS — fetching emails for contact ${id}`);
 
   let timestamps: string[] = [];
   let usingFallback = false;

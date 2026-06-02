@@ -14,9 +14,12 @@ export async function GET(request: NextRequest) {
     const now = Date.now();
 
     if (!forceRefresh && cachedData && now < cacheExpiresAt) {
+      const minsLeft = Math.round((cacheExpiresAt - now) / 60_000);
+      console.log(`[/api/contacts] Cache HIT — ${cachedData.total} contacts, expires in ${minsLeft}m`);
       return NextResponse.json(cachedData);
     }
 
+    console.log("[/api/contacts] Cache MISS — fetching from HubSpot");
     const raw = await fetchAllAdvisors();
 
     const contacts: ContactListItem[] = raw.map((contact) => {
