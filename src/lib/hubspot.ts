@@ -159,11 +159,23 @@ interface EmailDetailPage {
   results: Array<{ id: string; properties: Record<string, string | null> }>;
 }
 
+interface EmailDetail {
+  direction: string;
+  timestamp: string | null;
+  fromEmail: string | null;
+}
+
+// Outbound email with sender info — exported so the health route can use it
+export interface OutboundEmail {
+  timestamp: string;
+  fromEmail: string | null;
+}
+
 async function batchFetchEmailDetails(
   emailIds: string[],
   token: string
-): Promise<Map<string, { direction: string; timestamp: string | null }>> {
-  const map = new Map<string, { direction: string; timestamp: string | null }>();
+): Promise<Map<string, EmailDetail>> {
+  const map = new Map<string, EmailDetail>();
   const unique = Array.from(new Set(emailIds));
 
   // Split into batches and fire all in parallel
@@ -180,7 +192,7 @@ async function batchFetchEmailDetails(
         body: JSON.stringify({
           // hs_email_send_date is the actual send time for Gmail/Outlook-synced
           // emails; hs_timestamp is the CRM object creation fallback.
-          properties: ["hs_email_direction", "hs_email_send_date", "hs_timestamp"],
+          properties: ["hs_email_direction", "hs_email_send_date", "hs_timestamp", "hs_email_from_email"],
           inputs: batch.map((id) => ({ id })),
         }),
         cache: "no-store",
@@ -202,6 +214,7 @@ async function batchFetchEmailDetails(
       map.set(result.id, {
         direction: result.properties.hs_email_direction ?? "",
         timestamp: sendDate ?? createdAt,
+        fromEmail: result.properties.hs_email_from_email ?? null,
       });
     }
   }
@@ -209,11 +222,11 @@ async function batchFetchEmailDetails(
   return map;
 }
 
-// Returns contactId -> outbound email timestamps (hs_email_direction = "EMAIL").
+// Returns contactId -> outbound emails (direction="EMAIL") with timestamp + sender.
 // Direction check is case-insensitive to guard against API value variations.
 export async function fetchOutboundEmailTimestamps(
   contactIds: string[]
-): Promise<Map<string, string[]>> {
+): Promise<Map<string, OutboundEmail[]>> {
   const token = process.env.HUBSPOT_TOKEN;
   if (!token) throw new Error("HUBSPOT_TOKEN is not set");
   if (contactIds.length === 0) return new Map();
@@ -225,16 +238,16 @@ export async function fetchOutboundEmailTimestamps(
 
   const emailMap = await batchFetchEmailDetails(allEmailIds, token);
 
-  const result = new Map<string, string[]>();
+  const result = new Map<string, OutboundEmail[]>();
   for (const [contactId, emailIds] of Array.from(assocMap.entries())) {
-    const timestamps: string[] = [];
+    const outbound: OutboundEmail[] = [];
     for (const emailId of emailIds) {
       const email = emailMap.get(emailId);
       if (email && email.direction.toUpperCase() === "EMAIL" && email.timestamp) {
-        timestamps.push(email.timestamp);
+        outbound.push({ timestamp: email.timestamp, fromEmail: email.fromEmail });
       }
     }
-    result.set(contactId, timestamps);
+    result.set(contactId, outbound);
   }
   return result;
 }

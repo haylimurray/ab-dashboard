@@ -150,6 +150,45 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                         <strong>Do Not Contact</strong> — outbound email sent within the last 30 days.
                       </div>
                     )}
+
+                    {advisor.recentEmails.length > 0 && (
+                      <>
+                        <hr className="border-gray-100" />
+                        <div>
+                          <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">
+                            Recent Outreach
+                          </dt>
+                          <dd className="flex flex-col gap-3">
+                            {advisor.recentEmails.map((email, i) => (
+                              <div key={i} className="flex items-start gap-2.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-2 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {email.senderName ?? email.fromEmail ?? "Unknown sender"}
+                                    </span>
+                                    {email.team && (
+                                      <span
+                                        className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                                        style={{
+                                          backgroundColor:
+                                            email.team === "Sales" ? "#1B3A6B" : "#0d9488",
+                                        }}
+                                      >
+                                        {email.team}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-400 mt-0.5">
+                                    {formatDate(email.timestamp)}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </dd>
+                        </div>
+                      </>
+                    )}
                   </>
                 ) : (
                   <div className="flex items-center gap-2 text-sm text-gray-400">

@@ -22,6 +22,17 @@ export interface ContactListResponse {
   total: number;
 }
 
+// ── Team / outreach data ──────────────────────────────────────────────────────
+
+export type TeamLabel = "Sales" | "Advisor Success";
+
+export interface EmailTouch {
+  timestamp: string;
+  fromEmail: string | null;
+  senderName: string | null;
+  team: TeamLabel | null;
+}
+
 // ── Health score (from GET /api/health?id=X) ─────────────────────────────────
 
 export interface ContactHealth {
@@ -31,6 +42,8 @@ export interface ContactHealth {
   healthScore: number;
   healthColor: "green" | "yellow" | "red";
   doNotContact: boolean;
+  lastTouchedBy: { name: string; team: TeamLabel } | null;
+  recentEmails: EmailTouch[];
 }
 
 // ── Combined — composed in the dashboard ─────────────────────────────────────
@@ -44,6 +57,8 @@ export interface AdvisorContact extends ContactListItem {
   healthScore: number;
   healthColor: "green" | "yellow" | "red";
   doNotContact: boolean;
+  lastTouchedBy: { name: string; team: TeamLabel } | null;
+  recentEmails: EmailTouch[];
 }
 
 // ── Table / sort ──────────────────────────────────────────────────────────────

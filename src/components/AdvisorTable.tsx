@@ -53,6 +53,22 @@ interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const TEAM_COLORS: Record<string, string> = {
+  "Sales":            "#1B3A6B",
+  "Advisor Success":  "#0d9488",
+};
+
+function LastTouchedPill({ name, team }: { name: string; team: string }) {
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+      style={{ backgroundColor: TEAM_COLORS[team] ?? "#6b7280" }}
+    >
+      {name} · {team}
+    </span>
+  );
+}
+
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <span className="ml-1 text-gray-300">↕</span>;
   return <span className="ml-1 text-airvet-blue">{dir === "asc" ? "↑" : "↓"}</span>;
@@ -324,7 +340,12 @@ export default function AdvisorTable({
                   {visibility.healthScore && (
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {a.healthLoaded ? (
-                        <HealthBar color={a.healthColor} daysSinceContact={a.daysSinceContact} outboundEmailCount90d={a.outboundEmailCount90d} />
+                        <div className="flex flex-col gap-1.5">
+                          <HealthBar color={a.healthColor} daysSinceContact={a.daysSinceContact} outboundEmailCount90d={a.outboundEmailCount90d} />
+                          {a.lastTouchedBy && (
+                            <LastTouchedPill name={a.lastTouchedBy.name} team={a.lastTouchedBy.team} />
+                          )}
+                        </div>
                       ) : (
                         <div className="flex flex-col gap-1.5">
                           <div className="h-5 w-20 rounded-full bg-gray-100 animate-pulse" />

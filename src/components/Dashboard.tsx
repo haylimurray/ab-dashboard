@@ -24,6 +24,8 @@ const HEALTH_DEFAULTS: ContactHealth = {
   healthScore: 0,
   healthColor: "green",
   doNotContact: false,
+  lastTouchedBy: null,
+  recentEmails: [],
 };
 
 function sortAdvisors(
