@@ -172,7 +172,9 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                                         className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
                                         style={{
                                           backgroundColor:
-                                            email.team === "Sales" ? "#1B3A6B" : "#0d9488",
+                                            email.team === "Sales" ? "#1B3A6B"
+                                            : email.team === "Founder" ? "#d97706"
+                                            : "#0d9488",
                                         }}
                                       >
                                         {email.team}

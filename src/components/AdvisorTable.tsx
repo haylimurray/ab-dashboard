@@ -55,6 +55,7 @@ interface Props {
 
 const TEAM_COLORS: Record<string, string> = {
   "Sales":            "#1B3A6B",
+  "Founder":          "#d97706",
   "Advisor Success":  "#0d9488",
 };
 

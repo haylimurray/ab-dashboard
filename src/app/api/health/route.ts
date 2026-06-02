@@ -16,7 +16,7 @@ const TEAM_MAP: Record<string, { name: string; team: TeamLabel }> = {
   "kerry@airvet.com":   { name: "Kerry",   team: "Sales" },
   "joelle@airvet.com":  { name: "Joelle",  team: "Sales" },
   "annie@airvet.com":   { name: "Annie",   team: "Sales" },
-  "brandon@airvet.com": { name: "Brandon", team: "Sales" },
+  "brandon@airvet.com": { name: "Brandon", team: "Founder" },
   "hayli@airvet.com":   { name: "Hayli",   team: "Advisor Success" },
   "jeremy@airvet.com":  { name: "Jeremy",  team: "Advisor Success" },
 };

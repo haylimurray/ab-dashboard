@@ -24,7 +24,7 @@ export interface ContactListResponse {
 
 // ── Team / outreach data ──────────────────────────────────────────────────────
 
-export type TeamLabel = "Sales" | "Advisor Success";
+export type TeamLabel = "Sales" | "Advisor Success" | "Founder";
 
 export interface EmailTouch {
   timestamp: string;
