@@ -15,6 +15,8 @@ const PROPERTIES = [
   "notes_last_updated",
   "city",
   "state",
+  "company",
+  "jobtitle",
 ];
 
 interface HubSpotResult {

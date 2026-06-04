@@ -16,6 +16,8 @@ export interface ContactListItem {
   notesLastUpdated: string | null;
   city: string | null;
   state: string | null;
+  company: string | null;
+  jobTitle: string | null;
 }
 
 export interface ContactListResponse {

@@ -44,6 +44,8 @@ export async function GET(request: NextRequest) {
         notesLastUpdated: p.notes_last_updated ?? null,
         city: p.city ?? null,
         state: p.state ?? null,
+        company: p.company ?? null,
+        jobTitle: p.jobtitle ?? null,
       };
     });
 

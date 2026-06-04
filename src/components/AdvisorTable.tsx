@@ -73,6 +73,70 @@ function LastTouchedPill({ name, team }: { name: string; team: string }) {
   );
 }
 
+function escapeCSV(val: string | null | undefined): string {
+  if (val === null || val === undefined || val === "") return "";
+  const s = String(val);
+  return s.includes(",") || s.includes('"') || s.includes("\n")
+    ? `"${s.replace(/"/g, '""')}"`
+    : s;
+}
+
+function exportToCSV(advisors: AdvisorContact[], market: string) {
+  const headers = [
+    "Name", "Email", "Company", "Title", "Location",
+    "Advisor Type", "Tier", "Last Contacted", "Days Since Contact",
+    "Health Status", "Last Touched By",
+  ];
+
+  const rows = advisors.map((a) => {
+    const st = normalizeState(a.state);
+    const location = a.city ? (st ? `${a.city}, ${st}` : a.city) : "";
+    const healthStatus = a.healthLoaded
+      ? (a.doNotContact ? "Do Not Contact"
+        : a.healthColor === "red" ? "In Cooldown"
+        : a.healthColor === "yellow" ? "Caution"
+        : "Healthy")
+      : "";
+    const lastTouchedBy = a.lastTouchedBy
+      ? `${a.lastTouchedBy.name} (${a.lastTouchedBy.team})`
+      : "";
+    const lastContacted = a.lastContacted ? formatDate(a.lastContacted) : "";
+    const daysSince = a.daysSinceContact !== null ? String(a.daysSinceContact) : "";
+
+    return [
+      escapeCSV(a.name),
+      escapeCSV(a.email),
+      escapeCSV(a.company),
+      escapeCSV(a.jobTitle),
+      escapeCSV(location),
+      escapeCSV(a.advisorType),
+      escapeCSV(a.tier),
+      escapeCSV(lastContacted),
+      escapeCSV(daysSince),
+      escapeCSV(healthStatus),
+      escapeCSV(lastTouchedBy),
+    ].join(",");
+  });
+
+  const csv = [headers.join(","), ...rows].join("\n");
+
+  // Build filename: airvet-advisors-{market|all}-YYYY-MM-DD.csv
+  const now = new Date();
+  const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const marketSlug = market
+    ? market.split(",")[0].trim().toLowerCase().replace(/\s+/g, "-")
+    : "all";
+  const filename = `airvet-advisors-${marketSlug}-${date}.csv`;
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) return <span className="ml-1 text-gray-300">↕</span>;
   return <span className="ml-1 text-airvet-blue">{dir === "asc" ? "↑" : "↓"}</span>;
@@ -243,6 +307,18 @@ export default function AdvisorTable({
               </button>
             ))}
           </div>
+
+          {/* Export CSV */}
+          <button
+            onClick={() => exportToCSV(advisors, filters.market)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+            title="Export visible advisors to CSV"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export CSV
+          </button>
 
           {/* Columns dropdown */}
           <div className="relative" ref={dropdownRef}>
