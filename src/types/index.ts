@@ -14,6 +14,8 @@ export interface ContactListItem {
   lastRequestDate: string | null;
   notesLastContacted: string | null;  // HubSpot fallback when email fetch is empty
   notesLastUpdated: string | null;
+  city: string | null;
+  state: string | null;
 }
 
 export interface ContactListResponse {

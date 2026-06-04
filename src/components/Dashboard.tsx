@@ -9,12 +9,23 @@ import type {
   SortDir,
   SortField,
 } from "@/types";
+import dynamic from "next/dynamic";
 import SummaryCards from "./SummaryCards";
 import AdvisorTable from "./AdvisorTable";
 import AdvisorDrawer from "./AdvisorDrawer";
 import NewsIntelligence from "./NewsIntelligence";
+import { normalizeState } from "@/lib/geocode";
 
-type Tab = "advisors" | "news";
+const MapView = dynamic(() => import("./MapView"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[580px] rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center">
+      <p className="text-sm text-gray-400">Loading map…</p>
+    </div>
+  ),
+});
+
+type Tab = "advisors" | "map" | "news";
 const HEALTH_BATCH = 20;
 
 const HEALTH_DEFAULTS: ContactHealth = {
@@ -64,6 +75,7 @@ function sortAdvisors(
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "advisors", label: "Advisors" },
+  { id: "map",      label: "Map" },
   { id: "news",     label: "News Intelligence" },
 ];
 
@@ -86,6 +98,7 @@ export default function Dashboard() {
     tier: "",
     healthStatus: "",
     search: "",
+    market: "",
   });
 
   // Generation counter — incremented on each fetch; lets the health loop
@@ -193,12 +206,23 @@ export default function Dashboard() {
     [selectedId, advisors]
   );
 
-  const { filtered, uniqueTypes, uniqueTiers } = useMemo(() => {
+  const { filtered, uniqueTypes, uniqueTiers, uniqueMarkets } = useMemo(() => {
+    if (!advisors.length) return { filtered: [], uniqueTypes: [], uniqueTiers: [], uniqueMarkets: [] };
     const uniqueTypes = Array.from(
       new Set(advisors.map((a) => a.advisorType).filter(Boolean) as string[])
     ).sort();
     const uniqueTiers = Array.from(
       new Set(advisors.map((a) => a.tier).filter(Boolean) as string[])
+    ).sort();
+    const uniqueMarkets = Array.from(
+      new Set(
+        advisors
+          .filter((a) => a.city)
+          .map((a) => {
+            const st = normalizeState(a.state);
+            return st ? `${a.city}, ${st}` : a.city!;
+          })
+      )
     ).sort();
 
     let result = advisors;
@@ -210,6 +234,14 @@ export default function Dashboard() {
     }
     if (filters.advisorType) result = result.filter((a) => a.advisorType === filters.advisorType);
     if (filters.tier)        result = result.filter((a) => a.tier === filters.tier);
+    if (filters.market) {
+      result = result.filter((a) => {
+        if (!a.city) return false;
+        const st = normalizeState(a.state);
+        const loc = st ? `${a.city}, ${st}` : a.city;
+        return loc === filters.market;
+      });
+    }
     if (filters.healthStatus) {
       result = result.filter((a) => {
         if (!a.healthLoaded) return false; // exclude unscored from health filters
@@ -221,7 +253,7 @@ export default function Dashboard() {
       });
     }
     result = sortAdvisors(result, sort.field, sort.dir);
-    return { filtered: result, uniqueTypes, uniqueTiers };
+    return { filtered: result, uniqueTypes, uniqueTiers, uniqueMarkets };
   }, [advisors, filters, sort]);
 
   const fetchedAtStr = fetchedAt
@@ -337,8 +369,15 @@ export default function Dashboard() {
                   onFilterChange={handleFilterChange}
                   uniqueTiers={uniqueTiers}
                   uniqueTypes={uniqueTypes}
+                  uniqueMarkets={uniqueMarkets}
                 />
               </>
+            )}
+            {activeTab === "map" && (
+              <MapView
+                advisors={advisors}
+                onSelectAdvisor={(a) => setSelectedId(a.id)}
+              />
             )}
             {activeTab === "news" && <NewsIntelligence />}
           </>

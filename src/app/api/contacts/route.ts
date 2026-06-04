@@ -42,6 +42,8 @@ export async function GET(request: NextRequest) {
         lastRequestDate: p.ab_last_request_date ?? null,
         notesLastContacted: p.notes_last_contacted ?? null,
         notesLastUpdated: p.notes_last_updated ?? null,
+        city: p.city ?? null,
+        state: p.state ?? null,
       };
     });
 

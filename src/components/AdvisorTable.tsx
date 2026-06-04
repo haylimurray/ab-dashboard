@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdvisorContact, SortDir, SortField } from "@/types";
 import HealthBar from "./HealthBar";
+import { normalizeState } from "@/lib/geocode";
 
 // ── Column definitions ────────────────────────────────────────────────────────
 
 type ColId =
-  | "name" | "advisorType" | "tier" | "lastContacted"
+  | "name" | "advisorType" | "tier" | "location" | "lastContacted"
   | "daysSinceContact" | "healthScore" | "salesStatus" | "status";
 
 interface ColDef {
@@ -21,6 +22,7 @@ const COLS: ColDef[] = [
   { id: "name",             label: "Name",          field: "name",            alwaysVisible: true },
   { id: "advisorType",      label: "Advisor Type",  field: "advisorType" },
   { id: "tier",             label: "Tier",          field: "tier" },
+  { id: "location",         label: "Location" },
   { id: "lastContacted",    label: "Last Contacted",field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",    field: "daysSinceContact" },
   { id: "healthScore",      label: "Health",        field: "healthScore" },
@@ -45,10 +47,11 @@ interface Props {
   onSelectAdvisor: (advisor: AdvisorContact) => void;
   sort: { field: SortField; dir: SortDir };
   onSort: (field: SortField) => void;
-  filters: { advisorType: string; tier: string; healthStatus: string; search: string };
+  filters: { advisorType: string; tier: string; healthStatus: string; search: string; market: string };
   onFilterChange: (key: string, value: string) => void;
   uniqueTiers: string[];
   uniqueTypes: string[];
+  uniqueMarkets: string[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -88,7 +91,7 @@ const TH = "px-3 py-2.5 text-left text-xs font-bold text-gray-500 uppercase trac
 
 export default function AdvisorTable({
   advisors, onSelectAdvisor, sort, onSort,
-  filters, onFilterChange, uniqueTiers, uniqueTypes,
+  filters, onFilterChange, uniqueTiers, uniqueTypes, uniqueMarkets,
 }: Props) {
   const [visibility, setVisibility] = useState<Record<ColId, boolean>>(DEFAULT_VIS);
   const [widths, setWidths]         = useState<Record<string, number>>({});
@@ -207,6 +210,14 @@ export default function AdvisorTable({
           <option value="healthy">Healthy</option>
           <option value="caution">Caution</option>
           <option value="doNotContact">Do Not Contact</option>
+        </select>
+        <select
+          value={filters.market}
+          onChange={(e) => onFilterChange("market", e.target.value)}
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">All Markets</option>
+          {uniqueMarkets.map((m) => <option key={m}>{m}</option>)}
         </select>
 
         {/* Right-side controls */}
@@ -328,6 +339,20 @@ export default function AdvisorTable({
                   {visibility.tier && (
                     <td className="px-3 py-2.5 whitespace-nowrap text-gray-700">
                       {a.tier ?? <span className="text-gray-300">—</span>}
+                    </td>
+                  )}
+                  {visibility.location && (
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600">
+                      {a.city ? (
+                        <>
+                          {a.city}
+                          {a.state && (
+                            <span className="text-gray-400">, {normalizeState(a.state)}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                   )}
                   {visibility.lastContacted && (
