@@ -167,7 +167,17 @@ interface EmailDetail {
   direction: string;
   timestamp: string | null;
   fromEmail: string | null;
+  emailType: string | null;
 }
+
+// These hs_email_type values indicate bulk/marketing sends that should not
+// count as personal outreach for health score purposes.
+const BULK_EMAIL_TYPES = new Set([
+  "LEAD_NURTURING_EMAIL",
+  "MARKETING_EMAIL",
+  "BATCH_EMAIL",
+  "BULK_EMAIL",
+]);
 
 // Outbound email with sender info — exported so the health route can use it
 export interface OutboundEmail {
@@ -196,7 +206,7 @@ async function batchFetchEmailDetails(
         body: JSON.stringify({
           // hs_email_send_date is the actual send time for Gmail/Outlook-synced
           // emails; hs_timestamp is the CRM object creation fallback.
-          properties: ["hs_email_direction", "hs_email_send_date", "hs_timestamp", "hs_email_from_email"],
+          properties: ["hs_email_direction", "hs_email_send_date", "hs_timestamp", "hs_email_from_email", "hs_email_type"],
           inputs: batch.map((id) => ({ id })),
         }),
         cache: "no-store",
@@ -219,6 +229,7 @@ async function batchFetchEmailDetails(
         direction: result.properties.hs_email_direction ?? "",
         timestamp: sendDate ?? createdAt,
         fromEmail: result.properties.hs_email_from_email ?? null,
+        emailType: result.properties.hs_email_type ?? null,
       });
     }
   }
@@ -247,9 +258,16 @@ export async function fetchOutboundEmailTimestamps(
     const outbound: OutboundEmail[] = [];
     for (const emailId of emailIds) {
       const email = emailMap.get(emailId);
-      if (email && email.direction.toUpperCase() === "EMAIL" && email.timestamp) {
-        outbound.push({ timestamp: email.timestamp, fromEmail: email.fromEmail });
+      if (!email || email.direction.toUpperCase() !== "EMAIL" || !email.timestamp) continue;
+
+      const type = (email.emailType ?? "").toUpperCase();
+      if (BULK_EMAIL_TYPES.has(type)) {
+        // Log so we can confirm which types are being filtered in Railway logs
+        console.log(`[hubspot] skipping bulk email (type=${email.emailType}) for contact ${contactId}`);
+        continue;
       }
+
+      outbound.push({ timestamp: email.timestamp, fromEmail: email.fromEmail });
     }
     result.set(contactId, outbound);
   }
