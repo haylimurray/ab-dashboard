@@ -25,6 +25,7 @@ const MARKETS: MarketDef[] = [
   { name: "Seattle",       lat: 47.6062, lng: -122.3321 },
   { name: "Minneapolis",   lat: 44.9778, lng: -93.2650 },
   { name: "Denver",        lat: 39.7392, lng: -104.9903 },
+  { name: "Charlotte",     lat: 35.2271, lng:  -80.8431 },
 ];
 
 // ── Haversine distance (miles) ────────────────────────────────────────────────
