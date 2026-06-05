@@ -17,7 +17,9 @@ const COORDS: Record<string, [number, number]> = {
   "newark, nj": [40.7357, -74.1724], "jersey city, nj": [40.7178, -74.0431],
   "trenton, nj": [40.2171, -74.7429], "wilmington, de": [39.7447, -75.5484],
   "baltimore, md": [39.2904, -76.6122], "annapolis, md": [38.9784, -76.4922],
-  "washington, dc": [38.9072, -77.0369], "silver spring, md": [38.9907, -77.026],
+  "washington, dc": [38.9072, -77.0369], "washington": [38.9072, -77.0369],
+  "leesburg, va": [39.1154, -77.5636],   "leesburg": [39.1154, -77.5636],
+  "silver spring, md": [38.9907, -77.026],
   // Southeast
   "virginia beach, va": [36.8529, -75.978], "norfolk, va": [36.8508, -76.2859],
   "richmond, va": [37.5407, -77.436], "roanoke, va": [37.271, -79.9414],
@@ -146,8 +148,9 @@ export function geocodeLocation(
   state: string | null | undefined
 ): [number, number] | null {
   if (!city) return null;
+  const c = city.trim().toLowerCase();
   const st = normalizeState(state);
-  const key = st ? `${city.toLowerCase()}, ${st.toLowerCase()}` : city.toLowerCase();
+  const key = st ? `${c}, ${st.toLowerCase()}` : c;
   return COORDS[key] ?? null;
 }
 
