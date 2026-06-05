@@ -232,8 +232,8 @@ export default function MapView({ advisors, onSelectAdvisor }: Props) {
       <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm" style={{ height: 560 }}>
         <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: "100%", width: "100%" }}>
           <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
           {plotted.map(({ advisor, lat, lng }) => {
             const color = advisor.healthLoaded
