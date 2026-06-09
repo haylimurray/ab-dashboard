@@ -406,6 +406,7 @@ export default function Dashboard() {
               <MapView
                 advisors={advisors}
                 onSelectAdvisor={(a) => setSelectedId(a.id)}
+                darkMode={darkMode}
               />
             )}
             {activeTab === "news" && <NewsIntelligence />}

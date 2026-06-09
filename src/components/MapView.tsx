@@ -141,12 +141,17 @@ function MarketCard({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const TILE_DARK    = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const TILE_LIGHT   = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+const TILE_ATTR    = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
 interface Props {
   advisors: AdvisorContact[];
   onSelectAdvisor: (advisor: AdvisorContact) => void;
+  darkMode?: boolean;
 }
 
-export default function MapView({ advisors, onSelectAdvisor }: Props) {
+export default function MapView({ advisors, onSelectAdvisor, darkMode = false }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -229,13 +234,16 @@ export default function MapView({ advisors, onSelectAdvisor }: Props) {
       </div>
 
       {/* Map */}
-      <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm" style={{ height: 560 }}>
+      <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
         <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: "100%", width: "100%" }}>
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            key={darkMode ? "dark" : "light"}
+            url={darkMode ? TILE_DARK : TILE_LIGHT}
+            attribution={TILE_ATTR}
           />
           {plotted.map(({ advisor, lat, lng }) => {
+            const isRed = advisor.healthLoaded &&
+              (advisor.doNotContact || advisor.healthColor === "red");
             const color = advisor.healthLoaded
               ? (advisor.doNotContact ? HEALTH_COLOR.red : HEALTH_COLOR[advisor.healthColor])
               : UNLOADED_COLOR;
@@ -245,8 +253,14 @@ export default function MapView({ advisors, onSelectAdvisor }: Props) {
               <CircleMarker
                 key={advisor.id}
                 center={[lat, lng]}
-                radius={7}
-                pathOptions={{ fillColor: color, fillOpacity: 0.85, color: "white", weight: 1.5 }}
+                radius={12}
+                pathOptions={{
+                  fillColor: color,
+                  fillOpacity: 0.9,
+                  color: "white",
+                  weight: 2,
+                  className: isRed ? "leaflet-pulse-dot" : undefined,
+                }}
                 eventHandlers={{ click: () => onSelectAdvisor(advisor) }}
               >
                 <Tooltip direction="top" offset={[0, -8]}>
