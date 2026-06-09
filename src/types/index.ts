@@ -65,6 +65,37 @@ export interface AdvisorContact extends ContactListItem {
   recentEmails: EmailTouch[];
 }
 
+// ── Requests / ticket pipeline ───────────────────────────────────────────────
+
+export interface PipelineStage {
+  id: string;
+  label: string;
+  displayOrder: number;
+}
+
+export interface TicketItem {
+  id: string;
+  subject: string | null;
+  stageId: string | null;
+  stageName: string;
+  priority: string | null;
+  createdDate: string | null;
+  ownerId: string | null;
+  requestType: string | null;
+  submittedBy: string | null;
+  targetAdvisor: string | null;
+  targetContactCompany: string | null;
+  preferredDeliveryDate: string | null;
+  notes: string | null;
+}
+
+export interface RequestsData {
+  tickets: TicketItem[];
+  stages: PipelineStage[];
+  fetchedAt: string;
+  total: number;
+}
+
 // ── Table / sort ──────────────────────────────────────────────────────────────
 
 export type SortField =

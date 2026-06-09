@@ -273,3 +273,76 @@ export async function fetchOutboundEmailTimestamps(
   }
   return result;
 }
+
+// ── Ticket / requests pipeline ────────────────────────────────────────────────
+
+const TICKET_PROPERTIES = [
+  "subject",
+  "hs_pipeline_stage",
+  "hs_ticket_priority",
+  "createdate",
+  "hubspot_owner_id",
+  "request_type",
+  "submitted_by",
+  "target_advisor",
+  "target_contact_company",
+  "preferred_delivery_date",
+  "hs_ticket_body",
+];
+
+interface RawPipelineStage { id: string; label: string; displayOrder: number }
+interface RawPipeline { id: string; label: string; stages: RawPipelineStage[] }
+
+export interface TicketPipeline {
+  id: string;
+  label: string;
+  stages: RawPipelineStage[];
+}
+
+export async function fetchTicketPipeline(name: string): Promise<TicketPipeline | null> {
+  const token = process.env.HUBSPOT_TOKEN;
+  if (!token) throw new Error("HUBSPOT_TOKEN is not set");
+
+  const res = await fetch(`${BASE}/crm/v3/pipelines/tickets`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HubSpot pipelines ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const pipelines: RawPipeline[] = data.results ?? [];
+  return pipelines.find((p) => p.label === name) ?? null;
+}
+
+export async function fetchAllTickets(pipelineId: string): Promise<HubSpotResult[]> {
+  const token = process.env.HUBSPOT_TOKEN;
+  if (!token) throw new Error("HUBSPOT_TOKEN is not set");
+
+  const all: HubSpotResult[] = [];
+  let after: string | undefined;
+
+  do {
+    const body: Record<string, unknown> = {
+      filterGroups: [
+        { filters: [{ propertyName: "hs_pipeline", operator: "EQ", value: pipelineId }] },
+      ],
+      properties: TICKET_PROPERTIES,
+      sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
+      limit: 100,
+    };
+    if (after) body.after = after;
+
+    const res = await fetch(`${BASE}/crm/v3/objects/tickets/search`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`HubSpot tickets ${res.status}: ${await res.text()}`);
+
+    const page: HubSpotPage = await res.json();
+    all.push(...page.results);
+    after = page.paging?.next?.after;
+  } while (after);
+
+  return all;
+}

@@ -14,6 +14,7 @@ import SummaryCards from "./SummaryCards";
 import AdvisorTable from "./AdvisorTable";
 import AdvisorDrawer from "./AdvisorDrawer";
 import NewsIntelligence from "./NewsIntelligence";
+import RequestsView from "./RequestsView";
 import { normalizeState } from "@/lib/geocode";
 
 const MapView = dynamic(() => import("./MapView"), {
@@ -25,7 +26,7 @@ const MapView = dynamic(() => import("./MapView"), {
   ),
 });
 
-type Tab = "advisors" | "map" | "news";
+type Tab = "advisors" | "map" | "requests" | "news";
 const HEALTH_BATCH = 20;
 
 const HEALTH_DEFAULTS: ContactHealth = {
@@ -74,9 +75,10 @@ function sortAdvisors(
 }
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "advisors", label: "Advisors" },
-  { id: "map",      label: "Map" },
-  { id: "news",     label: "News Intelligence" },
+  { id: "advisors",  label: "Advisors" },
+  { id: "map",       label: "Map" },
+  { id: "requests",  label: "Requests" },
+  { id: "news",      label: "News Intelligence" },
 ];
 
 export default function Dashboard() {
@@ -409,6 +411,7 @@ export default function Dashboard() {
                 darkMode={darkMode}
               />
             )}
+            {activeTab === "requests" && <RequestsView />}
             {activeTab === "news" && <NewsIntelligence />}
           </>
         ) : null}
