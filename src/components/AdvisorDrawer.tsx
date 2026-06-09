@@ -21,10 +21,10 @@ function formatDate(raw: string | null): string {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+      <dt className="text-xs font-semibold text-gray-400 dark:text-dark-muted uppercase tracking-wide mb-1">
         {label}
       </dt>
-      <dd className="text-sm text-gray-900">{children}</dd>
+      <dd className="text-sm text-gray-900 dark:text-dark-text">{children}</dd>
     </div>
   );
 }
@@ -53,7 +53,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        className={`fixed inset-y-0 right-0 z-50 w-[440px] max-w-full bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 z-50 w-[440px] max-w-full bg-white dark:bg-dark-card shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -100,19 +100,19 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                       {advisor.advisorType}
                     </span>
                   ) : (
-                    <span className="text-gray-300">—</span>
+                    <span className="text-gray-300 dark:text-dark-border">—</span>
                   )}
                 </Field>
 
                 <Field label="Tier">
-                  {advisor.tier ?? <span className="text-gray-300">—</span>}
+                  {advisor.tier ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
                 </Field>
 
                 <Field label="Sales Status">
-                  {advisor.salesStatus ?? <span className="text-gray-300">—</span>}
+                  {advisor.salesStatus ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
                 </Field>
 
-                <hr className="border-gray-100" />
+                <hr className="border-gray-100 dark:border-dark-border" />
 
                 {advisor.healthLoaded ? (
                   <>
@@ -122,7 +122,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
 
                     <Field label="Days Since Contact">
                       {advisor.daysSinceContact === null ? (
-                        <span className="text-gray-400">Never contacted</span>
+                        <span className="text-gray-400 dark:text-dark-muted">Never contacted</span>
                       ) : (
                         `${advisor.daysSinceContact} day${advisor.daysSinceContact !== 1 ? "s" : ""}`
                       )}
@@ -133,7 +133,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                       {advisor.outboundEmailCount90d === 1 ? "email" : "emails"}
                     </Field>
 
-                    <hr className="border-gray-100" />
+                    <hr className="border-gray-100 dark:border-dark-border" />
 
                     <Field label="Health Status">
                       <div className="mt-1">
@@ -153,9 +153,9 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
 
                     {advisor.recentEmails.length > 0 && (
                       <>
-                        <hr className="border-gray-100" />
+                        <hr className="border-gray-100 dark:border-dark-border" />
                         <div>
-                          <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">
+                          <dt className="text-xs font-semibold text-gray-400 dark:text-dark-muted uppercase tracking-wide mb-2.5">
                             Recent Outreach
                           </dt>
                           <dd className="flex flex-col gap-3">
@@ -164,7 +164,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                                 <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-2 flex-shrink-0" />
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-sm font-medium text-gray-900">
+                                    <span className="text-sm font-medium text-gray-900 dark:text-dark-text">
                                       {email.senderName ?? email.fromEmail ?? "Unknown sender"}
                                     </span>
                                     {email.team && (
@@ -181,7 +181,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-xs text-gray-400 mt-0.5">
+                                  <p className="text-xs text-gray-400 dark:text-dark-muted mt-0.5">
                                     {formatDate(email.timestamp)}
                                   </p>
                                 </div>
@@ -193,7 +193,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                     )}
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-dark-muted">
                     <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                     Loading health score…
                   </div>
@@ -202,7 +202,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0">
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-dark-border flex-shrink-0">
               <a
                 href={`${HUBSPOT_BASE}/${advisor.id}`}
                 target="_blank"

@@ -89,6 +89,19 @@ export default function Dashboard() {
   const [fetchedAt, setFetchedAt]     = useState<string | null>(null);
   const [activeTab, setActiveTab]     = useState<Tab>("advisors");
   const [selectedId, setSelectedId]   = useState<string | null>(null);
+  const [darkMode, setDarkMode]       = useState(false);
+
+  // Sync dark mode with DOM on mount (set by anti-FOUC script in layout.tsx)
+  useEffect(() => {
+    setDarkMode(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  function toggleDark() {
+    const next = !darkMode;
+    setDarkMode(next);
+    document.documentElement.classList.toggle("dark", next);
+    try { localStorage.setItem("theme", next ? "dark" : "light"); } catch {}
+  }
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
     field: "healthScore",
     dir: "asc",
@@ -263,28 +276,44 @@ export default function Dashboard() {
   const healthPending = healthTotal > 0 && healthDone < healthTotal;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
       {/* Header */}
-      <header style={{ backgroundColor: "#1B3A6B" }} className="shadow-md border-b border-white/10">
+      <header className="bg-[#1B3A6B] dark:bg-dark-card shadow-md border-b border-white/10 dark:border-dark-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img
               src="/airvet-logo.png"
               alt="Airvet"
-              className="h-6 w-auto"
+              className="h-6 w-auto dark:[filter:none]"
               style={{ filter: "brightness(0) invert(1)" }}
             />
             <div>
-              <h1 className="text-white text-sm font-semibold leading-tight">Advisory Board</h1>
-              <p className="text-blue-200/70 text-xs">Health Score Dashboard</p>
+              <h1 className="text-white dark:text-airvet-blue text-sm font-semibold leading-tight">Advisory Board</h1>
+              <p className="text-blue-200/70 dark:text-dark-muted text-xs">Health Score Dashboard</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {fetchedAtStr && (
-              <span className="text-blue-300/70 text-xs hidden sm:block">
+              <span className="text-blue-300/70 dark:text-dark-muted text-xs hidden sm:block">
                 Updated {fetchedAtStr}
               </span>
             )}
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggleDark}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              {darkMode ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 7a5 5 0 100 10A5 5 0 0012 7z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
             <button
               onClick={() => fetchData(true)}
               disabled={contactsLoading}
@@ -305,12 +334,12 @@ export default function Dashboard() {
         {healthPending && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2 flex items-center gap-2">
             <div className="w-3 h-3 border-2 border-blue-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-            <span className="text-xs text-blue-300">
+            <span className="text-xs text-blue-300 dark:text-dark-muted">
               Loading health scores… {healthDone} / {healthTotal}
             </span>
             <div className="flex-1 max-w-xs h-1 rounded-full bg-white/20 overflow-hidden">
               <div
-                className="h-full rounded-full bg-blue-300 transition-all duration-300"
+                className="h-full rounded-full bg-airvet-blue transition-all duration-300"
                 style={{ width: `${(healthDone / healthTotal) * 100}%` }}
               />
             </div>
@@ -326,8 +355,8 @@ export default function Dashboard() {
                 onClick={() => setActiveTab(id)}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === id
-                    ? "border-white text-white"
-                    : "border-transparent text-blue-300 hover:text-white hover:border-blue-300"
+                    ? "border-white dark:border-airvet-blue text-white dark:text-airvet-blue"
+                    : "border-transparent text-blue-300 dark:text-dark-muted hover:text-white hover:border-blue-300"
                 }`}
               >
                 {label}
@@ -340,7 +369,7 @@ export default function Dashboard() {
       {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {error && (
-          <div className="mb-6 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 px-4 py-3 text-sm text-red-700 dark:text-red-400">
             <strong>Error:</strong> {error}
           </div>
         )}
@@ -352,7 +381,7 @@ export default function Dashboard() {
                 className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3"
                 style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }}
               />
-              <p className="text-gray-500 text-sm">Loading advisors…</p>
+              <p className="text-gray-500 dark:text-dark-muted text-sm">Loading advisors…</p>
             </div>
           </div>
         ) : contacts.length > 0 ? (

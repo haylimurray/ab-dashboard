@@ -76,20 +76,20 @@ function MarketCard({
   const hasAdvisors = advisors.length > 0;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
       {/* Header */}
       <button
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-900">{market.name}</span>
+          <span className="text-sm font-semibold text-gray-900 dark:text-dark-text">{market.name}</span>
           <span
             className={`text-xs font-medium rounded-full px-2 py-0.5 ${
               hasAdvisors
                 ? "bg-airvet-navy text-white"
-                : "bg-gray-100 text-gray-400"
+                : "bg-gray-100 text-gray-400 dark:text-dark-muted"
             }`}
             style={hasAdvisors ? { backgroundColor: "#1B3A6B" } : undefined}
           >
@@ -110,11 +110,11 @@ function MarketCard({
           {!hasAdvisors ? (
             <p className="px-4 py-3 text-sm text-gray-400 italic">No advisors in this market.</p>
           ) : (
-            <ul className="divide-y divide-gray-50">
+            <ul className="divide-y divide-gray-50 dark:divide-dark-border">
               {advisors.map(({ advisor, distance }) => (
                 <li key={advisor.id}>
                   <button
-                    className="w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 transition-colors"
+                    className="w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 dark:hover:bg-dark-hover transition-colors"
                     onClick={() => onSelectAdvisor(advisor)}
                   >
                     <div className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ function MarketCard({
                         {advisor.name}
                       </span>
                       {advisor.company && (
-                        <span className="text-sm text-gray-400"> · {advisor.company}</span>
+                        <span className="text-sm text-gray-400 dark:text-dark-muted"> · {advisor.company}</span>
                       )}
                     </div>
                     <span className="text-xs text-gray-400 flex-shrink-0 tabular-nums">
@@ -199,7 +199,7 @@ export default function MapView({ advisors, onSelectAdvisor }: Props) {
   if (!mounted) {
     return (
       <div className="h-[580px] rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center">
-        <p className="text-sm text-gray-400">Loading map…</p>
+        <p className="text-sm text-gray-400 dark:text-dark-muted">Loading map…</p>
       </div>
     );
   }
@@ -219,10 +219,10 @@ export default function MapView({ advisors, onSelectAdvisor }: Props) {
               className="inline-block w-3 h-3 rounded-full"
               style={{ backgroundColor: color }}
             />
-            <span className="text-xs text-gray-500">{label}</span>
+            <span className="text-xs text-gray-500 dark:text-dark-muted">{label}</span>
           </div>
         ))}
-        <span className="ml-auto text-xs text-gray-400">
+        <span className="ml-auto text-xs text-gray-400 dark:text-dark-muted">
           {plotted.length} of {advisors.filter((a) => a.city).length} plotted
           {unplotted > 0 && ` · ${unplotted} city not in lookup`}
         </span>
@@ -252,7 +252,7 @@ export default function MapView({ advisors, onSelectAdvisor }: Props) {
                 <Tooltip direction="top" offset={[0, -8]}>
                   <div className="text-xs">
                     <div className="font-semibold">{advisor.name}</div>
-                    {location && <div className="text-gray-500">{location}</div>}
+                    {location && <div className="text-gray-500 dark:text-dark-muted">{location}</div>}
                   </div>
                 </Tooltip>
               </CircleMarker>
@@ -263,7 +263,7 @@ export default function MapView({ advisors, onSelectAdvisor }: Props) {
 
       {/* ── Market Breakdown ────────────────────────────────────────────── */}
       <section>
-        <h2 className="text-base font-semibold text-gray-900 mb-3">Market Breakdown</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-dark-text mb-3">Market Breakdown</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {marketGroups.map((group) => (
             <MarketCard

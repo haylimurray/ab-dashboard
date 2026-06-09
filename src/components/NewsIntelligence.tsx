@@ -44,7 +44,7 @@ export default function NewsIntelligence() {
       {/* Header */}
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-dark-text">
             Company News Intelligence
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
@@ -114,7 +114,7 @@ export default function NewsIntelligence() {
           </p>
 
           {data.companies.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 py-10 text-center text-sm text-gray-400">
+            <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border py-10 text-center text-sm text-gray-400 dark:text-dark-muted">
               No recent news found for advisor companies.
             </div>
           ) : (
@@ -122,7 +122,7 @@ export default function NewsIntelligence() {
               {data.companies.map((c) => (
                 <div
                   key={c.domain}
-                  className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-3"
+                  className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm p-4 flex flex-col gap-3"
                 >
                   {/* Company header */}
                   <div className="flex items-center gap-2">
@@ -132,7 +132,7 @@ export default function NewsIntelligence() {
                     >
                       {c.company.charAt(0)}
                     </div>
-                    <span className="font-semibold text-sm text-gray-900">
+                    <span className="font-semibold text-sm text-gray-900 dark:text-dark-text">
                       {c.company}
                     </span>
                   </div>
@@ -179,9 +179,9 @@ export default function NewsIntelligence() {
 
       {/* Idle state — not yet loaded */}
       {!loading && !data && !error && (
-        <div className="bg-white rounded-xl border border-gray-200 border-dashed py-10 text-center">
-          <p className="text-sm text-gray-400">
-            Click <strong className="text-gray-500">Analyze News</strong> to fetch
+        <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border border-dashed py-10 text-center">
+          <p className="text-sm text-gray-400 dark:text-dark-muted">
+            Click <strong className="text-gray-500 dark:text-dark-muted">Analyze News</strong> to fetch
             recent company news and score it with AI.
           </p>
         </div>

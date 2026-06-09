@@ -11,9 +11,9 @@ const LABEL: Record<Props["color"], string> = {
 };
 
 const PILL: Record<Props["color"], string> = {
-  green:  "bg-green-100 text-green-700",
-  yellow: "bg-amber-100 text-amber-700",
-  red:    "bg-red-100 text-red-600",
+  green:  "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
+  yellow: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
+  red:    "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
 };
 
 function getReason(days: number | null, count90d: number): string {
@@ -27,12 +27,10 @@ function getReason(days: number | null, count90d: number): string {
 export default function HealthBar({ color, daysSinceContact, outboundEmailCount90d }: Props) {
   return (
     <div className="flex flex-col gap-1 min-w-[9rem]">
-      <span
-        className={`inline-flex items-center self-start rounded-full px-3 py-1 text-xs font-medium ${PILL[color]}`}
-      >
+      <span className={`inline-flex items-center self-start rounded-full px-3 py-1 text-xs font-medium ${PILL[color]}`}>
         {LABEL[color]}
       </span>
-      <span className="text-[11px] text-gray-400 leading-tight">
+      <span className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">
         {getReason(daysSinceContact, outboundEmailCount90d)}
       </span>
     </div>
