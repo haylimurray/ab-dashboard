@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAllTickets, fetchAllOwners } from "@/lib/hubspot";
+import { fetchAllTickets } from "@/lib/hubspot";
 import type { PipelineStage, RequestsData, TicketItem } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -40,30 +40,27 @@ export async function GET(request: NextRequest) {
 
     console.log(`[/api/requests] Cache MISS — fetching from HubSpot`);
 
-    // Single bulk call for all owners — avoids per-ticket API calls
-    const [raw, ownerMap] = await Promise.all([
-      fetchAllTickets(PIPELINE_ID),
-      fetchAllOwners().catch((err) => {
-        console.warn("[/api/requests] Owner fetch failed:", err instanceof Error ? err.message : String(err));
-        return new Map<string, string>();
-      }),
-    ]);
+    const raw = await fetchAllTickets(PIPELINE_ID);
 
-    // Log owner map so we can confirm IDs are resolving
-    console.log(`[/api/requests] Owner map: ${ownerMap.size} owners loaded —`,
-      JSON.stringify(Object.fromEntries(ownerMap)));
+    // Build owner map: fetch all owners in one call, key by o.id
+    const ownerMap: Record<string, string> = {};
+    try {
+      const ownersRes = await fetch(
+        "https://api.hubapi.com/crm/v3/owners?limit=100",
+        { headers: { Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}` } }
+      );
+      const ownersData = await ownersRes.json();
+      (ownersData.results ?? []).forEach((o: { id: number | string; firstName?: string; lastName?: string }) => {
+        ownerMap[String(o.id)] = `${o.firstName ?? ""} ${o.lastName ?? ""}`.trim();
+      });
+      console.log(`[/api/requests] Owner map (${Object.keys(ownerMap).length}):`, JSON.stringify(ownerMap));
+    } catch (err) {
+      console.warn("[/api/requests] Owner fetch failed:", err instanceof Error ? err.message : String(err));
+    }
 
     const tickets: TicketItem[] = raw.map((t) => {
       const p = t.properties;
       const stageId = p.hs_pipeline_stage ?? null;
-      const rawSubmittedBy = (p.submitted_by ?? "").trim();
-
-      // Resolve owner ID → name; fall back to raw value if not in map
-      const resolvedOwner = ownerMap.get(rawSubmittedBy);
-      const submittedBy = rawSubmittedBy
-        ? (resolvedOwner ?? rawSubmittedBy)
-        : null;
-
       return {
         id: t.id,
         subject:               p.subject ?? null,
@@ -73,7 +70,7 @@ export async function GET(request: NextRequest) {
         createdDate:           p.createdate ?? null,
         ownerId:               p.hubspot_owner_id ?? null,
         requestType:           p.request_type ?? null,
-        submittedBy,
+        submittedBy:           ownerMap[p.submitted_by ?? ""] || p.submitted_by || null,
         targetAdvisor:         p.advisor_requested ?? null,
         targetContactCompany:  p.target_contact_company ?? null,
         preferredDeliveryDate: p.preferred_delivery_date ?? null,
