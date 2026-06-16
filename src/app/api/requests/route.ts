@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAllTickets, fetchOwnerById } from "@/lib/hubspot";
+import { fetchAllTickets, fetchAllOwners } from "@/lib/hubspot";
 import type { PipelineStage, RequestsData, TicketItem } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -39,32 +39,30 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[/api/requests] Cache MISS — fetching from HubSpot`);
-    const raw = await fetchAllTickets(PIPELINE_ID);
 
-    // Collect unique numeric submitted_by IDs that need owner resolution
-    const uniqueOwnerIds = Array.from(
-      new Set(
-        raw
-          .map((t) => t.properties.submitted_by)
-          .filter((v): v is string => !!v && /^\d+$/.test(v.trim()))
-      )
-    );
+    // Single bulk call for all owners — avoids per-ticket API calls
+    const [raw, ownerMap] = await Promise.all([
+      fetchAllTickets(PIPELINE_ID),
+      fetchAllOwners().catch((err) => {
+        console.warn("[/api/requests] Owner fetch failed:", err instanceof Error ? err.message : String(err));
+        return new Map<string, string>();
+      }),
+    ]);
 
-    // Resolve each unique owner ID in parallel; failures return null (show raw ID)
-    const ownerEntries = await Promise.all(
-      uniqueOwnerIds.map(async (id) => {
-        const name = await fetchOwnerById(id).catch(() => null);
-        return [id, name] as const;
-      })
-    );
-    const ownerMap = new Map(
-      ownerEntries.filter((e): e is [string, string] => e[1] !== null)
-    );
+    // Log owner map so we can confirm IDs are resolving
+    console.log(`[/api/requests] Owner map: ${ownerMap.size} owners loaded —`,
+      JSON.stringify(Object.fromEntries(ownerMap)));
 
     const tickets: TicketItem[] = raw.map((t) => {
       const p = t.properties;
       const stageId = p.hs_pipeline_stage ?? null;
-      const rawSubmittedBy = p.submitted_by ?? null;
+      const rawSubmittedBy = (p.submitted_by ?? "").trim();
+
+      // Resolve owner ID → name; fall back to raw value if not in map
+      const resolvedOwner = ownerMap.get(rawSubmittedBy);
+      const submittedBy = rawSubmittedBy
+        ? (resolvedOwner ?? rawSubmittedBy)
+        : null;
 
       return {
         id: t.id,
@@ -75,9 +73,7 @@ export async function GET(request: NextRequest) {
         createdDate:           p.createdate ?? null,
         ownerId:               p.hubspot_owner_id ?? null,
         requestType:           p.request_type ?? null,
-        submittedBy:           rawSubmittedBy
-                                 ? (ownerMap.get(rawSubmittedBy.trim()) ?? rawSubmittedBy)
-                                 : null,
+        submittedBy,
         targetAdvisor:         p.advisor_requested ?? null,
         targetContactCompany:  p.target_contact_company ?? null,
         preferredDeliveryDate: p.preferred_delivery_date ?? null,
