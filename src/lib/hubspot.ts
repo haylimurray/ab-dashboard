@@ -274,6 +274,41 @@ export async function fetchOutboundEmailTimestamps(
   return result;
 }
 
+// ── Owners ────────────────────────────────────────────────────────────────────
+
+// Returns a map of ownerId → "First Last" (falls back to email, then raw ID).
+export async function fetchAllOwners(): Promise<Map<string, string>> {
+  const token = process.env.HUBSPOT_TOKEN;
+  if (!token) throw new Error("HUBSPOT_TOKEN is not set");
+
+  const map = new Map<string, string>();
+  let after: string | undefined;
+
+  do {
+    const url = new URL(`${BASE}/crm/v3/owners`);
+    url.searchParams.set("limit", "100");
+    if (after) url.searchParams.set("after", after);
+
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`HubSpot owners ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+
+    for (const owner of data.results ?? []) {
+      const name =
+        [owner.firstName, owner.lastName].filter(Boolean).join(" ") ||
+        owner.email ||
+        String(owner.id);
+      map.set(String(owner.id), name);
+    }
+    after = data.paging?.next?.after;
+  } while (after);
+
+  return map;
+}
+
 // ── Ticket / requests pipeline ────────────────────────────────────────────────
 
 const TICKET_PROPERTIES = [
