@@ -17,12 +17,24 @@ function formatDate(raw: string | null): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// New = gray, In Progress = blue, In Flight = amber, Completed = green
 function getStagePill(stageName: string): string {
   const lower = stageName.toLowerCase();
-  if (lower.includes("new"))      return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400";
-  if (lower.includes("progress")) return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400";
-  if (lower.includes("flight"))   return "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400";
+  if (lower.includes("new"))      return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+  if (lower.includes("progress")) return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400";
+  if (lower.includes("flight"))   return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400";
   if (lower.includes("complet"))  return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400";
+  return "bg-gray-100 text-gray-600 dark:bg-dark-hover dark:text-dark-muted";
+}
+
+function getRequestTypePill(requestType: string | null): string {
+  if (!requestType) return "bg-gray-100 text-gray-600 dark:bg-dark-hover dark:text-dark-muted";
+  const lower = requestType.toLowerCase();
+  if (lower.includes("connection"))           return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400";
+  if (lower.includes("intro") || lower.includes("meeting")) return "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400";
+  if (lower.includes("dinner"))               return "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400";
+  if (lower.includes("content"))              return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400";
+  if (lower.includes("reference"))            return "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400";
   return "bg-gray-100 text-gray-600 dark:bg-dark-hover dark:text-dark-muted";
 }
 
@@ -48,7 +60,6 @@ export default function RequestDrawer({ ticket, onClose }: Props) {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         aria-hidden="true"
         onClick={onClose}
@@ -56,8 +67,6 @@ export default function RequestDrawer({ ticket, onClose }: Props) {
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
       />
-
-      {/* Panel */}
       <div
         role="dialog"
         aria-modal="true"
@@ -67,21 +76,20 @@ export default function RequestDrawer({ ticket, onClose }: Props) {
       >
         {ticket && (
           <>
-            {/* Header */}
             <div className="bg-[#1B3A6B] dark:bg-dark-bg flex items-start justify-between px-6 py-5 flex-shrink-0">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStagePill(ticket.stageName)}`}>
                     {ticket.stageName}
                   </span>
-                  {ticket.priority && ticket.priority !== "NONE" && (
-                    <span className="text-xs text-blue-200 dark:text-dark-muted">
-                      {ticket.priority.charAt(0) + ticket.priority.slice(1).toLowerCase()} priority
+                  {ticket.requestType && (
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getRequestTypePill(ticket.requestType)}`}>
+                      {ticket.requestType}
                     </span>
                   )}
                 </div>
                 <h2 className="text-white font-semibold text-base leading-tight">
-                  {ticket.requestType ?? ticket.subject ?? "Request"}
+                  {ticket.subject ?? ticket.requestType ?? "Request"}
                 </h2>
                 {ticket.submittedBy && (
                   <p className="text-blue-200/70 dark:text-dark-muted text-xs mt-0.5">
@@ -100,31 +108,22 @@ export default function RequestDrawer({ ticket, onClose }: Props) {
               </button>
             </div>
 
-            {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-6">
               <dl className="flex flex-col gap-5">
                 <Field label="Target Advisor">
                   {ticket.targetAdvisor ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
                 </Field>
-
                 <Field label="Target Contact / Company">
                   {ticket.targetContactCompany ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
                 </Field>
-
                 <hr className="border-gray-100 dark:border-dark-border" />
-
-                <Field label="Date Submitted">
-                  {formatDate(ticket.createdDate)}
-                </Field>
-
-                <Field label="Preferred Delivery Date">
-                  {formatDate(ticket.preferredDeliveryDate)}
-                </Field>
-
-                {ticket.subject && ticket.requestType && ticket.subject !== ticket.requestType && (
-                  <Field label="Subject">{ticket.subject}</Field>
+                <Field label="Date Submitted">{formatDate(ticket.createdDate)}</Field>
+                <Field label="Preferred Delivery Date">{formatDate(ticket.preferredDeliveryDate)}</Field>
+                {ticket.priority && ticket.priority !== "NONE" && (
+                  <Field label="Priority">
+                    <span className="capitalize">{ticket.priority.toLowerCase()}</span>
+                  </Field>
                 )}
-
                 {ticket.notes && (
                   <>
                     <hr className="border-gray-100 dark:border-dark-border" />
@@ -138,7 +137,6 @@ export default function RequestDrawer({ ticket, onClose }: Props) {
               </dl>
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-100 dark:border-dark-border flex-shrink-0">
               <a
                 href={`${HUBSPOT_BASE}/${ticket.id}`}
