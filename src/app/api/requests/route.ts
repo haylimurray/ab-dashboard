@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAllTickets, fetchAllOwners } from "@/lib/hubspot";
+import { fetchAllTickets, fetchOwnerById } from "@/lib/hubspot";
 import type { PipelineStage, RequestsData, TicketItem } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,6 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 let cachedData: RequestsData | null = null;
 let cacheExpiresAt = 0;
 
-// ── Stage ID → label mapping ──────────────────────────────────────────────────
 const STAGE_LABELS: Record<string, string> = {
   "1": "New",
   "2": "In Progress",
@@ -17,8 +16,6 @@ const STAGE_LABELS: Record<string, string> = {
   "4": "Completed",
 };
 
-// Always return all four stages in canonical order for the summary cards,
-// even when a stage currently has zero tickets.
 const PIPELINE_STAGES: PipelineStage[] = [
   { id: "1", label: "New",         displayOrder: 0 },
   { id: "2", label: "In Progress", displayOrder: 1 },
@@ -26,20 +23,10 @@ const PIPELINE_STAGES: PipelineStage[] = [
   { id: "4", label: "Completed",   displayOrder: 3 },
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function stripHtml(raw: string | null): string | null {
   if (!raw) return null;
   return raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() || null;
 }
-
-// Resolve a value that might be a numeric HubSpot owner ID.
-function resolveOwner(raw: string | null, ownerMap: Map<string, string>): string | null {
-  if (!raw) return null;
-  return /^\d+$/.test(raw.trim()) ? (ownerMap.get(raw.trim()) ?? raw) : raw;
-}
-
-// ── Route ─────────────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,29 +39,32 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[/api/requests] Cache MISS — fetching from HubSpot`);
+    const raw = await fetchAllTickets(PIPELINE_ID);
 
-    // Fetch tickets + owners in parallel; owners failures are non-fatal
-    const [raw, ownerMap] = await Promise.all([
-      fetchAllTickets(PIPELINE_ID),
-      fetchAllOwners().catch((err) => {
-        console.warn("[/api/requests] Owner fetch failed (will show raw IDs):",
-          err instanceof Error ? err.message : String(err));
-        return new Map<string, string>();
-      }),
-    ]);
+    // Collect unique numeric submitted_by IDs that need owner resolution
+    const uniqueOwnerIds = Array.from(
+      new Set(
+        raw
+          .map((t) => t.properties.submitted_by)
+          .filter((v): v is string => !!v && /^\d+$/.test(v.trim()))
+      )
+    );
 
-    // Log all property keys + values from the first ticket so we can identify
-    // the correct custom property names for Target Advisor, Company, etc.
-    if (raw.length > 0) {
-      console.log("[/api/requests] First ticket property keys:",
-        Object.keys(raw[0].properties).sort().join(", "));
-      console.log("[/api/requests] First ticket properties:",
-        JSON.stringify(raw[0].properties, null, 2));
-    }
+    // Resolve each unique owner ID in parallel; failures return null (show raw ID)
+    const ownerEntries = await Promise.all(
+      uniqueOwnerIds.map(async (id) => {
+        const name = await fetchOwnerById(id).catch(() => null);
+        return [id, name] as const;
+      })
+    );
+    const ownerMap = new Map(
+      ownerEntries.filter((e): e is [string, string] => e[1] !== null)
+    );
 
     const tickets: TicketItem[] = raw.map((t) => {
       const p = t.properties;
       const stageId = p.hs_pipeline_stage ?? null;
+      const rawSubmittedBy = p.submitted_by ?? null;
 
       return {
         id: t.id,
@@ -85,9 +75,10 @@ export async function GET(request: NextRequest) {
         createdDate:           p.createdate ?? null,
         ownerId:               p.hubspot_owner_id ?? null,
         requestType:           p.request_type ?? null,
-        // submitted_by may be a HubSpot owner ID — resolve it to a name
-        submittedBy:           resolveOwner(p.submitted_by ?? null, ownerMap),
-        targetAdvisor:         p.target_advisor ?? null,
+        submittedBy:           rawSubmittedBy
+                                 ? (ownerMap.get(rawSubmittedBy.trim()) ?? rawSubmittedBy)
+                                 : null,
+        targetAdvisor:         p.advisor_requested ?? null,
         targetContactCompany:  p.target_contact_company ?? null,
         preferredDeliveryDate: p.preferred_delivery_date ?? null,
         notes:                 stripHtml(p.hs_ticket_body ?? null),

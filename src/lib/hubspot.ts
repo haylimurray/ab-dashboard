@@ -309,6 +309,24 @@ export async function fetchAllOwners(): Promise<Map<string, string>> {
   return map;
 }
 
+// Fetch a single owner by ID. Returns "First Last" (or email, or null on failure).
+export async function fetchOwnerById(ownerId: string): Promise<string | null> {
+  const token = process.env.HUBSPOT_TOKEN;
+  if (!token) throw new Error("HUBSPOT_TOKEN is not set");
+
+  const res = await fetch(`${BASE}/crm/v3/owners/${encodeURIComponent(ownerId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (
+    [data.firstName, data.lastName].filter(Boolean).join(" ") ||
+    data.email ||
+    null
+  );
+}
+
 // ── Ticket / requests pipeline ────────────────────────────────────────────────
 
 const TICKET_PROPERTIES = [
@@ -319,7 +337,7 @@ const TICKET_PROPERTIES = [
   "hubspot_owner_id",
   "request_type",
   "submitted_by",
-  "target_advisor",
+  "advisor_requested",
   "target_contact_company",
   "preferred_delivery_date",
   "hs_ticket_body",
