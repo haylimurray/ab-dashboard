@@ -42,17 +42,18 @@ export async function GET(request: NextRequest) {
 
     const raw = await fetchAllTickets(PIPELINE_ID);
 
-    // Build owner map: fetch all owners in one call, key by o.id
-    const ownerMap: Record<string, string> = {};
+    // Build owner map keyed on String(o.id) — the ID may be numeric in the API response
+    let ownerMap: Record<string, string> = {};
     try {
       const ownersRes = await fetch(
-        "https://api.hubapi.com/crm/v3/owners?limit=100",
+        "https://api.hubapi.com/crm/v3/owners?limit=100&archived=false",
         { headers: { Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}` } }
       );
-      const ownersData = await ownersRes.json();
-      (ownersData.results ?? []).forEach((o: { id: number | string; firstName?: string; lastName?: string }) => {
-        ownerMap[String(o.id)] = `${o.firstName ?? ""} ${o.lastName ?? ""}`.trim();
-      });
+      const { results: owners } = await ownersRes.json();
+      ownerMap = Object.fromEntries(
+        (owners as Array<{ id: number | string; firstName?: string; lastName?: string }>)
+          .map((o) => [String(o.id), `${o.firstName ?? ""} ${o.lastName ?? ""}`.trim()])
+      );
       console.log(`[/api/requests] Owner map (${Object.keys(ownerMap).length}):`, JSON.stringify(ownerMap));
     } catch (err) {
       console.warn("[/api/requests] Owner fetch failed:", err instanceof Error ? err.message : String(err));
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
         createdDate:           p.createdate ?? null,
         ownerId:               p.hubspot_owner_id ?? null,
         requestType:           p.request_type ?? null,
-        submittedBy:           ownerMap[p.submitted_by ?? ""] || p.submitted_by || null,
+        submittedBy:           ownerMap[String(p.submitted_by ?? "")] ?? p.submitted_by ?? null,
         targetAdvisor:         p.advisor_requested ?? null,
         targetContactCompany:  p.target_contact_company ?? null,
         preferredDeliveryDate: p.preferred_delivery_date ?? null,
