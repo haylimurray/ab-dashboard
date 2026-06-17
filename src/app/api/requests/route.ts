@@ -29,6 +29,7 @@ function stripHtml(raw: string | null): string | null {
 }
 
 export async function GET(request: NextRequest) {
+  console.log("requests route called");
   try {
     const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
     const now = Date.now();
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
         const fullName = [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email || String(o.id);
         ownerMap[String(o.id)] = fullName;
       });
-      console.log("ownerMap:", ownerMap);
+      console.log("ownerMap result:", JSON.stringify(ownerMap));
     } catch (err) {
       console.warn("[/api/requests] Owner fetch failed:", err instanceof Error ? err.message : String(err));
     }

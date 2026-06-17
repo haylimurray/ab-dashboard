@@ -157,9 +157,9 @@ export default function Dashboard() {
       setHealth((prev) => ({ ...prev, ...updates }));
       setHealthDone(i + batch.length);
 
-      // 200ms pause between batches to stay under HubSpot's 150 req/10s limit
+      // 500ms pause between batches to stay under HubSpot's 150 req/10s limit
       if (i + HEALTH_BATCH < ids.length) {
-        await new Promise((r) => setTimeout(r, 200));
+        await new Promise((r) => setTimeout(r, 500));
       }
     }
   }, []);
