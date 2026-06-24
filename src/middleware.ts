@@ -15,6 +15,11 @@ export function middleware(request: NextRequest) {
 
   const cookie = request.cookies.get("ab_auth")?.value;
   if (cookie !== serverPassword) {
+    // API routes must return JSON — never redirect to an HTML login page,
+    // because the browser will try to parse the HTML as JSON and crash.
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);

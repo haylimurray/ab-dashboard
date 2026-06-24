@@ -203,8 +203,22 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
 
   if (!mounted) {
     return (
-      <div className="h-[580px] rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center">
+      <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
         <p className="text-sm text-gray-400 dark:text-dark-muted">Loading map…</p>
+      </div>
+    );
+  }
+
+  if (advisors.length === 0) {
+    return (
+      <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
+        <div className="text-center px-6">
+          <svg className="w-10 h-10 text-gray-300 dark:text-dark-border mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+          </svg>
+          <p className="text-sm font-medium text-gray-500 dark:text-dark-muted">Unable to load map data</p>
+          <p className="text-xs text-gray-400 dark:text-dark-muted mt-1">Try refreshing the page</p>
+        </div>
       </div>
     );
   }

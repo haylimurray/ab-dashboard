@@ -59,9 +59,8 @@ export async function GET(request: NextRequest) {
     cacheExpiresAt = now + CACHE_TTL_MS;
 
     return NextResponse.json(data);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[/api/contacts]", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error) {
+    console.error("contacts route error:", error);
+    return Response.json({ error: "Failed to fetch contacts", contacts: [] }, { status: 500 });
   }
 }
