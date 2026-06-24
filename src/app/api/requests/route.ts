@@ -49,16 +49,26 @@ export async function GET(request: NextRequest) {
         "https://api.hubapi.com/crm/v3/owners?limit=100",
         { headers: { Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}` } }
       );
-      const ownersJson = await ownersRes.json();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (ownersJson.results || []).forEach((o: any) => {
-        const fullName = [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email || String(o.id);
-        ownerMap[String(o.id)] = fullName;
-      });
-      console.log("ownerMap result:", JSON.stringify(ownerMap));
+      console.log("[/api/requests] Owners API status:", ownersRes.status);
+      if (!ownersRes.ok) {
+        const errText = await ownersRes.text();
+        console.warn("[/api/requests] Owners API error body:", errText);
+      } else {
+        const ownersJson = await ownersRes.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (ownersJson.results || []).forEach((o: any) => {
+          const fullName = [o.firstName, o.lastName].filter(Boolean).join(" ") || o.email || String(o.id);
+          ownerMap[String(o.id)] = fullName;
+        });
+        console.log("[/api/requests] ownerMap result:", JSON.stringify(ownerMap));
+      }
     } catch (err) {
-      console.warn("[/api/requests] Owner fetch failed:", err instanceof Error ? err.message : String(err));
+      console.warn("[/api/requests] Owner fetch threw:", err instanceof Error ? err.message : String(err));
     }
+
+    // Log hubspot_owner_id values from tickets so we can confirm they match the map keys
+    const seenOwnerIds = Array.from(new Set(raw.map(t => t.properties.hubspot_owner_id).filter(Boolean)));
+    console.log("[/api/requests] hubspot_owner_ids on tickets:", seenOwnerIds);
 
     const tickets: TicketItem[] = raw.map((t) => {
       const p = t.properties;
