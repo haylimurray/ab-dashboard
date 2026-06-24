@@ -13,7 +13,7 @@ import dynamic from "next/dynamic";
 import SummaryCards from "./SummaryCards";
 import AdvisorTable from "./AdvisorTable";
 import AdvisorDrawer from "./AdvisorDrawer";
-import NewsIntelligence from "./NewsIntelligence";
+// import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
 import RequestsView from "./RequestsView";
 import { normalizeState } from "@/lib/geocode";
 
@@ -26,7 +26,7 @@ const MapView = dynamic(() => import("./MapView"), {
   ),
 });
 
-type Tab = "advisors" | "map" | "requests" | "news";
+type Tab = "advisors" | "map" | "requests"; // "news" temporarily disabled
 const HEALTH_BATCH = 20;
 
 const HEALTH_DEFAULTS: ContactHealth = {
@@ -78,7 +78,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "advisors",  label: "Advisors" },
   { id: "map",       label: "Map" },
   { id: "requests",  label: "Requests" },
-  { id: "news",      label: "News Intelligence" },
+  // { id: "news", label: "News Intelligence" }, // temporarily disabled
 ];
 
 export default function Dashboard() {
@@ -417,7 +417,7 @@ export default function Dashboard() {
               />
             )}
             {activeTab === "requests" && <RequestsView />}
-            {activeTab === "news" && <NewsIntelligence />}
+            {/* {activeTab === "news" && <NewsIntelligence />} temporarily disabled */}
           </>
         ) : null}
       </main>
