@@ -197,6 +197,11 @@ function ExtendedPanel({
                     {advisor.company && (
                       <span className="text-sm text-gray-400 dark:text-dark-muted"> · {advisor.company}</span>
                     )}
+                    {advisor.city && (
+                      <span className="text-sm text-gray-400 dark:text-dark-muted">
+                        {" · "}{advisor.city}{advisor.state ? `, ${normalizeState(advisor.state)}` : ""}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {nearest.map((m) => (
@@ -374,7 +379,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
         <h2 className="text-base font-semibold text-gray-900 dark:text-dark-text mb-3">
           Core Markets
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
           {coreGroups.map((group) => (
             <MarketCard
               key={group.market.name}
