@@ -26,7 +26,10 @@ const MARKETS: MarketDef[] = [
   { name: "Minneapolis",   lat: 44.9778, lng: -93.2650 },
   { name: "Denver",        lat: 39.7392, lng: -104.9903 },
   { name: "Charlotte",     lat: 35.2271, lng:  -80.8431 },
+  { name: "Nashville",     lat: 36.1627, lng:  -86.7816 },
 ];
+
+const CORE_RADIUS_MI = 100;
 
 // ── Haversine distance (miles) ────────────────────────────────────────────────
 
@@ -46,14 +49,18 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 
 interface PlottedAdvisor {
   advisor: AdvisorContact;
-  lat: number;     // jittered — for map dot placement
+  lat: number;
   lng: number;
-  rawLat: number;  // clean city centre — for market assignment
+  rawLat: number;
   rawLng: number;
 }
 
-interface MarketAdvisor { advisor: AdvisorContact; distance: number }
-interface MarketGroup   { market: MarketDef; advisors: MarketAdvisor[] }
+interface MarketAdvisor    { advisor: AdvisorContact; distance: number }
+interface MarketGroup      { market: MarketDef; advisors: MarketAdvisor[] }
+interface ExtendedAdvisor  {
+  advisor: AdvisorContact;
+  nearest: { name: string; distance: number }[];
+}
 
 // ── Health colours ────────────────────────────────────────────────────────────
 
@@ -77,7 +84,6 @@ function MarketCard({
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
-      {/* Header */}
       <button
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
         onClick={() => setOpen((o) => !o)}
@@ -87,9 +93,7 @@ function MarketCard({
           <span className="text-sm font-semibold text-gray-900 dark:text-dark-text">{market.name}</span>
           <span
             className={`text-xs font-medium rounded-full px-2 py-0.5 ${
-              hasAdvisors
-                ? "bg-airvet-navy text-white"
-                : "bg-gray-100 text-gray-400 dark:text-dark-muted"
+              hasAdvisors ? "text-white" : "bg-gray-100 text-gray-400 dark:text-dark-muted"
             }`}
             style={hasAdvisors ? { backgroundColor: "#1B3A6B" } : undefined}
           >
@@ -104,11 +108,12 @@ function MarketCard({
         </svg>
       </button>
 
-      {/* Expanded advisor list */}
       {open && (
-        <div className="border-t border-gray-100">
+        <div className="border-t border-gray-100 dark:border-dark-border">
           {!hasAdvisors ? (
-            <p className="px-4 py-3 text-sm text-gray-400 italic">No advisors in this market.</p>
+            <p className="px-4 py-3 text-sm text-gray-400 dark:text-dark-muted italic">
+              No advisors in this market.
+            </p>
           ) : (
             <ul className="divide-y divide-gray-50 dark:divide-dark-border">
               {advisors.map(({ advisor, distance }) => (
@@ -118,14 +123,14 @@ function MarketCard({
                     onClick={() => onSelectAdvisor(advisor)}
                   >
                     <div className="min-w-0 flex-1">
-                      <span className="text-sm font-medium text-gray-900 hover:text-airvet-blue">
+                      <span className="text-sm font-medium text-gray-900 dark:text-dark-text hover:text-airvet-blue">
                         {advisor.name}
                       </span>
                       {advisor.company && (
                         <span className="text-sm text-gray-400 dark:text-dark-muted"> · {advisor.company}</span>
                       )}
                     </div>
-                    <span className="text-xs text-gray-400 flex-shrink-0 tabular-nums">
+                    <span className="text-xs text-gray-400 dark:text-dark-muted flex-shrink-0 tabular-nums">
                       {Math.round(distance)} mi
                     </span>
                   </button>
@@ -135,6 +140,80 @@ function MarketCard({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── ExtendedPanel ─────────────────────────────────────────────────────────────
+
+function ExtendedPanel({
+  entries,
+  onSelectAdvisor,
+}: {
+  entries: ExtendedAdvisor[];
+  onSelectAdvisor: (a: AdvisorContact) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-dark-text">
+          Extended Market — Available Across Regions
+        </h3>
+        <span className="text-xs text-gray-400 dark:text-dark-muted bg-gray-100 dark:bg-dark-hover rounded-full px-2 py-0.5">
+          {entries.length}
+        </span>
+      </div>
+      <div className="rounded-xl border border-blue-100 dark:border-dark-border bg-blue-50/40 dark:bg-dark-card shadow-sm overflow-hidden">
+        <button
+          className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-blue-50/80 dark:hover:bg-dark-hover transition-colors"
+          onClick={() => setOpen((o) => !o)}
+        >
+          <p className="text-xs text-blue-700 dark:text-dark-muted italic">
+            These advisors can support across multiple markets
+          </p>
+          <svg
+            className={`w-4 h-4 text-blue-400 dark:text-dark-muted flex-shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {open && (
+          <ul className="divide-y divide-blue-100 dark:divide-dark-border border-t border-blue-100 dark:border-dark-border">
+            {entries.map(({ advisor, nearest }) => (
+              <li key={advisor.id}>
+                <button
+                  className="w-full text-left px-5 py-3 flex items-center justify-between gap-4 hover:bg-blue-50 dark:hover:bg-dark-hover transition-colors"
+                  onClick={() => onSelectAdvisor(advisor)}
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-medium text-gray-900 dark:text-dark-text hover:text-airvet-blue">
+                      {advisor.name}
+                    </span>
+                    {advisor.company && (
+                      <span className="text-sm text-gray-400 dark:text-dark-muted"> · {advisor.company}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {nearest.map((m) => (
+                      <span
+                        key={m.name}
+                        className="text-[11px] bg-white dark:bg-dark-hover text-gray-500 dark:text-dark-muted border border-gray-200 dark:border-dark-border rounded-full px-2 py-0.5 tabular-nums whitespace-nowrap"
+                      >
+                        {m.name} {Math.round(m.distance)}mi
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -155,7 +234,6 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  // Build plotted list (jittered for map + raw for market assignment)
   const plotted = useMemo<PlottedAdvisor[]>(() =>
     advisors
       .filter((a) => a.city)
@@ -175,29 +253,37 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
     [advisors]
   );
 
-  // Assign each advisor to their nearest market (using raw city coords)
-  const marketGroups = useMemo<MarketGroup[]>(() => {
-    const buckets = new Map<string, MarketAdvisor[]>(
-      MARKETS.map((m) => [m.name, []])
-    );
+  // For every plotted advisor: find nearest market + distance
+  const advisorMarketDists = useMemo(() =>
+    plotted.map(({ advisor, rawLat, rawLng }) => {
+      const dists = MARKETS.map((m) => ({
+        name: m.name,
+        distance: haversine(rawLat, rawLng, m.lat, m.lng),
+      })).sort((a, b) => a.distance - b.distance);
+      return { advisor, nearest: dists[0], top2: dists.slice(0, 2) };
+    }),
+    [plotted]
+  );
 
-    for (const { advisor, rawLat, rawLng } of plotted) {
-      let nearest = MARKETS[0];
-      let minDist = Infinity;
-      for (const market of MARKETS) {
-        const d = haversine(rawLat, rawLng, market.lat, market.lng);
-        if (d < minDist) { minDist = d; nearest = market; }
+  // Core: within 100 miles of nearest hub
+  const coreGroups = useMemo<MarketGroup[]>(() => {
+    const buckets = new Map<string, MarketAdvisor[]>(MARKETS.map((m) => [m.name, []]));
+    for (const { advisor, nearest } of advisorMarketDists) {
+      if (nearest.distance <= CORE_RADIUS_MI) {
+        buckets.get(nearest.name)!.push({ advisor, distance: nearest.distance });
       }
-      buckets.get(nearest.name)!.push({ advisor, distance: minDist });
     }
-
-    // Sort each bucket by distance ascending
-    Array.from(buckets.values()).forEach((entries) => {
-      entries.sort((a, b) => a.distance - b.distance);
-    });
-
+    Array.from(buckets.values()).forEach((b) => b.sort((a, b) => a.distance - b.distance));
     return MARKETS.map((m) => ({ market: m, advisors: buckets.get(m.name)! }));
-  }, [plotted]);
+  }, [advisorMarketDists]);
+
+  // Extended: >100 miles from every hub, sorted alphabetically
+  const extendedEntries = useMemo<ExtendedAdvisor[]>(() => {
+    return advisorMarketDists
+      .filter(({ nearest }) => nearest.distance > CORE_RADIUS_MI)
+      .map(({ advisor, top2 }) => ({ advisor, nearest: top2 }))
+      .sort((a, b) => a.advisor.name.localeCompare(b.advisor.name));
+  }, [advisorMarketDists]);
 
   const unplotted = advisors.filter((a) => a.city).length - plotted.length;
 
@@ -213,9 +299,6 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
     return (
       <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
         <div className="text-center px-6">
-          <svg className="w-10 h-10 text-gray-300 dark:text-dark-border mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-          </svg>
           <p className="text-sm font-medium text-gray-500 dark:text-dark-muted">Unable to load map data</p>
           <p className="text-xs text-gray-400 dark:text-dark-muted mt-1">Try refreshing the page</p>
         </div>
@@ -234,10 +317,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
           { color: "#9ca3af", label: "Loading…" },
         ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-1.5">
-            <span
-              className="inline-block w-3 h-3 rounded-full"
-              style={{ backgroundColor: color }}
-            />
+            <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
             <span className="text-xs text-gray-500 dark:text-dark-muted">{label}</span>
           </div>
         ))}
@@ -280,7 +360,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
                 <Tooltip direction="top" offset={[0, -8]}>
                   <div className="text-xs">
                     <div className="font-semibold">{advisor.name}</div>
-                    {location && <div className="text-gray-500 dark:text-dark-muted">{location}</div>}
+                    {location && <div className="text-gray-500">{location}</div>}
                   </div>
                 </Tooltip>
               </CircleMarker>
@@ -289,11 +369,13 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
         </MapContainer>
       </div>
 
-      {/* ── Market Breakdown ────────────────────────────────────────────── */}
+      {/* ── Market Breakdown ─────────────────────────────────────────────── */}
       <section>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-dark-text mb-3">Market Breakdown</h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-dark-text mb-3">
+          Core Markets
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {marketGroups.map((group) => (
+          {coreGroups.map((group) => (
             <MarketCard
               key={group.market.name}
               group={group}
@@ -301,6 +383,8 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
             />
           ))}
         </div>
+
+        <ExtendedPanel entries={extendedEntries} onSelectAdvisor={onSelectAdvisor} />
       </section>
     </div>
   );
