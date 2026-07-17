@@ -316,13 +316,17 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
       {/* Legend */}
       <div className="flex items-center gap-5 px-1">
         {[
-          { color: "#16a34a", label: "Healthy" },
-          { color: "#d97706", label: "Caution" },
-          { color: "#dc2626", label: "In Cooldown" },
-          { color: "#9ca3af", label: "Loading…" },
-        ].map(({ color, label }) => (
+          { color: "#16a34a", label: "Healthy",        pulse: false },
+          { color: "#d97706", label: "Caution",         pulse: false },
+          { color: "#dc2626", label: "In Cooldown",     pulse: false },
+          { color: "#991b1b", label: "Do Not Contact",  pulse: true  },
+          { color: "#9ca3af", label: "Loading…",        pulse: false },
+        ].map(({ color, label, pulse }) => (
           <div key={label} className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+            <span
+              className={`inline-block w-3 h-3 rounded-full${pulse ? " leaflet-pulse-dot" : ""}`}
+              style={{ backgroundColor: color }}
+            />
             <span className="text-xs text-gray-500 dark:text-dark-muted">{label}</span>
           </div>
         ))}
@@ -341,10 +345,9 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
             attribution={TILE_ATTR}
           />
           {plotted.map(({ advisor, lat, lng }) => {
-            const isRed = advisor.healthLoaded &&
-              (advisor.doNotContact || advisor.healthColor === "red");
+            const isDNC = advisor.healthLoaded && advisor.doNotContact;
             const color = advisor.healthLoaded
-              ? (advisor.doNotContact ? HEALTH_COLOR.red : HEALTH_COLOR[advisor.healthColor])
+              ? (advisor.doNotContact ? "#991b1b" : HEALTH_COLOR[advisor.healthColor])
               : UNLOADED_COLOR;
             const st = normalizeState(advisor.state);
             const location = advisor.city && st ? `${advisor.city}, ${st}` : (advisor.city ?? "");
@@ -358,7 +361,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
                   fillOpacity: 0.9,
                   color: "white",
                   weight: 2,
-                  className: isRed ? "leaflet-pulse-dot" : undefined,
+                  className: isDNC ? "leaflet-pulse-dot" : undefined,
                 }}
                 eventHandlers={{ click: () => onSelectAdvisor(advisor) }}
               >

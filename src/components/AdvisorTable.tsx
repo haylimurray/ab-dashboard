@@ -273,6 +273,7 @@ export default function AdvisorTable({
           <option value="">All Health Statuses</option>
           <option value="healthy">Healthy</option>
           <option value="caution">Caution</option>
+          <option value="inCooldown">In Cooldown</option>
           <option value="doNotContact">Do Not Contact</option>
         </select>
         <select

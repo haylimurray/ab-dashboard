@@ -10,19 +10,21 @@ interface Card {
 export default function SummaryCards({ advisors }: Props) {
   const total        = advisors.length;
   const loaded       = advisors.filter((a) => a.healthLoaded);
-  const healthy      = loaded.filter((a) => a.healthColor === "green").length;
-  const caution      = loaded.filter((a) => a.healthColor === "yellow").length;
+  const healthy      = loaded.filter((a) => a.healthColor === "green" && !a.doNotContact).length;
+  const caution      = loaded.filter((a) => a.healthColor === "yellow" && !a.doNotContact).length;
+  const inCooldown   = loaded.filter((a) => a.healthColor === "red" && !a.doNotContact).length;
   const doNotContact = loaded.filter((a) => a.doNotContact).length;
 
   const cards: Card[] = [
     { label: "Total Advisors",  value: total,        bg: "bg-white dark:bg-dark-card",     text: "text-gray-900",   darkText: "dark:text-dark-text",    accent: "#1B3A6B" },
     { label: "Healthy",         value: healthy,      bg: "bg-green-50 dark:bg-dark-card",  text: "text-green-700", darkText: "dark:text-green-400",    accent: "#16a34a" },
     { label: "Caution",         value: caution,      bg: "bg-amber-50 dark:bg-dark-card",  text: "text-amber-700", darkText: "dark:text-amber-400",    accent: "#d97706" },
-    { label: "Do Not Contact",  value: doNotContact, bg: "bg-red-50 dark:bg-dark-card",    text: "text-red-700",   darkText: "dark:text-red-400",      accent: "#dc2626" },
+    { label: "In Cooldown",     value: inCooldown,   bg: "bg-red-50 dark:bg-dark-card",    text: "text-red-600",   darkText: "dark:text-red-400",      accent: "#dc2626" },
+    { label: "Do Not Contact",  value: doNotContact, bg: "bg-red-50 dark:bg-dark-card",    text: "text-red-700",   darkText: "dark:text-red-400",      accent: "#991b1b" },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
       {cards.map((c) => (
         <div
           key={c.label}

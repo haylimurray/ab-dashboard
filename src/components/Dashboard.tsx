@@ -11,6 +11,7 @@ import type {
 } from "@/types";
 import dynamic from "next/dynamic";
 import SummaryCards from "./SummaryCards";
+import HealthScoreKey from "./HealthScoreKey";
 import AdvisorTable from "./AdvisorTable";
 import AdvisorDrawer from "./AdvisorDrawer";
 // import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
@@ -266,9 +267,9 @@ export default function Dashboard() {
       result = result.filter((a) => {
         if (!a.healthLoaded) return false; // exclude unscored from health filters
         if (filters.healthStatus === "doNotContact") return a.doNotContact;
-        if (filters.healthStatus === "healthy") return a.healthColor === "green" && !a.doNotContact;
-        if (filters.healthStatus === "caution")
-          return a.healthColor === "yellow" || (a.healthColor === "red" && !a.doNotContact);
+        if (filters.healthStatus === "healthy")    return a.healthColor === "green" && !a.doNotContact;
+        if (filters.healthStatus === "caution")    return a.healthColor === "yellow" && !a.doNotContact;
+        if (filters.healthStatus === "inCooldown") return a.healthColor === "red" && !a.doNotContact;
         return true;
       });
     }
@@ -396,6 +397,7 @@ export default function Dashboard() {
             {activeTab === "advisors" && (
               <>
                 <SummaryCards advisors={advisors} />
+                <HealthScoreKey cooldownDays={15} />
                 <AdvisorTable
                   advisors={filtered}
                   onSelectAdvisor={(a) => setSelectedId(a.id)}
