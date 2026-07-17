@@ -12,6 +12,12 @@ export interface ContactListItem {
   requestAvailability: string | null;
   lastRequestType: string | null;
   lastRequestDate: string | null;
+  connector: string | null;
+  advisorPriority: string | null;
+  advisorTier: string | null;
+  advisorComp: string | null;
+  contractLink: string | null;
+  startDate: string | null;
   notesLastContacted: string | null;  // HubSpot fallback when email fetch is empty
   notesLastUpdated: string | null;
   city: string | null;

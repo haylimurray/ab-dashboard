@@ -9,7 +9,8 @@ import { normalizeState } from "@/lib/geocode";
 
 type ColId =
   | "name" | "advisorType" | "tier" | "location" | "lastContacted"
-  | "daysSinceContact" | "healthScore" | "salesStatus" | "status";
+  | "daysSinceContact" | "healthScore" | "availability" | "connector"
+  | "contract" | "priority" | "salesStatus" | "status";
 
 interface ColDef {
   id: ColId;
@@ -26,6 +27,10 @@ const COLS: ColDef[] = [
   { id: "lastContacted",    label: "Last Contacted",field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",    field: "daysSinceContact" },
   { id: "healthScore",      label: "Health",        field: "healthScore" },
+  { id: "availability",     label: "Availability" },
+  { id: "connector",        label: "Connector" },
+  { id: "contract",         label: "Contract" },
+  { id: "priority",         label: "Priority" },
   { id: "salesStatus",      label: "Sales Status",  field: "salesStatus" },
   { id: "status",           label: "Status" },
 ];
@@ -47,7 +52,7 @@ interface Props {
   onSelectAdvisor: (advisor: AdvisorContact) => void;
   sort: { field: SortField; dir: SortDir };
   onSort: (field: SortField) => void;
-  filters: { advisorType: string; tier: string; healthStatus: string; search: string; market: string };
+  filters: { advisorType: string; tier: string; healthStatus: string; search: string; market: string; connector: string; availability: string };
   onFilterChange: (key: string, value: string) => void;
   uniqueTiers: string[];
   uniqueTypes: string[];
@@ -73,6 +78,58 @@ function LastTouchedPill({ name, team }: { name: string; team: string }) {
   );
 }
 
+function AvailabilityBadge({ value }: { value: string | null }) {
+  if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
+  const v = value.toLowerCase();
+  if (v.startsWith("open"))
+    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 whitespace-nowrap">Open</span>;
+  if (v.startsWith("possib"))
+    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap">Possible</span>;
+  if (v.startsWith("no"))
+    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted whitespace-nowrap">No Requests</span>;
+  return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500 whitespace-nowrap">{value}</span>;
+}
+
+function ConnectorBadge({ value }: { value: string | null }) {
+  if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
+  const v = value.toLowerCase();
+  if (v === "yes")
+    return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">✓ Yes</span>;
+  if (v === "conditional")
+    return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">◐ Conditional</span>;
+  if (v === "no")
+    return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-400 dark:bg-dark-border/40 dark:text-dark-muted">✗ No</span>;
+  return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500">{value}</span>;
+}
+
+function ContractBadge({ link }: { link: string | null }) {
+  if (!link) return <span className="text-gray-300 dark:text-dark-border">—</span>;
+  return (
+    <a
+      href={link}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 hover:bg-green-200 transition-colors"
+      title="View contract"
+    >
+      ✓ Contract
+    </a>
+  );
+}
+
+function PriorityBadge({ value }: { value: string | null }) {
+  if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
+  const v = value.toLowerCase();
+  if (v === "high")
+    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">High</span>;
+  if (v === "medium")
+    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">Medium</span>;
+  if (v === "low")
+    return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-500 dark:bg-dark-border/40 dark:text-dark-muted">Low</span>;
+  return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500">{value}</span>;
+}
+
 function escapeCSV(val: string | null | undefined): string {
   if (val === null || val === undefined || val === "") return "";
   const s = String(val);
@@ -84,8 +141,8 @@ function escapeCSV(val: string | null | undefined): string {
 function exportToCSV(advisors: AdvisorContact[], market: string) {
   const headers = [
     "Name", "Email", "Company", "Title", "Location",
-    "Advisor Type", "Tier", "Last Contacted", "Days Since Contact",
-    "Health Status", "Last Touched By",
+    "Advisor Type", "Tier", "Availability", "Connector", "Contract", "Priority",
+    "Last Contacted", "Days Since Contact", "Health Status", "Last Touched By",
   ];
 
   const rows = advisors.map((a) => {
@@ -111,6 +168,10 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(location),
       escapeCSV(a.advisorType),
       escapeCSV(a.tier),
+      escapeCSV(a.requestAvailability),
+      escapeCSV(a.connector),
+      escapeCSV(a.contractLink ? "Yes" : ""),
+      escapeCSV(a.advisorPriority),
       escapeCSV(lastContacted),
       escapeCSV(daysSince),
       escapeCSV(healthStatus),
@@ -284,6 +345,26 @@ export default function AdvisorTable({
           <option value="">All Markets</option>
           {uniqueMarkets.map((m) => <option key={m}>{m}</option>)}
         </select>
+        <select
+          value={filters.connector}
+          onChange={(e) => onFilterChange("connector", e.target.value)}
+          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">All Connectors</option>
+          <option value="Yes">Yes</option>
+          <option value="Conditional">Conditional</option>
+          <option value="No">No</option>
+        </select>
+        <select
+          value={filters.availability}
+          onChange={(e) => onFilterChange("availability", e.target.value)}
+          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">All Availability</option>
+          <option value="Open to Requests">Open</option>
+          <option value="Possibility of Requests">Possible</option>
+          <option value="No Requests">No Requests</option>
+        </select>
 
         {/* Right-side controls */}
         <div className="ml-auto flex items-center gap-2">
@@ -455,6 +536,26 @@ export default function AdvisorTable({
                           <div className="h-3 w-28 rounded bg-gray-100 animate-pulse" />
                         </div>
                       )}
+                    </td>
+                  )}
+                  {visibility.availability && (
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <AvailabilityBadge value={a.requestAvailability} />
+                    </td>
+                  )}
+                  {visibility.connector && (
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <ConnectorBadge value={a.connector} />
+                    </td>
+                  )}
+                  {visibility.contract && (
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <ContractBadge link={a.contractLink} />
+                    </td>
+                  )}
+                  {visibility.priority && (
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <PriorityBadge value={a.advisorPriority} />
                     </td>
                   )}
                   {visibility.salesStatus && (

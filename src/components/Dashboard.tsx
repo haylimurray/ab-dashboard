@@ -115,6 +115,8 @@ export default function Dashboard() {
     healthStatus: "",
     search: "",
     market: "",
+    connector: "",
+    availability: "",
   });
 
   // Generation counter — incremented on each fetch; lets the health loop
@@ -273,6 +275,8 @@ export default function Dashboard() {
         return true;
       });
     }
+    if (filters.connector)    result = result.filter((a) => a.connector === filters.connector);
+    if (filters.availability) result = result.filter((a) => a.requestAvailability === filters.availability);
     result = sortAdvisors(result, sort.field, sort.dir);
     return { filtered: result, uniqueTypes, uniqueTiers, uniqueMarkets };
   }, [advisors, filters, sort]);
