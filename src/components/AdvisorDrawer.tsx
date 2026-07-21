@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import type { AdvisorContact } from "@/types";
-import HealthBar from "./HealthBar";
+import { computeOutreachStatus, OutreachStatus } from "@/lib/health";
 
 const HUBSPOT_BASE = "https://app.hubspot.com/contacts/21696780/record/0-1";
 
@@ -163,19 +163,42 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
 
                     <hr className="border-gray-100 dark:border-dark-border" />
 
-                    <Field label="Health Status">
+                    <Field label="Outreach Status">
                       <div className="mt-1">
-                        <HealthBar
-                          color={advisor.healthColor}
-                          daysSinceContact={advisor.daysSinceContact}
-                          outboundEmailCount90d={advisor.outboundEmailCount90d}
-                        />
+                        {(() => {
+                          const status = computeOutreachStatus(
+                            advisor.daysSinceContact,
+                            advisor.healthLoaded,
+                            advisor.requestAvailability
+                          );
+                          const PILL: Record<OutreachStatus, string> = {
+                            paused:     "bg-gray-100 text-gray-500",
+                            healthy:    "bg-green-100 text-green-700",
+                            caution:    "bg-amber-100 text-amber-700",
+                            atRisk:     "bg-red-100 text-red-600",
+                            inCooldown: "bg-red-100 text-red-600",
+                          };
+                          const LABEL: Record<OutreachStatus, string> = {
+                            paused: "Paused", healthy: "Healthy", caution: "Caution",
+                            atRisk: "At Risk", inCooldown: "In Cooldown",
+                          };
+                          return (
+                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${PILL[status]}`}>
+                              {LABEL[status]}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </Field>
 
-                    {advisor.doNotContact && (
+                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability) === "inCooldown" && (
                       <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700">
-                        <strong>Do Not Contact</strong> — outbound email sent within the last 30 days.
+                        <strong>In Cooldown</strong> — contacted within the last 15 days. Do not request.
+                      </div>
+                    )}
+                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability) === "paused" && (
+                      <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5 text-sm text-gray-600">
+                        <strong>Paused</strong> — availability set to "No Requests". Do not contact.
                       </div>
                     )}
 

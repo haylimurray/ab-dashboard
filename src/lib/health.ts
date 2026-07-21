@@ -53,3 +53,40 @@ export function isDoNotContact(outboundTimestamps: string[]): boolean {
     return d !== null && d.getTime() >= cutoff30;
   });
 }
+
+// ── Composite outreach status ─────────────────────────────────────────────────
+
+export type OutreachStatus = "paused" | "healthy" | "caution" | "atRisk" | "inCooldown";
+
+// Factors in both timing (daysSinceContact) and availability field.
+// Availability "No Requests" → always paused, overrides timing.
+// Availability "Possibility of Requests" → timing applies but capped at caution.
+// Otherwise → pure timing tiers.
+export function computeOutreachStatus(
+  daysSinceContact: number | null,
+  healthLoaded: boolean,
+  requestAvailability: string | null,
+  cooldownDays = 15
+): OutreachStatus {
+  const avail = (requestAvailability ?? "").toLowerCase();
+
+  if (avail.startsWith("no")) return "paused";
+
+  if (!healthLoaded) return "healthy"; // default while loading
+
+  let timing: OutreachStatus;
+  if (daysSinceContact === null || daysSinceContact >= 60) {
+    timing = "healthy";
+  } else if (daysSinceContact >= 30) {
+    timing = "caution";
+  } else if (daysSinceContact >= cooldownDays) {
+    timing = "atRisk";
+  } else {
+    timing = "inCooldown";
+  }
+
+  // "Possibility of Requests" caps Healthy → Caution
+  if (avail.startsWith("possib") && timing === "healthy") return "caution";
+
+  return timing;
+}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdvisorContact, SortDir, SortField } from "@/types";
-import HealthBar from "./HealthBar";
+import { computeOutreachStatus } from "@/lib/health";
 import { normalizeState } from "@/lib/geocode";
 
 // ── Column definitions ────────────────────────────────────────────────────────
@@ -26,9 +26,9 @@ const COLS: ColDef[] = [
   { id: "location",         label: "Location" },
   { id: "lastContacted",    label: "Last Contacted",field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",    field: "daysSinceContact" },
-  { id: "healthScore",      label: "Health",        field: "healthScore" },
+  { id: "healthScore",      label: "Outreach Status", field: "healthScore", alwaysVisible: true },
+  { id: "connector",        label: "Connector",                               alwaysVisible: true },
   { id: "availability",     label: "Availability" },
-  { id: "connector",        label: "Connector" },
   { id: "contract",         label: "Contract" },
   { id: "priority",         label: "Priority" },
   { id: "salesStatus",      label: "Sales Status",  field: "salesStatus" },
@@ -52,7 +52,7 @@ interface Props {
   onSelectAdvisor: (advisor: AdvisorContact) => void;
   sort: { field: SortField; dir: SortDir };
   onSort: (field: SortField) => void;
-  filters: { advisorType: string; tier: string; healthStatus: string; search: string; market: string; connector: string; availability: string };
+  filters: { advisorType: string; tier: string; outreachStatus: string; search: string; market: string; connector: string; availability: string };
   onFilterChange: (key: string, value: string) => void;
   uniqueTiers: string[];
   uniqueTypes: string[];
@@ -78,6 +78,99 @@ function LastTouchedPill({ name, team }: { name: string; team: string }) {
   );
 }
 
+// ── Outreach Status badge ─────────────────────────────────────────────────────
+
+const STATUS_PILL: Record<string, string> = {
+  paused:     "bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted",
+  healthy:    "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
+  caution:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
+  atRisk:     "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
+  inCooldown: "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  paused:     "Paused",
+  healthy:    "Healthy",
+  caution:    "Caution",
+  atRisk:     "At Risk",
+  inCooldown: "In Cooldown",
+};
+
+interface OutreachProps {
+  daysSinceContact: number | null;
+  healthLoaded: boolean;
+  outboundEmailCount90d: number;
+  requestAvailability: string | null;
+  cooldownDays?: number;
+}
+
+function OutreachStatusBadge({
+  daysSinceContact, healthLoaded, outboundEmailCount90d, requestAvailability, cooldownDays = 15,
+}: OutreachProps) {
+  const avail = (requestAvailability ?? "").toLowerCase();
+
+  // Paused can be shown before health loads
+  if (avail.startsWith("no")) {
+    return (
+      <div className="flex flex-col gap-1 min-w-[9rem]">
+        <span className={`inline-flex items-center self-start rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_PILL.paused}`}>
+          Paused
+        </span>
+        <span className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">Availability: No Requests</span>
+      </div>
+    );
+  }
+
+  if (!healthLoaded) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div className="h-5 w-24 rounded-full bg-gray-100 animate-pulse" />
+        <div className="h-3 w-28 rounded bg-gray-100 animate-pulse" />
+      </div>
+    );
+  }
+
+  const status = computeOutreachStatus(daysSinceContact, true, requestAvailability, cooldownDays);
+
+  let reason: string;
+  if (daysSinceContact === null) {
+    reason = "Never contacted";
+  } else {
+    const dayStr = daysSinceContact === 1 ? "1 day ago" : `${daysSinceContact} days ago`;
+    reason = `Contacted ${dayStr}`;
+    if (outboundEmailCount90d > 1) reason += ` · ${outboundEmailCount90d} in 90d`;
+  }
+  // Note when availability is capping the status
+  if (avail.startsWith("possib") && (daysSinceContact === null || daysSinceContact >= 60)) {
+    reason += " · Availability caps at Caution";
+  }
+
+  return (
+    <div className="flex flex-col gap-1 min-w-[9rem]">
+      <span className={`inline-flex items-center self-start rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_PILL[status]}`}>
+        {STATUS_LABEL[status]}
+      </span>
+      <span className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">{reason}</span>
+    </div>
+  );
+}
+
+// ── Connector badge ───────────────────────────────────────────────────────────
+
+function ConnectorBadge({ value }: { value: string | null }) {
+  if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
+  const v = value.toLowerCase();
+  if (v === "yes")
+    return <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 whitespace-nowrap">Connector ✓</span>;
+  if (v === "conditional")
+    return <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 whitespace-nowrap">Conditional</span>;
+  if (v === "no")
+    return <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-400 dark:bg-dark-border/40 dark:text-dark-muted whitespace-nowrap">Not a Connector</span>;
+  return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 whitespace-nowrap">{value}</span>;
+}
+
+// ── Availability badge ────────────────────────────────────────────────────────
+
 function AvailabilityBadge({ value }: { value: string | null }) {
   if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
   const v = value.toLowerCase();
@@ -88,18 +181,6 @@ function AvailabilityBadge({ value }: { value: string | null }) {
   if (v.startsWith("no"))
     return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted whitespace-nowrap">No Requests</span>;
   return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500 whitespace-nowrap">{value}</span>;
-}
-
-function ConnectorBadge({ value }: { value: string | null }) {
-  if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
-  const v = value.toLowerCase();
-  if (v === "yes")
-    return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">✓ Yes</span>;
-  if (v === "conditional")
-    return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">◐ Conditional</span>;
-  if (v === "no")
-    return <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-400 dark:bg-dark-border/40 dark:text-dark-muted">✗ No</span>;
-  return <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500">{value}</span>;
 }
 
 function ContractBadge({ link }: { link: string | null }) {
@@ -148,11 +229,8 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
   const rows = advisors.map((a) => {
     const st = normalizeState(a.state);
     const location = a.city ? (st ? `${a.city}, ${st}` : a.city) : "";
-    const healthStatus = a.healthLoaded
-      ? (a.doNotContact ? "Do Not Contact"
-        : a.healthColor === "red" ? "In Cooldown"
-        : a.healthColor === "yellow" ? "Caution"
-        : "Healthy")
+    const healthStatus = a.healthLoaded || (a.requestAvailability ?? "").toLowerCase().startsWith("no")
+      ? (STATUS_LABEL[computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability)] ?? "")
       : "";
     const lastTouchedBy = a.lastTouchedBy
       ? `${a.lastTouchedBy.name} (${a.lastTouchedBy.team})`
@@ -228,7 +306,12 @@ export default function AdvisorTable({
   useEffect(() => {
     try {
       const v = localStorage.getItem("ab_col_visibility");
-      if (v) setVisibility((p) => ({ ...p, ...JSON.parse(v) }));
+      if (v) {
+        const stored = JSON.parse(v);
+        // alwaysVisible columns can never be hidden — override any stale stored value
+        COLS.filter((c) => c.alwaysVisible).forEach((c) => { stored[c.id] = true; });
+        setVisibility((p) => ({ ...p, ...stored }));
+      }
     } catch {}
     try {
       const w = localStorage.getItem("ab_col_widths");
@@ -327,15 +410,16 @@ export default function AdvisorTable({
           {uniqueTiers.map((t) => <option key={t}>{t}</option>)}
         </select>
         <select
-          value={filters.healthStatus}
-          onChange={(e) => onFilterChange("healthStatus", e.target.value)}
+          value={filters.outreachStatus}
+          onChange={(e) => onFilterChange("outreachStatus", e.target.value)}
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
         >
-          <option value="">All Health Statuses</option>
+          <option value="">All Outreach Statuses</option>
           <option value="healthy">Healthy</option>
           <option value="caution">Caution</option>
+          <option value="atRisk">At Risk</option>
           <option value="inCooldown">In Cooldown</option>
-          <option value="doNotContact">Do Not Contact</option>
+          <option value="paused">Paused</option>
         </select>
         <select
           value={filters.market}
@@ -523,29 +607,26 @@ export default function AdvisorTable({
                   )}
                   {visibility.healthScore && (
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      {a.healthLoaded ? (
-                        <div className="flex flex-col gap-1.5">
-                          <HealthBar color={a.healthColor} daysSinceContact={a.daysSinceContact} outboundEmailCount90d={a.outboundEmailCount90d} />
-                          {a.lastTouchedBy && (
-                            <LastTouchedPill name={a.lastTouchedBy.name} team={a.lastTouchedBy.team} />
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                          <div className="h-5 w-20 rounded-full bg-gray-100 animate-pulse" />
-                          <div className="h-3 w-28 rounded bg-gray-100 animate-pulse" />
-                        </div>
-                      )}
+                      <div className="flex flex-col gap-1.5">
+                        <OutreachStatusBadge
+                          daysSinceContact={a.daysSinceContact}
+                          healthLoaded={a.healthLoaded}
+                          outboundEmailCount90d={a.outboundEmailCount90d}
+                          requestAvailability={a.requestAvailability}
+                        />
+                        {a.healthLoaded && a.lastTouchedBy && (
+                          <LastTouchedPill name={a.lastTouchedBy.name} team={a.lastTouchedBy.team} />
+                        )}
+                      </div>
                     </td>
                   )}
+                  {/* Connector — alwaysVisible, no visibility guard needed */}
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <ConnectorBadge value={a.connector} />
+                  </td>
                   {visibility.availability && (
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <AvailabilityBadge value={a.requestAvailability} />
-                    </td>
-                  )}
-                  {visibility.connector && (
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <ConnectorBadge value={a.connector} />
                     </td>
                   )}
                   {visibility.contract && (

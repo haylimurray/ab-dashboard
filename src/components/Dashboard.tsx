@@ -13,6 +13,7 @@ import dynamic from "next/dynamic";
 import SummaryCards from "./SummaryCards";
 import HealthScoreKey from "./HealthScoreKey";
 import AdvisorTable from "./AdvisorTable";
+import { computeOutreachStatus } from "@/lib/health";
 import AdvisorDrawer from "./AdvisorDrawer";
 // import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
 import RequestsView from "./RequestsView";
@@ -112,7 +113,7 @@ export default function Dashboard() {
   const [filters, setFilters] = useState({
     advisorType: "",
     tier: "",
-    healthStatus: "",
+    outreachStatus: "",
     search: "",
     market: "",
     connector: "",
@@ -265,14 +266,13 @@ export default function Dashboard() {
         return loc === filters.market;
       });
     }
-    if (filters.healthStatus) {
+    if (filters.outreachStatus) {
       result = result.filter((a) => {
-        if (!a.healthLoaded) return false; // exclude unscored from health filters
-        if (filters.healthStatus === "doNotContact") return a.doNotContact;
-        if (filters.healthStatus === "healthy")    return a.healthColor === "green" && !a.doNotContact;
-        if (filters.healthStatus === "caution")    return a.healthColor === "yellow" && !a.doNotContact;
-        if (filters.healthStatus === "inCooldown") return a.healthColor === "red" && !a.doNotContact;
-        return true;
+        if (filters.outreachStatus === "paused") {
+          return (a.requestAvailability ?? "").toLowerCase().startsWith("no");
+        }
+        if (!a.healthLoaded) return false;
+        return computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === filters.outreachStatus;
       });
     }
     if (filters.connector)    result = result.filter((a) => a.connector === filters.connector);
