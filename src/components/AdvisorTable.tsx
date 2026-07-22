@@ -20,18 +20,17 @@ interface ColDef {
 }
 
 const COLS: ColDef[] = [
-  { id: "name",             label: "Name",          field: "name",            alwaysVisible: true },
-  { id: "advisorType",      label: "Advisor Type",  field: "advisorType" },
-  { id: "tier",             label: "Tier",          field: "tier" },
+  { id: "name",             label: "Name",            field: "name",            alwaysVisible: true },
+  { id: "connector",        label: "Connector",                                 alwaysVisible: true },
+  { id: "tier",             label: "Tier",            field: "tier" },
   { id: "location",         label: "Location" },
-  { id: "lastContacted",    label: "Last Contacted",field: "lastContacted" },
-  { id: "daysSinceContact", label: "Days Since",    field: "daysSinceContact" },
-  { id: "healthScore",      label: "Outreach Status", field: "healthScore", alwaysVisible: true },
-  { id: "connector",        label: "Connector",                               alwaysVisible: true },
+  { id: "lastContacted",    label: "Last Contacted",  field: "lastContacted" },
+  { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
+  { id: "healthScore",      label: "Outreach Status", field: "healthScore",     alwaysVisible: true },
   { id: "availability",     label: "Availability" },
   { id: "contract",         label: "Contract" },
   { id: "priority",         label: "Priority" },
-  { id: "salesStatus",      label: "Sales Status",  field: "salesStatus" },
+  { id: "salesStatus",      label: "Sales Status",    field: "salesStatus" },
   { id: "status",           label: "Status" },
 ];
 
@@ -574,13 +573,10 @@ export default function AdvisorTable({
                       {a.email && <div className="text-xs text-gray-400 dark:text-dark-muted mt-0.5">{a.email}</div>}
                     </td>
                   )}
-                  {visibility.advisorType && (
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      {a.advisorType
-                        ? <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">{a.advisorType}</span>
-                        : <span className="text-gray-300 dark:text-dark-border">—</span>}
-                    </td>
-                  )}
+                  {/* Connector — alwaysVisible, no visibility guard needed */}
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <ConnectorBadge value={a.connector} />
+                  </td>
                   {visibility.tier && (
                     <td className="px-3 py-2.5 whitespace-nowrap text-gray-700 dark:text-dark-text">
                       {a.tier ?? <span className="text-gray-300">—</span>}
@@ -623,10 +619,6 @@ export default function AdvisorTable({
                       </div>
                     </td>
                   )}
-                  {/* Connector — alwaysVisible, no visibility guard needed */}
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    <ConnectorBadge value={a.connector} />
-                  </td>
                   {visibility.availability && (
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <AvailabilityBadge value={a.requestAvailability} />
