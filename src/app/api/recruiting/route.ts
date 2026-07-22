@@ -50,7 +50,7 @@ function parseCSV(text: string): Record<string, string>[] {
 // ── Route ─────────────────────────────────────────────────────────────────────
 
 export async function GET() {
-  const sheetUrl = process.env['RECRUITING_SHEET_URL'];
+  const sheetUrl = process.env['RECRUITING_SHEET_URL'] || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSVmQ5JsXOqS0E7NtogPEWjJQ-NAvgnOyqhxjmuXwMfz_2KiJ1Qu975npiaSX87OxW-BVZ0N8dj4Uae/pub?gid=0&single=true&output=csv';
 
   if (!sheetUrl) {
     return NextResponse.json(
