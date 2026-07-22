@@ -17,6 +17,7 @@ import { computeOutreachStatus } from "@/lib/health";
 import AdvisorDrawer from "./AdvisorDrawer";
 // import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
 import RequestsView from "./RequestsView";
+import RecruitingView from "./RecruitingView";
 import { normalizeState } from "@/lib/geocode";
 
 const MapView = dynamic(() => import("./MapView"), {
@@ -28,7 +29,7 @@ const MapView = dynamic(() => import("./MapView"), {
   ),
 });
 
-type Tab = "advisors" | "map" | "requests"; // "news" temporarily disabled
+type Tab = "advisors" | "map" | "requests" | "recruiting"; // "news" temporarily disabled
 const HEALTH_BATCH = 20;
 
 const HEALTH_DEFAULTS: ContactHealth = {
@@ -77,9 +78,10 @@ function sortAdvisors(
 }
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "advisors",  label: "Advisors" },
-  { id: "map",       label: "Map" },
-  { id: "requests",  label: "Requests" },
+  { id: "advisors",   label: "Advisors" },
+  { id: "map",        label: "Map" },
+  { id: "requests",   label: "Requests" },
+  { id: "recruiting", label: "Recruiting" },
   // { id: "news", label: "News Intelligence" }, // temporarily disabled
 ];
 
@@ -422,7 +424,8 @@ export default function Dashboard() {
                 darkMode={darkMode}
               />
             )}
-            {activeTab === "requests" && <RequestsView />}
+            {activeTab === "requests"   && <RequestsView />}
+            {activeTab === "recruiting" && <RecruitingView />}
             {/* {activeTab === "news" && <NewsIntelligence />} temporarily disabled */}
           </>
         ) : null}
