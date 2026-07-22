@@ -55,7 +55,7 @@ function sortAdvisors(
     switch (field) {
       case "name":        av = a.name.toLowerCase();              bv = b.name.toLowerCase();              break;
       case "advisorType": av = a.advisorType?.toLowerCase() ?? ""; bv = b.advisorType?.toLowerCase() ?? ""; break;
-      case "tier":        av = a.tier?.toLowerCase() ?? "";        bv = b.tier?.toLowerCase() ?? "";        break;
+      case "tier":        av = a.advisorTier?.toLowerCase() ?? "";  bv = b.advisorTier?.toLowerCase() ?? ""; break;
       case "lastContacted":
       case "daysSinceContact":
         // Unloaded contacts sort to end regardless of direction
@@ -238,7 +238,7 @@ export default function Dashboard() {
       new Set(advisors.map((a) => a.advisorType).filter(Boolean) as string[])
     ).sort();
     const uniqueTiers = Array.from(
-      new Set(advisors.map((a) => a.tier).filter(Boolean) as string[])
+      new Set(advisors.map((a) => a.advisorTier).filter(Boolean) as string[])
     ).sort();
     const uniqueMarkets = Array.from(
       new Set(
@@ -259,7 +259,7 @@ export default function Dashboard() {
       );
     }
     if (filters.advisorType) result = result.filter((a) => a.advisorType === filters.advisorType);
-    if (filters.tier)        result = result.filter((a) => a.tier === filters.tier);
+    if (filters.tier)        result = result.filter((a) => a.advisorTier === filters.tier);
     if (filters.market) {
       result = result.filter((a) => {
         if (!a.city) return false;

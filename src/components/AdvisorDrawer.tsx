@@ -105,7 +105,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                 </Field>
 
                 <Field label="Tier">
-                  {advisor.tier ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
+                  {advisor.advisorTier ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
                 </Field>
 
                 <Field label="Availability">

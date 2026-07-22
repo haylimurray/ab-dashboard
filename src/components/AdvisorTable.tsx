@@ -247,7 +247,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(a.jobTitle),
       escapeCSV(location),
       escapeCSV(a.advisorType),
-      escapeCSV(a.tier),
+      escapeCSV(a.advisorTier),
       escapeCSV(a.requestAvailability),
       escapeCSV(a.connector),
       escapeCSV(a.contractLink ? "Yes" : ""),
@@ -579,7 +579,7 @@ export default function AdvisorTable({
                   </td>
                   {visibility.tier && (
                     <td className="px-3 py-2.5 whitespace-nowrap text-gray-700 dark:text-dark-text">
-                      {a.tier ?? <span className="text-gray-300">—</span>}
+                      {a.advisorTier ?? <span className="text-gray-300">—</span>}
                     </td>
                   )}
                   {visibility.location && (
