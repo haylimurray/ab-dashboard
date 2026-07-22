@@ -50,7 +50,7 @@ function parseCSV(text: string): Record<string, string>[] {
 // ── Route ─────────────────────────────────────────────────────────────────────
 
 export async function GET() {
-  const sheetUrl = process.env.RECRUITING_SHEET_URL;
+  const sheetUrl = process.env['RECRUITING_SHEET_URL'];
 
   if (!sheetUrl) {
     return NextResponse.json(
