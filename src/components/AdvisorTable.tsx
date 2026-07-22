@@ -159,7 +159,10 @@ function OutreachStatusBadge({
 
 function ConnectorBadge({ value }: { value: string | null }) {
   if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
-  const v = value.toLowerCase();
+  // Normalise legacy boolean strings from HubSpot
+  let v = value.toLowerCase();
+  if (v === "true")  v = "yes";
+  if (v === "false") v = "no";
   if (v === "yes")
     return <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 whitespace-nowrap">Connector ✓</span>;
   if (v === "conditional")

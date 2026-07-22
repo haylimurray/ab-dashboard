@@ -277,7 +277,14 @@ export default function Dashboard() {
         return computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === filters.outreachStatus;
       });
     }
-    if (filters.connector)    result = result.filter((a) => a.connector === filters.connector);
+    if (filters.connector) {
+      result = result.filter((a) => {
+        let v = (a.connector ?? "").toLowerCase();
+        if (v === "true")  v = "yes";
+        if (v === "false") v = "no";
+        return v === filters.connector.toLowerCase();
+      });
+    }
     if (filters.availability) result = result.filter((a) => a.requestAvailability === filters.availability);
     result = sortAdvisors(result, sort.field, sort.dir);
     return { filtered: result, uniqueTypes, uniqueTiers, uniqueMarkets };
