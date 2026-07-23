@@ -19,7 +19,6 @@ const PROPERTIES = [
   "jobtitle",
   "connector",
   "advisor_priority",
-  "advisor_tier",
   "advisor_comp",
   "advisor_contract_link",
   "ab_start_date",

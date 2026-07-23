@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         lastRequestDate: p.ab_last_request_date ?? null,
         connector: p.connector ?? null,
         advisorPriority: p.advisor_priority ?? null,
-        advisorTier: p.advisor_tier ?? null,
+        advisorTier: p.advisor_status ?? null,
         advisorComp: p.advisor_comp ?? null,
         contractLink: p.advisor_contract_link ?? null,
         startDate: p.ab_start_date ?? null,
