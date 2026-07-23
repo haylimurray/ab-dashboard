@@ -205,11 +205,11 @@ function TierBadge({ value }: { value: string | null }) {
   if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
   const v = value.toLowerCase();
   if (v === "champion")
-    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400 whitespace-nowrap">Champion</span>;
+    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white whitespace-nowrap" style={{ backgroundColor: "#6366F1" }}>Champion</span>;
   if (v === "advocate")
-    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 whitespace-nowrap">Advocate</span>;
+    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap" style={{ backgroundColor: "#E5E7EB", color: "#374151" }}>Advocate</span>;
   if (v === "member")
-    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted whitespace-nowrap">Member</span>;
+    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white whitespace-nowrap" style={{ backgroundColor: "#1E3A5F" }}>Member</span>;
   return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500 whitespace-nowrap">{value}</span>;
 }
 
