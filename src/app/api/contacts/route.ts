@@ -4,6 +4,17 @@ import type { ContactListItem, ContactListResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
 
+const TIER_LABELS: Record<string, string> = {
+  Hot:  "Champion",
+  Warm: "Advocate",
+  Cold: "Member",
+};
+
+function normalizeTier(raw: string | null): string | null {
+  if (!raw) return null;
+  return TIER_LABELS[raw] ?? raw;
+}
+
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 let cachedData: ContactListResponse | null = null;
 let cacheExpiresAt = 0;
@@ -35,14 +46,14 @@ export async function GET(request: NextRequest) {
         name: fullName,
         email: p.email ?? "",
         advisorType: p.airvet_advisory_board ?? null,
-        tier: p.advisor_status ?? null,
+        tier: normalizeTier(p.advisor_status ?? null),
         salesStatus: p.advisory_board_sales_status ?? null,
         requestAvailability: p.ab_request_availability ?? null,
         lastRequestType: p.ab_last_request_type ?? null,
         lastRequestDate: p.ab_last_request_date ?? null,
         connector: p.connector ?? null,
         advisorPriority: p.advisor_priority ?? null,
-        advisorTier: p.advisor_status ?? null,
+        advisorTier: normalizeTier(p.advisor_status ?? null),
         advisorComp: p.advisor_comp ?? null,
         contractLink: p.advisor_contract_link ?? null,
         startDate: p.ab_start_date ?? null,
