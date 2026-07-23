@@ -201,6 +201,18 @@ function ContractBadge({ link }: { link: string | null }) {
   );
 }
 
+function TierBadge({ value }: { value: string | null }) {
+  if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
+  const v = value.toLowerCase();
+  if (v === "champion")
+    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400 whitespace-nowrap">Champion</span>;
+  if (v === "advocate")
+    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 whitespace-nowrap">Advocate</span>;
+  if (v === "member")
+    return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted whitespace-nowrap">Member</span>;
+  return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-500 whitespace-nowrap">{value}</span>;
+}
+
 function PriorityBadge({ value }: { value: string | null }) {
   if (!value) return <span className="text-gray-300 dark:text-dark-border">—</span>;
   const v = value.toLowerCase();
@@ -290,7 +302,7 @@ function formatDate(raw: string | null): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const TH = "px-3 py-2.5 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider whitespace-nowrap relative";
+const TH = "px-3 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider whitespace-nowrap relative";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -568,22 +580,22 @@ export default function AdvisorTable({
               advisors.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
                   {visibility.name && (
-                    <td className="px-3 py-2.5 whitespace-nowrap cursor-pointer" onClick={() => onSelectAdvisor(a)}>
-                      <div className="font-medium text-gray-900 dark:text-dark-text hover:text-airvet-blue hover:underline">{a.name}</div>
-                      {a.email && <div className="text-xs text-gray-400 dark:text-dark-muted mt-0.5">{a.email}</div>}
+                    <td className="px-3 py-2 whitespace-nowrap cursor-pointer" onClick={() => onSelectAdvisor(a)}>
+                      <div className="font-semibold text-gray-900 dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug">{a.name}</div>
+                      {a.email && <div className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">{a.email}</div>}
                     </td>
                   )}
                   {/* Connector — alwaysVisible, no visibility guard needed */}
-                  <td className="px-3 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2 whitespace-nowrap">
                     <ConnectorBadge value={a.connector} />
                   </td>
                   {visibility.tier && (
-                    <td className="px-3 py-2.5 whitespace-nowrap text-gray-700 dark:text-dark-text">
-                      {a.advisorTier ?? <span className="text-gray-300">—</span>}
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <TierBadge value={a.advisorTier} />
                     </td>
                   )}
                   {visibility.location && (
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-600 dark:text-dark-text">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-dark-text">
                       {a.city ? (
                         <>
                           {a.city}
@@ -597,15 +609,15 @@ export default function AdvisorTable({
                     </td>
                   )}
                   {visibility.lastContacted && (
-                    <td className="px-3 py-2.5 whitespace-nowrap text-gray-600 dark:text-dark-text">{formatDate(a.lastContacted)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-dark-text">{formatDate(a.lastContacted)}</td>
                   )}
                   {visibility.daysSinceContact && (
-                    <td className="px-3 py-2.5 whitespace-nowrap font-medium text-gray-700">
+                    <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-700">
                       {a.daysSinceContact === null ? <span className="text-gray-300">Never</span> : `${a.daysSinceContact}d`}
                     </td>
                   )}
                   {visibility.healthScore && (
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex flex-col gap-1.5">
                         <OutreachStatusBadge
                           daysSinceContact={a.daysSinceContact}
@@ -620,27 +632,27 @@ export default function AdvisorTable({
                     </td>
                   )}
                   {visibility.availability && (
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <AvailabilityBadge value={a.requestAvailability} />
                     </td>
                   )}
                   {visibility.contract && (
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <ContractBadge link={a.contractLink} />
                     </td>
                   )}
                   {visibility.priority && (
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <PriorityBadge value={a.advisorPriority} />
                     </td>
                   )}
                   {visibility.salesStatus && (
-                    <td className="px-3 py-2.5 whitespace-nowrap text-gray-600">
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-600">
                       {a.salesStatus ?? <span className="text-gray-300">—</span>}
                     </td>
                   )}
                   {visibility.status && (
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-3 py-2 whitespace-nowrap">
                       {a.healthLoaded && a.doNotContact && (
                         <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-600">
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
