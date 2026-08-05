@@ -169,17 +169,20 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                           const status = computeOutreachStatus(
                             advisor.daysSinceContact,
                             advisor.healthLoaded,
-                            advisor.requestAvailability
+                            advisor.requestAvailability,
+                            15,
+                            advisor.isClientAdvisor
                           );
                           const PILL: Record<OutreachStatus, string> = {
                             paused:     "bg-gray-100 text-gray-500",
+                            client:     "bg-violet-100 text-violet-700",
                             healthy:    "bg-green-100 text-green-700",
                             caution:    "bg-amber-100 text-amber-700",
                             atRisk:     "bg-red-100 text-red-600",
                             inCooldown: "bg-red-100 text-red-600",
                           };
                           const LABEL: Record<OutreachStatus, string> = {
-                            paused: "Paused", healthy: "Healthy", caution: "Caution",
+                            paused: "Paused", client: "Client", healthy: "Healthy", caution: "Caution",
                             atRisk: "At Risk", inCooldown: "In Cooldown",
                           };
                           return (
@@ -191,14 +194,19 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                       </div>
                     </Field>
 
-                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability) === "inCooldown" && (
+                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "inCooldown" && (
                       <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700">
                         <strong>In Cooldown</strong> — contacted within the last 15 days. Do not request.
                       </div>
                     )}
-                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability) === "paused" && (
+                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "paused" && (
                       <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5 text-sm text-gray-600">
                         <strong>Paused</strong> — availability set to "No Requests". Do not contact.
+                      </div>
+                    )}
+                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "client" && (
+                      <div className="rounded-lg bg-violet-50 border border-violet-200 px-3 py-2.5 text-sm text-violet-700">
+                        <strong>Client Advisor</strong> — also an active Airvet customer. Outreach timing isn't tracked since they receive regular account emails unrelated to AB outreach.
                       </div>
                     )}
 

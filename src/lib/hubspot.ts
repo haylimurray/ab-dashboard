@@ -6,6 +6,7 @@ const PROPERTIES = [
   "lastname",
   "email",
   "airvet_advisory_board",
+  "lifecyclestage",
   "advisor_status",
   "ab_last_request_date",
   "ab_last_request_type",

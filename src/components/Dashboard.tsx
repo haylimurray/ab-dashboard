@@ -273,8 +273,11 @@ export default function Dashboard() {
         if (filters.outreachStatus === "paused") {
           return (a.requestAvailability ?? "").toLowerCase().startsWith("no");
         }
+        if (filters.outreachStatus === "client") {
+          return !(a.requestAvailability ?? "").toLowerCase().startsWith("no") && a.isClientAdvisor;
+        }
         if (!a.healthLoaded) return false;
-        return computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === filters.outreachStatus;
+        return computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability, 15, a.isClientAdvisor) === filters.outreachStatus;
       });
     }
     if (filters.connector) {

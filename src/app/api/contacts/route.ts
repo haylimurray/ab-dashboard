@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         name: fullName,
         email: p.email ?? "",
         advisorType: p.airvet_advisory_board ?? null,
+        isClientAdvisor: (p.lifecyclestage ?? "").toLowerCase() === "customer",
         tier: normalizeTier(p.advisor_status ?? null),
         salesStatus: p.advisory_board_sales_status ?? null,
         requestAvailability: p.ab_request_availability ?? null,

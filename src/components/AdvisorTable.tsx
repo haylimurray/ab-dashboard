@@ -81,6 +81,7 @@ function LastTouchedPill({ name, team }: { name: string; team: string }) {
 
 const STATUS_PILL: Record<string, string> = {
   paused:     "bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted",
+  client:     "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400",
   healthy:    "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
   caution:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
   atRisk:     "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
@@ -89,6 +90,7 @@ const STATUS_PILL: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   paused:     "Paused",
+  client:     "Client",
   healthy:    "Healthy",
   caution:    "Caution",
   atRisk:     "At Risk",
@@ -100,11 +102,12 @@ interface OutreachProps {
   healthLoaded: boolean;
   outboundEmailCount90d: number;
   requestAvailability: string | null;
+  isClientAdvisor?: boolean;
   cooldownDays?: number;
 }
 
 function OutreachStatusBadge({
-  daysSinceContact, healthLoaded, outboundEmailCount90d, requestAvailability, cooldownDays = 15,
+  daysSinceContact, healthLoaded, outboundEmailCount90d, requestAvailability, isClientAdvisor = false, cooldownDays = 15,
 }: OutreachProps) {
   const avail = (requestAvailability ?? "").toLowerCase();
 
@@ -120,6 +123,18 @@ function OutreachStatusBadge({
     );
   }
 
+  // Client advisors are pulled out of the timing tiers — no need to wait on health load
+  if (isClientAdvisor) {
+    return (
+      <div className="flex flex-col gap-1 min-w-[9rem]">
+        <span className={`inline-flex items-center self-start rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_PILL.client}`}>
+          Client
+        </span>
+        <span className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">Also an Airvet client · timing not tracked</span>
+      </div>
+    );
+  }
+
   if (!healthLoaded) {
     return (
       <div className="flex flex-col gap-1.5">
@@ -129,7 +144,7 @@ function OutreachStatusBadge({
     );
   }
 
-  const status = computeOutreachStatus(daysSinceContact, true, requestAvailability, cooldownDays);
+  const status = computeOutreachStatus(daysSinceContact, true, requestAvailability, cooldownDays, isClientAdvisor);
 
   let reason: string;
   if (daysSinceContact === null) {
@@ -243,8 +258,8 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
   const rows = advisors.map((a) => {
     const st = normalizeState(a.state);
     const location = a.city ? (st ? `${a.city}, ${st}` : a.city) : "";
-    const healthStatus = a.healthLoaded || (a.requestAvailability ?? "").toLowerCase().startsWith("no")
-      ? (STATUS_LABEL[computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability)] ?? "")
+    const healthStatus = a.isClientAdvisor || a.healthLoaded || (a.requestAvailability ?? "").toLowerCase().startsWith("no")
+      ? (STATUS_LABEL[computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability, 15, a.isClientAdvisor)] ?? "")
       : "";
     const lastTouchedBy = a.lastTouchedBy
       ? `${a.lastTouchedBy.name} (${a.lastTouchedBy.team})`
@@ -433,6 +448,7 @@ export default function AdvisorTable({
           <option value="caution">Caution</option>
           <option value="atRisk">At Risk</option>
           <option value="inCooldown">In Cooldown</option>
+          <option value="client">Client</option>
           <option value="paused">Paused</option>
         </select>
         <select
@@ -624,6 +640,7 @@ export default function AdvisorTable({
                           healthLoaded={a.healthLoaded}
                           outboundEmailCount90d={a.outboundEmailCount90d}
                           requestAvailability={a.requestAvailability}
+                          isClientAdvisor={a.isClientAdvisor}
                         />
                         {a.healthLoaded && a.lastTouchedBy && (
                           <LastTouchedPill name={a.lastTouchedBy.name} team={a.lastTouchedBy.team} />

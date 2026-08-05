@@ -7,6 +7,7 @@ export interface ContactListItem {
   name: string;
   email: string;
   advisorType: string | null;
+  isClientAdvisor: boolean; // true when HubSpot lifecyclestage = "customer" — also an active Airvet client
   tier: string | null;
   salesStatus: string | null;
   requestAvailability: string | null;

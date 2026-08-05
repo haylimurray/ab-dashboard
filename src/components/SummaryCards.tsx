@@ -16,9 +16,18 @@ export default function SummaryCards({ advisors }: Props) {
     (a) => (a.requestAvailability ?? "").toLowerCase().startsWith("no")
   ).length;
 
-  // All other statuses require health loaded; exclude paused advisors
+  // Client advisors (also active Airvet customers) — timing isn't tracked for
+  // them, so they get their own card instead of being counted as healthy/caution/etc.
+  const client = advisors.filter(
+    (a) => !(a.requestAvailability ?? "").toLowerCase().startsWith("no") && a.isClientAdvisor
+  ).length;
+
+  // All other statuses require health loaded; exclude paused and client advisors
   const loaded = advisors.filter(
-    (a) => a.healthLoaded && !(a.requestAvailability ?? "").toLowerCase().startsWith("no")
+    (a) =>
+      a.healthLoaded &&
+      !(a.requestAvailability ?? "").toLowerCase().startsWith("no") &&
+      !a.isClientAdvisor
   );
 
   const healthy    = loaded.filter((a) => computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === "healthy").length;
@@ -27,16 +36,17 @@ export default function SummaryCards({ advisors }: Props) {
   const inCooldown = loaded.filter((a) => computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === "inCooldown").length;
 
   const cards: Card[] = [
-    { label: "Total Advisors", value: total,       bg: "bg-white dark:bg-dark-card",    text: "text-gray-900",   darkText: "dark:text-dark-text",   accent: "#1B3A6B" },
-    { label: "Healthy",        value: healthy,     bg: "bg-green-50 dark:bg-dark-card", text: "text-green-700", darkText: "dark:text-green-400",   accent: "#16a34a" },
-    { label: "Caution",        value: caution,     bg: "bg-amber-50 dark:bg-dark-card", text: "text-amber-700", darkText: "dark:text-amber-400",   accent: "#d97706" },
-    { label: "At Risk",        value: atRisk,      bg: "bg-red-50 dark:bg-dark-card",   text: "text-red-600",   darkText: "dark:text-red-400",     accent: "#dc2626" },
-    { label: "In Cooldown",    value: inCooldown,  bg: "bg-red-50 dark:bg-dark-card",   text: "text-red-700",   darkText: "dark:text-red-400",     accent: "#991b1b" },
-    { label: "Paused",         value: paused,      bg: "bg-gray-50 dark:bg-dark-card",  text: "text-gray-600",  darkText: "dark:text-dark-muted",  accent: "#9ca3af" },
+    { label: "Total Advisors", value: total,       bg: "bg-white dark:bg-dark-card",     text: "text-gray-900",   darkText: "dark:text-dark-text",    accent: "#1B3A6B" },
+    { label: "Healthy",        value: healthy,     bg: "bg-green-50 dark:bg-dark-card",  text: "text-green-700", darkText: "dark:text-green-400",    accent: "#16a34a" },
+    { label: "Caution",        value: caution,     bg: "bg-amber-50 dark:bg-dark-card",  text: "text-amber-700", darkText: "dark:text-amber-400",    accent: "#d97706" },
+    { label: "At Risk",        value: atRisk,      bg: "bg-red-50 dark:bg-dark-card",    text: "text-red-600",   darkText: "dark:text-red-400",      accent: "#dc2626" },
+    { label: "In Cooldown",    value: inCooldown,  bg: "bg-red-50 dark:bg-dark-card",    text: "text-red-700",   darkText: "dark:text-red-400",      accent: "#991b1b" },
+    { label: "Client",         value: client,      bg: "bg-violet-50 dark:bg-dark-card", text: "text-violet-700", darkText: "dark:text-violet-400",  accent: "#7c3aed" },
+    { label: "Paused",         value: paused,      bg: "bg-gray-50 dark:bg-dark-card",   text: "text-gray-600",  darkText: "dark:text-dark-muted",   accent: "#9ca3af" },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
       {cards.map((c) => (
         <div
           key={c.label}

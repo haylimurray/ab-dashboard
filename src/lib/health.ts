@@ -56,21 +56,27 @@ export function isDoNotContact(outboundTimestamps: string[]): boolean {
 
 // ── Composite outreach status ─────────────────────────────────────────────────
 
-export type OutreachStatus = "paused" | "healthy" | "caution" | "atRisk" | "inCooldown";
+export type OutreachStatus = "paused" | "client" | "healthy" | "caution" | "atRisk" | "inCooldown";
 
-// Factors in both timing (daysSinceContact) and availability field.
-// Availability "No Requests" → always paused, overrides timing.
+// Factors in timing (daysSinceContact), availability field, and whether the
+// advisor is also an active Airvet client (HubSpot lifecyclestage = "customer").
+// Availability "No Requests" → always paused, overrides everything.
+// Client advisors → timing is unreliable (they get ongoing customer emails
+// unrelated to AB outreach), so they're pulled out of the timing tiers entirely.
 // Availability "Possibility of Requests" → timing applies but capped at caution.
 // Otherwise → pure timing tiers.
 export function computeOutreachStatus(
   daysSinceContact: number | null,
   healthLoaded: boolean,
   requestAvailability: string | null,
-  cooldownDays = 15
+  cooldownDays = 15,
+  isClientAdvisor = false
 ): OutreachStatus {
   const avail = (requestAvailability ?? "").toLowerCase();
 
   if (avail.startsWith("no")) return "paused";
+
+  if (isClientAdvisor) return "client";
 
   if (!healthLoaded) return "healthy"; // default while loading
 

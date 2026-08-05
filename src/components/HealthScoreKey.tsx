@@ -9,6 +9,7 @@ const DOT_CLASS: Record<string, string> = {
   green:  "bg-green-500",
   yellow: "bg-amber-400",
   red:    "bg-red-500",
+  violet: "bg-violet-500",
 };
 
 const LABEL_CLASS: Record<string, string> = {
@@ -16,6 +17,7 @@ const LABEL_CLASS: Record<string, string> = {
   green:  "text-green-700 dark:text-green-400",
   yellow: "text-amber-600 dark:text-amber-400",
   red:    "text-red-600 dark:text-red-400",
+  violet: "text-violet-700 dark:text-violet-400",
 };
 
 export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
@@ -43,6 +45,12 @@ export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
       label: "In Cooldown",
       desc: `Last contacted within ${cooldownDays} days`,
       note: "Do not request",
+    },
+    {
+      color: "violet",
+      label: "Client",
+      desc: "Also an active Airvet customer",
+      note: "Timing not tracked",
     },
     {
       color: "gray",
