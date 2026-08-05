@@ -206,7 +206,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                     )}
                     {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "client" && (
                       <div className="rounded-lg bg-violet-50 border border-violet-200 px-3 py-2.5 text-sm text-violet-700">
-                        <strong>Client Advisor</strong> — also an active Airvet customer. Outreach timing isn't tracked since they receive regular account emails unrelated to AB outreach.
+                        <strong>Client Advisor</strong> — Active Airvet Customer. Outreach timing isn't tracked since they receive regular account emails unrelated to AB outreach.
                       </div>
                     )}
 

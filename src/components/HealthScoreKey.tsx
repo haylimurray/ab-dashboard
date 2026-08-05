@@ -49,7 +49,7 @@ export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
     {
       color: "violet",
       label: "Client",
-      desc: "Also an active Airvet customer",
+      desc: "Active Airvet Customer",
       note: "Timing not tracked",
     },
     {

@@ -130,7 +130,7 @@ function OutreachStatusBadge({
         <span className={`inline-flex items-center self-start rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_PILL.client}`}>
           Client
         </span>
-        <span className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">Also an Airvet client · timing not tracked</span>
+        <span className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">Active Airvet Customer · timing not tracked</span>
       </div>
     );
   }
