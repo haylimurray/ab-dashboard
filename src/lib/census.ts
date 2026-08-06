@@ -24,7 +24,7 @@ const STATE_FIPS: string[] = [
 ];
 
 interface CbpRow { name: string; state: string; county: string; estab: number; emp: number }
-interface HouseholdRow { state: string; county: string; households: number }
+interface HouseholdRow { name: string; state: string; county: string; households: number }
 
 function withKey(url: string): string {
   const key = process.env.CENSUS_API_KEY;
@@ -55,16 +55,18 @@ async function fetchCbpForState(stateFips: string): Promise<CbpRow[]> {
 
 async function fetchHouseholdsForState(stateFips: string): Promise<HouseholdRow[]> {
   const url = withKey(
-    `https://api.census.gov/data/${ACS_YEAR}/acs/acs5?get=${HOUSEHOLDS_VARIABLE}&for=county:*&in=state:${stateFips}`
+    `https://api.census.gov/data/${ACS_YEAR}/acs/acs5?get=NAME,${HOUSEHOLDS_VARIABLE}&for=county:*&in=state:${stateFips}`
   );
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`ACS ${stateFips}: HTTP ${res.status}`);
   const rows: string[][] = await res.json();
   const [header, ...data] = rows;
+  const iName = header.indexOf("NAME");
   const iHh = header.indexOf(HOUSEHOLDS_VARIABLE);
   const iState = header.indexOf("state");
   const iCounty = header.indexOf("county");
   return data.map((r) => ({
+    name: r[iName],
     state: r[iState],
     county: r[iCounty],
     households: Number(r[iHh]) || 0,
@@ -125,21 +127,30 @@ export async function fetchVetDesertCounties(): Promise<VetDesertCounty[]> {
   for (const stateFips of STATE_FIPS) {
     const cbpRows = cbpByState.get(stateFips) ?? [];
     const hhRows = hhByState.get(stateFips) ?? [];
-    const hhByCounty = new Map(hhRows.map((r) => [r.county, r.households]));
+    // CBP only returns a row for a county if it has at least one vet
+    // establishment — counties with zero are simply absent from the
+    // response, not returned as zero. ACS household data covers virtually
+    // every county, so use it as the base list and treat any county with no
+    // matching CBP row as zero establishments/employees (a real desert),
+    // not "no data".
+    const cbpByCounty = new Map(cbpRows.map((r) => [r.county, r]));
 
-    for (const row of cbpRows) {
-      const households = hhByCounty.get(row.county) ?? 0;
-      const vetsPer1000 = households > 0 ? (row.emp / households) * 1000 : 0;
-      const fips = `${row.state}${row.county}`;
+    for (const hh of hhRows) {
+      const cbp = cbpByCounty.get(hh.county);
+      const emp = cbp?.emp ?? 0;
+      const estab = cbp?.estab ?? 0;
+      const households = hh.households;
+      const vetsPer1000 = households > 0 ? (emp / households) * 1000 : 0;
+      const fips = `${hh.state}${hh.county}`;
       // NAME comes back as "County Name, State Name" — keep just the county part
-      const countyName = row.name.split(",")[0].trim();
+      const countyName = hh.name.split(",")[0].trim();
 
       counties.push({
         fips,
         name: countyName,
         state: STATE_ABBR[stateFips] ?? stateFips,
-        establishments: row.estab,
-        employees: row.emp,
+        establishments: estab,
+        employees: emp,
         households,
         vetsPer1000Households: Math.round(vetsPer1000 * 100) / 100,
         tier: tierFor(vetsPer1000, households),

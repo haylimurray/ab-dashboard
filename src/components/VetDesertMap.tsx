@@ -411,7 +411,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
 
       {!desertData?.total ? null : (
         <p className="text-xs text-gray-400 dark:text-dark-muted px-1">
-          {desertData.total} counties · Census {desertData.dataYear} County Business Patterns (NAICS 541940, Veterinary Services) + ACS5 household estimates. This is a directional estimate, not the official Veterinary Care Accessibility Project index.
+          {desertData.total} counties · Census {desertData.dataYear} County Business Patterns (NAICS 541940, Veterinary Services) + ACS5 household estimates. Counties with no reported vet establishments are scored as deserts. Note: Census suppresses exact employee counts for some small clinics, which can undercount capacity in a handful of counties. This is a directional estimate, not the official Veterinary Care Accessibility Project index.
         </p>
       )}
     </div>
