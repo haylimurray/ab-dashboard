@@ -77,7 +77,8 @@ async function fetchAndUnzipCsv(zipUrl: string): Promise<string[][]> {
     (f) => !f.dir && f.name.toLowerCase().endsWith(".csv")
   );
   if (!csvEntry) throw new Error(`No CSV found inside StatCan zip (${zipUrl})`);
-  const text = await csvEntry.async("text");
+  const rawText = await csvEntry.async("text");
+  const text = rawText.replace(/^﻿/, ""); // strip UTF-8 BOM some StatCan exports include
   return parseCSVText(text);
 }
 
@@ -134,39 +135,36 @@ async function fetchClinicCountsByProvince(): Promise<Map<string, number>> {
 async function fetchDwellingsByProvince(): Promise<Map<string, number>> {
   const rows = await fetchAndUnzipCsv(POPULATION_ZIP);
   const [header, ...data] = rows;
-  const iRef = header.findIndex((h) => h.trim().toUpperCase() === "REF_DATE");
   const iGeo = header.findIndex((h) => h.trim().toUpperCase() === "GEO");
-  const iDim = header.findIndex((h) => /population and dwelling counts/i.test(h));
-  const iValue = header.findIndex((h) => h.trim().toUpperCase() === "VALUE");
 
-  if (iGeo === -1 || iDim === -1 || iValue === -1) {
+  // This table is published "wide," not in StatCan's usual long REF_DATE /
+  // dimension / VALUE shape: it's one row per GEO, with every indicator +
+  // reference year baked directly into its own column header, e.g.
+  // "Population and dwelling counts (11): Total private dwellings, 2021 [4]".
+  // Match that specific column for DATA_YEAR — the comma directly after
+  // "dwellings" distinguishes it from the "...percentage change, 2016 to
+  // 2021" column, which also contains "2021" but not right after a comma.
+  const dwellingRegex = new RegExp(`total private dwellings,\\s*${DATA_YEAR}\\b`, "i");
+  const iDwellings = header.findIndex((h) => dwellingRegex.test(h));
+
+  if (iGeo === -1 || iDwellings === -1) {
     throw new Error(`StatCan population CSV layout unexpected — headers were: ${header.join(" | ")}`);
   }
 
   const dwellings = new Map<string, number>();
-  const sampleDims = new Set<string>();
   for (const row of data) {
     const rawGeo = row[iGeo]?.trim();
     if (!rawGeo) continue;
     const geo = normalizeGeo(rawGeo);
     if (!PROVINCES[geo]) continue;
 
-    const dim = row[iDim] ?? "";
-    if (sampleDims.size < 15) sampleDims.add(dim);
-    if (!/private dwelling/i.test(dim)) continue;
-
-    // Prefer REF_DATE for the year match (the standard, reliable column);
-    // fall back to the dimension label itself in case this table embeds
-    // the year there instead (e.g. "Total private dwellings, 2021").
-    const refYearMatches = iRef !== -1 && row[iRef]?.trim() === String(DATA_YEAR);
-    const dimYearMatches = dim.includes(String(DATA_YEAR));
-    if (iRef !== -1 && !refYearMatches && !dimYearMatches) continue;
-
-    dwellings.set(geo, Number(row[iValue]) || 0);
+    const raw = (row[iDwellings] ?? "").replace(/,/g, "").trim();
+    if (!raw) continue;
+    dwellings.set(geo, Number(raw) || 0);
   }
   if (dwellings.size === 0) {
     throw new Error(
-      `No household rows matched for a known province (looked for a dimension containing "private dwelling" and year ${DATA_YEAR}). Sample dimension values seen: ${Array.from(sampleDims).join(" | ")}`
+      `No dwelling rows matched a known province in column "${header[iDwellings]}". Sample GEO values seen: ${data.slice(0, 8).map((r) => r[iGeo]).join(" | ")}`
     );
   }
   return dwellings;
