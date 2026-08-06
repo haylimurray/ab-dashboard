@@ -55,6 +55,41 @@ const TIER_LABEL: Record<VetDesertTier, string> = {
 const LEGEND_ORDER: VetDesertTier[] = ["wellServed", "adequate", "underserved", "desert", "noData"];
 const MATCH_OUTLINE = "#2563eb";
 
+// What each tier is actually measuring — shown as a hover tooltip on the
+// legend swatches and spelled out in a caption under the legend, so "Vet
+// desert" reads as a defined threshold rather than just a color name.
+const US_TIER_DEFINITION: Record<VetDesertTier, string> = {
+  wellServed:  "3.0+ vet employees per 1,000 households",
+  adequate:    "1.68–2.99 vet employees per 1,000 households (national median)",
+  underserved: "0.8–1.67 vet employees per 1,000 households",
+  desert:      "Fewer than 0.8 vet employees per 1,000 households, including counties with no reported clinic",
+  noData:      "No Census household estimate available for this county",
+};
+const CANADA_TIER_DEFINITION: Record<VetDesertTier, string> = {
+  wellServed:  "Top 25% of provinces/territories by vet clinics per 1,000 households",
+  adequate:    "Next 30%",
+  underserved: "Next 30%",
+  desert:      "Bottom 20%",
+  noData:      "No household estimate available",
+};
+
+// On-screen default view for each map — tuned to look good in the app's
+// fixed 560px-tall card.
+const US_CENTER: [number, number] = [39.5, -98.35];
+const US_ZOOM = 4;
+const CANADA_CENTER: [number, number] = [58, -98];
+const CANADA_ZOOM = 3;
+
+// Print uses fitBounds() instead of the fixed center/zoom above. The print
+// page's aspect ratio (landscape, no sidebar/cards taking width) is
+// different enough from the on-screen card that reusing the same zoom
+// level left the map badly off-center with lopsided ocean padding —
+// fitBounds recomputes the correct center AND zoom for whatever the actual
+// print container turns out to be, which is the only way to guarantee a
+// centered, fully-visible map regardless of page size/orientation.
+const US_PRINT_BOUNDS: [[number, number], [number, number]] = [[24.5, -125], [49.5, -66.9]]; // continental US
+const CANADA_PRINT_BOUNDS: [[number, number], [number, number]] = [[41.7, -141], [83.5, -52.6]];
+
 type Country = "us" | "canada";
 
 interface GeoJSONFeatureCollection {
@@ -195,6 +230,8 @@ export default function VetDesertMap({ darkMode = false }: Props) {
       requestAnimationFrame(() => {
         usMapRef.current?.invalidateSize();
         caMapRef.current?.invalidateSize();
+        usMapRef.current?.fitBounds(US_PRINT_BOUNDS, { padding: [8, 8], animate: false });
+        caMapRef.current?.fitBounds(CANADA_PRINT_BOUNDS, { padding: [8, 8], animate: false });
       });
     };
     const onAfterPrint = () => {
@@ -202,6 +239,8 @@ export default function VetDesertMap({ darkMode = false }: Props) {
       requestAnimationFrame(() => {
         usMapRef.current?.invalidateSize();
         caMapRef.current?.invalidateSize();
+        usMapRef.current?.setView(US_CENTER, US_ZOOM, { animate: false });
+        caMapRef.current?.setView(CANADA_CENTER, CANADA_ZOOM, { animate: false });
       });
     };
     window.addEventListener("beforeprint", onBeforePrint);
@@ -697,7 +736,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
             {/* Legend + refresh */}
             <div className="flex flex-wrap items-center gap-5 px-1">
               {LEGEND_ORDER.map((tier) => (
-                <div key={tier} className="flex items-center gap-1.5">
+                <div key={tier} className="flex items-center gap-1.5" title={US_TIER_DEFINITION[tier]}>
                   <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: TIER_COLOR[tier] }} />
                   <span className="text-xs text-gray-500 dark:text-dark-muted">{TIER_LABEL[tier]}</span>
                 </div>
@@ -742,9 +781,20 @@ export default function VetDesertMap({ darkMode = false }: Props) {
               </div>
             </div>
 
+            {/* Key — spells out what each tier is actually measuring, not
+                just the color/label, so it holds up in a printed report
+                without anyone having to hover. */}
+            <p className="text-xs text-gray-400 dark:text-dark-muted px-1 -mt-1">
+              Measured in vet employees per 1,000 households: <strong className="font-medium text-gray-500 dark:text-dark-muted">well served</strong> 3.0+ ·{" "}
+              <strong className="font-medium text-gray-500 dark:text-dark-muted">adequate</strong> 1.68–2.99 ·{" "}
+              <strong className="font-medium text-gray-500 dark:text-dark-muted">underserved</strong> 0.8–1.67 ·{" "}
+              <strong className="font-medium text-gray-500 dark:text-dark-muted">vet desert</strong> under 0.8, including counties with no reported clinic ·{" "}
+              <strong className="font-medium text-gray-500 dark:text-dark-muted">no data</strong> no Census household estimate for that county.
+            </p>
+
             {/* Map */}
-            <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
-              <MapContainer ref={usMapRef} center={[39.5, -98.35]} zoom={4} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
+            <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: isPrinting ? 620 : 560 }}>
+              <MapContainer ref={usMapRef} center={US_CENTER} zoom={US_ZOOM} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
                 {!isPrinting && (
                   <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
                 )}
@@ -876,7 +926,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
           {/* Legend + refresh */}
           <div className="flex flex-wrap items-center gap-5 px-1">
             {LEGEND_ORDER.map((tier) => (
-              <div key={tier} className="flex items-center gap-1.5">
+              <div key={tier} className="flex items-center gap-1.5" title={CANADA_TIER_DEFINITION[tier]}>
                 <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: TIER_COLOR[tier] }} />
                 <span className="text-xs text-gray-500 dark:text-dark-muted">{TIER_LABEL[tier]}</span>
               </div>
@@ -910,9 +960,19 @@ export default function VetDesertMap({ darkMode = false }: Props) {
             </div>
           </div>
 
+          {/* Key */}
+          <p className="text-xs text-gray-400 dark:text-dark-muted px-1 -mt-1">
+            Ranked by vet clinics per 1,000 households, relative to other provinces/territories (no fixed national benchmark exists for Canada):{" "}
+            <strong className="font-medium text-gray-500 dark:text-dark-muted">well served</strong> top 25% ·{" "}
+            <strong className="font-medium text-gray-500 dark:text-dark-muted">adequate</strong> next 30% ·{" "}
+            <strong className="font-medium text-gray-500 dark:text-dark-muted">underserved</strong> next 30% ·{" "}
+            <strong className="font-medium text-gray-500 dark:text-dark-muted">vet desert</strong> bottom 20% ·{" "}
+            <strong className="font-medium text-gray-500 dark:text-dark-muted">no data</strong> no household estimate available.
+          </p>
+
           {/* Map */}
-          <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
-            <MapContainer ref={caMapRef} center={[58, -98]} zoom={3} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
+          <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: isPrinting ? 620 : 560 }}>
+            <MapContainer ref={caMapRef} center={CANADA_CENTER} zoom={CANADA_ZOOM} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
               {!isPrinting && (
                 <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
               )}

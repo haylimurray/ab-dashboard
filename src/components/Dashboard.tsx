@@ -311,8 +311,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
-      {/* Header */}
-      <header className="bg-[#1B3A6B] dark:bg-dark-card shadow-md border-b border-white/10 dark:border-dark-border">
+      {/* Header — hidden when printing (e.g. the Vet Deserts PDF export),
+          since that export has its own branded report header. */}
+      <header className="print:hidden bg-[#1B3A6B] dark:bg-dark-card shadow-md border-b border-white/10 dark:border-dark-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img
