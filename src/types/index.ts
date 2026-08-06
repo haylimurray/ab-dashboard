@@ -116,6 +116,28 @@ export type SortField =
 
 export type SortDir = "asc" | "desc";
 
+// ── Vet deserts (from GET /api/vet-deserts) ──────────────────────────────────
+
+export type VetDesertTier = "wellServed" | "adequate" | "underserved" | "desert" | "noData";
+
+export interface VetDesertCounty {
+  fips: string;        // 5-digit county FIPS — matches the GeoJSON boundary feature id
+  name: string;        // county name, e.g. "Los Angeles"
+  state: string;       // 2-letter state abbreviation
+  establishments: number;
+  employees: number;
+  households: number;
+  vetsPer1000Households: number;
+  tier: VetDesertTier;
+}
+
+export interface VetDesertData {
+  counties: VetDesertCounty[];
+  dataYear: number;    // Census data vintage year used
+  fetchedAt: string;
+  total: number;
+}
+
 // ── News intelligence ─────────────────────────────────────────────────────────
 
 export type SignalLevel = "HIGH" | "MEDIUM" | "LOW";

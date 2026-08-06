@@ -29,7 +29,16 @@ const MapView = dynamic(() => import("./MapView"), {
   ),
 });
 
-type Tab = "advisors" | "map" | "requests" | "recruiting"; // "news" temporarily disabled
+const VetDesertMap = dynamic(() => import("./VetDesertMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[580px] rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center">
+      <p className="text-sm text-gray-400">Loading vet desert map…</p>
+    </div>
+  ),
+});
+
+type Tab = "advisors" | "map" | "vetDeserts" | "requests" | "recruiting"; // "news" temporarily disabled
 const HEALTH_BATCH = 20;
 
 const HEALTH_DEFAULTS: ContactHealth = {
@@ -80,6 +89,7 @@ function sortAdvisors(
 const TABS: { id: Tab; label: string }[] = [
   { id: "advisors",   label: "Advisors" },
   { id: "map",        label: "Map" },
+  { id: "vetDeserts", label: "Vet Deserts" },
   { id: "requests",   label: "Requests" },
   { id: "recruiting", label: "Recruiting" },
   // { id: "news", label: "News Intelligence" }, // temporarily disabled
@@ -434,6 +444,7 @@ export default function Dashboard() {
                 darkMode={darkMode}
               />
             )}
+            {activeTab === "vetDeserts" && <VetDesertMap darkMode={darkMode} />}
             {activeTab === "requests"   && <RequestsView />}
             {activeTab === "recruiting" && <RecruitingView />}
             {/* {activeTab === "news" && <NewsIntelligence />} temporarily disabled */}
