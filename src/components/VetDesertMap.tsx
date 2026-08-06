@@ -212,6 +212,37 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     return m;
   }, [desertData]);
 
+  // State-level rollup, derived from the county data — no extra fetch needed.
+  const stateStats = useMemo(() => {
+    interface Acc { totalCounties: number; desert: number; underserved: number; totalHh: number; hhAtRisk: number }
+    const acc = new Map<string, Acc>();
+    for (const c of desertData?.counties ?? []) {
+      const cur = acc.get(c.state) ?? { totalCounties: 0, desert: 0, underserved: 0, totalHh: 0, hhAtRisk: 0 };
+      cur.totalCounties += 1;
+      if (c.tier === "desert") cur.desert += 1;
+      if (c.tier === "underserved") cur.underserved += 1;
+      cur.totalHh += c.households;
+      if (c.tier === "desert" || c.tier === "underserved") cur.hhAtRisk += c.households;
+      acc.set(c.state, cur);
+    }
+    const rows = Array.from(acc.entries()).map(([state, v]) => ({
+      state,
+      totalCounties: v.totalCounties,
+      atRiskCounties: v.desert + v.underserved,
+      totalHouseholds: v.totalHh,
+      householdsAtRisk: v.hhAtRisk,
+      pctCountiesAtRisk: v.totalCounties > 0 ? Math.round(((v.desert + v.underserved) / v.totalCounties) * 100) : 0,
+      pctHouseholdsAtRisk: v.totalHh > 0 ? Math.round((v.hhAtRisk / v.totalHh) * 100) : 0,
+    }));
+    rows.sort((a, b) => b.pctCountiesAtRisk - a.pctCountiesAtRisk);
+    return rows;
+  }, [desertData]);
+
+  const stateStatsByAbbr = useMemo(
+    () => new Map(stateStats.map((s) => [s.state, s])),
+    [stateStats]
+  );
+
   const matchedFipsSet = useMemo(() => new Set(lookupResult?.matchedFips ?? []), [lookupResult]);
 
   const styleForFeature = useCallback(
@@ -234,12 +265,16 @@ export default function VetDesertMap({ darkMode = false }: Props) {
       const fips = String(feature?.id ?? "").padStart(5, "0");
       const county = countyMap.get(fips);
       const matchedNote = matchedFipsSet.has(fips) ? "<br/><em>Includes uploaded employees</em>" : "";
+      const stateInfo = county ? stateStatsByAbbr.get(county.state) : undefined;
+      const stateLine = stateInfo
+        ? `<hr style="margin:5px 0;border-color:#e5e7eb"/><span style="color:#6b7280">${stateInfo.state} overall: ${stateInfo.pctCountiesAtRisk}% of counties underserved or worse (${stateInfo.householdsAtRisk.toLocaleString()} households)</span>`
+        : "";
       const html = county
-        ? `<div style="font-size:12px"><strong>${county.name}, ${county.state}</strong><br/>${TIER_LABEL[county.tier]}<br/>${county.vetsPer1000Households.toFixed(2)} vet employees / 1,000 households${matchedNote}</div>`
+        ? `<div style="font-size:12px"><strong>${county.name}, ${county.state}</strong><br/>${TIER_LABEL[county.tier]}<br/>${county.vetsPer1000Households.toFixed(2)} vet employees / 1,000 households${matchedNote}${stateLine}</div>`
         : `<div style="font-size:12px">No data</div>`;
       layer.bindTooltip(html, { sticky: true });
     },
-    [countyMap, matchedFipsSet]
+    [countyMap, matchedFipsSet, stateStatsByAbbr]
   );
 
   const fetchedAtStr = desertData?.fetchedAt
@@ -408,6 +443,54 @@ export default function VetDesertMap({ darkMode = false }: Props) {
           )}
         </MapContainer>
       </div>
+
+      {/* State breakdown */}
+      {stateStats.length > 0 && (
+        <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 dark:border-dark-border">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text">State breakdown</h3>
+            <p className="text-xs text-gray-400 dark:text-dark-muted mt-0.5">
+              Ranked by share of counties that are underserved or a vet desert — numbers to cite in a pitch.
+            </p>
+          </div>
+          <div className="overflow-x-auto max-h-80 overflow-y-auto">
+            <table className="min-w-full text-sm">
+              <thead className="sticky top-0 bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">State</th>
+                  <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Counties</th>
+                  <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">% underserved/desert</th>
+                  <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Households at risk</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                {stateStats.map((s) => (
+                  <tr key={s.state} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
+                    <td className="px-4 py-2 font-medium text-gray-900 dark:text-dark-text">{s.state}</td>
+                    <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">
+                      {s.atRiskCounties} / {s.totalCounties}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      <span
+                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                        style={{
+                          backgroundColor: s.pctCountiesAtRisk >= 50 ? "#fee2e2" : s.pctCountiesAtRisk >= 25 ? "#fef3c7" : "#dcfce7",
+                          color: s.pctCountiesAtRisk >= 50 ? "#dc2626" : s.pctCountiesAtRisk >= 25 ? "#b45309" : "#15803d",
+                        }}
+                      >
+                        {s.pctCountiesAtRisk}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">
+                      {s.householdsAtRisk.toLocaleString()} <span className="text-gray-300 dark:text-dark-border">/ {s.totalHouseholds.toLocaleString()}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {!desertData?.total ? null : (
         <p className="text-xs text-gray-400 dark:text-dark-muted px-1">
