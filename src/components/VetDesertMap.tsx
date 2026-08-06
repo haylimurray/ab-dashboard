@@ -26,6 +26,12 @@ const COUNTY_GEOJSON_URL =
 const PROVINCE_GEOJSON_URL =
   "https://cdn.jsdelivr.net/gh/codeforgermany/click_that_hood@main/public/data/canada.geojson";
 
+// State boundary polygons (50 features, keyed by `id` = USPS abbreviation),
+// drawn as a bold, non-fill outline on top of the county layer so state
+// lines read clearly against the county coloring underneath.
+const STATE_GEOJSON_URL =
+  "https://cdn.jsdelivr.net/gh/python-visualization/folium@master/examples/data/us-states.json";
+
 const TILE_DARK  = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 const TILE_LIGHT = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 const TILE_ATTR  = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
@@ -144,10 +150,11 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   const [country, setCountry]   = useState<Country>("us");
 
   // US data
-  const [geoJson, setGeoJson]       = useState<GeoJSONFeatureCollection | null>(null);
-  const [desertData, setDesertData] = useState<VetDesertData | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
+  const [geoJson, setGeoJson]         = useState<GeoJSONFeatureCollection | null>(null);
+  const [stateGeoJson, setStateGeoJson] = useState<GeoJSONFeatureCollection | null>(null);
+  const [desertData, setDesertData]   = useState<VetDesertData | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
 
   // Canada data
   const [caGeoJson, setCaGeoJson] = useState<GeoJSONFeatureCollection | null>(null);
@@ -171,14 +178,21 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const [geoRes, dataRes] = await Promise.all([
+      const [geoRes, stateRes, dataRes] = await Promise.all([
         geoJson ? Promise.resolve(null) : fetch(COUNTY_GEOJSON_URL, { cache: "force-cache" }),
+        stateGeoJson ? Promise.resolve(null) : fetch(STATE_GEOJSON_URL, { cache: "force-cache" }),
         fetch(force ? "/api/vet-deserts?refresh=1" : "/api/vet-deserts", { cache: "no-store" }),
       ]);
 
       if (geoRes) {
         if (!geoRes.ok) throw new Error(`Could not load county boundaries (HTTP ${geoRes.status})`);
         setGeoJson(await geoRes.json());
+      }
+      if (stateRes) {
+        // Non-fatal if this one fails — the map still works without the
+        // state outline overlay, it just looks a bit less crisp.
+        if (stateRes.ok) setStateGeoJson(await stateRes.json());
+        else console.error(`Could not load state boundaries (HTTP ${stateRes.status})`);
       }
 
       if (!dataRes.ok) {
@@ -318,6 +332,20 @@ export default function VetDesertMap({ darkMode = false }: Props) {
       };
     },
     [countyMap, darkMode, matchedFipsSet]
+  );
+
+  // Bold, non-fill state outline — drawn on top of the county layer. Not
+  // interactive, so hover/click events pass through to the county polygon
+  // underneath and the per-county tooltip still works.
+  const stateOutlineStyle = useCallback(
+    () => ({
+      fillOpacity: 0,
+      color: darkMode ? "#f9fafb" : "#111827",
+      weight: 1.6,
+      opacity: 0.75,
+      interactive: false,
+    }),
+    [darkMode]
   );
 
   const onEachFeature = useCallback(
@@ -561,6 +589,13 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                     data={geoJson as never}
                     style={styleForFeature as never}
                     onEachFeature={onEachFeature as never}
+                  />
+                )}
+                {stateGeoJson && (
+                  <GeoJSON
+                    key={darkMode ? "states-dark" : "states-light"}
+                    data={stateGeoJson as never}
+                    style={stateOutlineStyle as never}
                   />
                 )}
               </MapContainer>
