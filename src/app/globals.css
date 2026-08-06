@@ -11,3 +11,18 @@
 .leaflet-pulse-dot {
   animation: leaflet-pulse 1.8s ease-in-out infinite;
 }
+
+/* Vet Deserts map export — used by the "Export PDF" button in
+   VetDesertMap.tsx (window.print()). Hides Leaflet's own UI chrome
+   (zoom buttons, attribution) that Tailwind's print: variant can't reach
+   since react-leaflet renders them outside our component tree, and forces
+   landscape so the wide US/Canada choropleth fits the page. */
+@media print {
+  .leaflet-control-zoom,
+  .leaflet-control-attribution {
+    display: none !important;
+  }
+  @page {
+    size: landscape;
+  }
+}

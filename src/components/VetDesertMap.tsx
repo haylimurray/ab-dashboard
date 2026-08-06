@@ -450,7 +450,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {/* Country toggle */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 print:hidden">
         {(["us", "canada"] as Country[]).map((c) => (
           <button
             key={c}
@@ -485,8 +485,10 @@ export default function VetDesertMap({ darkMode = false }: Props) {
           </div>
         ) : (
           <>
-            {/* Prospect ZIP upload */}
-            <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card px-5 py-4">
+            {/* Prospect ZIP upload — excluded from the PDF export, which is meant
+                as general-purpose access collateral rather than a specific
+                prospect's data. */}
+            <div className="print:hidden rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card px-5 py-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text">
                   Check a prospect&apos;s employee footprint
@@ -593,6 +595,17 @@ export default function VetDesertMap({ darkMode = false }: Props) {
               )}
             </div>
 
+            {/* Print-only header — gives the exported PDF a report-style title
+                instead of just the raw app UI, so it drops cleanly into an
+                RFP or pitch deck. */}
+            <div className="hidden print:block">
+              <h2 className="text-lg font-bold text-gray-900">Veterinary Access Across the United States</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                County-level analysis{desertData?.dataYear ? ` · Census ${desertData.dataYear} County Business Patterns (NAICS 541940) + ACS5 households` : ""}
+                {fetchedAtStr ? ` · refreshed ${fetchedAtStr}` : ""}
+              </p>
+            </div>
+
             {/* Legend + refresh */}
             <div className="flex flex-wrap items-center gap-5 px-1">
               {LEGEND_ORDER.map((tier) => (
@@ -602,26 +615,36 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                 </div>
               ))}
               {lookupResult && (
-                <div className="flex items-center gap-1.5">
+                <div className="print:hidden flex items-center gap-1.5">
                   <span className="inline-block w-3 h-3 rounded-sm border-2" style={{ borderColor: MATCH_OUTLINE }} />
                   <span className="text-xs text-gray-500 dark:text-dark-muted">Uploaded employees</span>
                 </div>
               )}
               {stateGeoError && (
-                <span className="text-xs text-amber-600 dark:text-amber-400" title={stateGeoError}>
+                <span className="print:hidden text-xs text-amber-600 dark:text-amber-400" title={stateGeoError}>
                   State outline overlay failed to load
                 </span>
               )}
               <div className="ml-auto flex items-center gap-3">
                 {fetchedAtStr && (
-                  <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block">
+                  <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block print:hidden">
                     Census data refreshed {fetchedAtStr}
                   </span>
                 )}
                 <button
+                  onClick={() => window.print()}
+                  className="print:hidden flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-airvet-blue rounded-lg hover:bg-airvet-blue/90 transition-colors"
+                  title="Opens your browser's print dialog — choose &quot;Save as PDF&quot; as the destination"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+                  </svg>
+                  Export PDF
+                </button>
+                <button
                   onClick={() => fetchData(true)}
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
+                  className="print:hidden flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
                 >
                   <svg className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -633,7 +656,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
 
             {/* Map */}
             <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
-              <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: "100%", width: "100%" }}>
+              <MapContainer center={[39.5, -98.35]} zoom={4} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
                 <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
                 {geoJson && (
                   <GeoJSON
@@ -662,9 +685,9 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                     Ranked by share of counties that are underserved or a vet desert — numbers to cite in a pitch.
                   </p>
                 </div>
-                <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                <div className="overflow-x-auto max-h-80 overflow-y-auto print:max-h-none print:overflow-visible">
                   <table className="min-w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+                    <thead className="sticky top-0 print:static bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
                       <tr>
                         <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">State</th>
                         <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Counties</th>
@@ -726,8 +749,16 @@ export default function VetDesertMap({ darkMode = false }: Props) {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-amber-100 dark:border-dark-border bg-amber-50/60 dark:bg-dark-card px-5 py-3 text-xs text-amber-800 dark:text-dark-muted">
+          <div className="print:hidden rounded-xl border border-amber-100 dark:border-dark-border bg-amber-50/60 dark:bg-dark-card px-5 py-3 text-xs text-amber-800 dark:text-dark-muted">
             Province-level only — Statistics Canada&apos;s finest publicly confirmed geography for this data. Tiers are ranked relative to other provinces (quartile-based), not tied to a fixed benchmark like the US map.
+          </div>
+
+          {/* Print-only header */}
+          <div className="hidden print:block">
+            <h2 className="text-lg font-bold text-gray-900">Veterinary Access Across Canada</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Province-level analysis (Statistics Canada){caFetchedAtStr ? ` · refreshed ${caFetchedAtStr}` : ""}
+            </p>
           </div>
 
           {/* Legend + refresh */}
@@ -740,14 +771,24 @@ export default function VetDesertMap({ darkMode = false }: Props) {
             ))}
             <div className="ml-auto flex items-center gap-3">
               {caFetchedAtStr && (
-                <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block">
+                <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block print:hidden">
                   StatCan data refreshed {caFetchedAtStr}
                 </span>
               )}
               <button
+                onClick={() => window.print()}
+                className="print:hidden flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-airvet-blue rounded-lg hover:bg-airvet-blue/90 transition-colors"
+                title="Opens your browser's print dialog — choose &quot;Save as PDF&quot; as the destination"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+                </svg>
+                Export PDF
+              </button>
+              <button
                 onClick={() => fetchCanadaData(true)}
                 disabled={caLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
+                className="print:hidden flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
               >
                 <svg className={`w-3.5 h-3.5 ${caLoading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -759,7 +800,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
 
           {/* Map */}
           <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
-            <MapContainer center={[58, -98]} zoom={3} style={{ height: "100%", width: "100%" }}>
+            <MapContainer center={[58, -98]} zoom={3} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
               <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
               {caGeoJson && (
                 <GeoJSON
@@ -781,9 +822,9 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                   Ranked worst-served to best-served, by vet clinics per 1,000 households.
                 </p>
               </div>
-              <div className="overflow-x-auto max-h-80 overflow-y-auto">
+              <div className="overflow-x-auto max-h-80 overflow-y-auto print:max-h-none print:overflow-visible">
                 <table className="min-w-full text-sm">
-                  <thead className="sticky top-0 bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+                  <thead className="sticky top-0 print:static bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
                     <tr>
                       <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Province</th>
                       <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Tier</th>
