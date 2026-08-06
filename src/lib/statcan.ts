@@ -141,14 +141,25 @@ async function fetchDwellingsByProvince(): Promise<Map<string, number>> {
   // dimension / VALUE shape: it's one row per GEO, with every indicator +
   // reference year baked directly into its own column header, e.g.
   // "Population and dwelling counts (11): Total private dwellings, 2021 [4]".
-  // Match that specific column for DATA_YEAR — the comma directly after
-  // "dwellings" distinguishes it from the "...percentage change, 2016 to
-  // 2021" column, which also contains "2021" but not right after a comma.
-  const dwellingRegex = new RegExp(`total private dwellings,\\s*${DATA_YEAR}\\b`, "i");
-  const iDwellings = header.findIndex((h) => dwellingRegex.test(h));
+  // Match on "total private dwellings" + the target year, explicitly
+  // excluding the "...percentage change, 2016 to 2021" column (which also
+  // contains both the phrase and the year, but isn't the count itself).
+  // Deliberately not anchored to exact punctuation between the phrase and
+  // the year — a previous version required a comma immediately after
+  // "dwellings" and matched fine against a hand-typed sample, but still
+  // failed in production, so this is loosened in case of a stray character
+  // (non-breaking space, footnote mark, etc.) StatCan's export includes.
+  const iDwellings = header.findIndex(
+    (h) =>
+      /total private dwellings/i.test(h) &&
+      !/percentage change/i.test(h) &&
+      h.includes(String(DATA_YEAR))
+  );
 
   if (iGeo === -1 || iDwellings === -1) {
-    throw new Error(`StatCan population CSV layout unexpected — headers were: ${header.join(" | ")}`);
+    throw new Error(
+      `StatCan population CSV layout unexpected (iGeo=${iGeo}, iDwellings=${iDwellings}) — headers were: ${JSON.stringify(header)}`
+    );
   }
 
   const dwellings = new Map<string, number>();
