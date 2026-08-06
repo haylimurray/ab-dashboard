@@ -138,6 +138,26 @@ export interface VetDesertData {
   total: number;
 }
 
+// ── ZIP lookup (from POST /api/vet-deserts/lookup) ───────────────────────────
+// Joins an uploaded list of employee/prospect ZIP codes against the county
+// tier data above, for the "how many of this prospect's employees are in a
+// vet desert" upload feature.
+
+export interface ZipLookupResult {
+  zip: string;
+  fips: string | null;
+  countyName: string | null;
+  state: string | null;
+  tier: VetDesertTier | "unmatched";
+}
+
+export interface ZipLookupResponse {
+  results: ZipLookupResult[];
+  summary: Record<VetDesertTier | "unmatched", number>;
+  matchedFips: string[]; // unique county FIPS codes, for map highlighting
+  total: number;
+}
+
 // ── News intelligence ─────────────────────────────────────────────────────────
 
 export type SignalLevel = "HIGH" | "MEDIUM" | "LOW";

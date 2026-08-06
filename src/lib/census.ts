@@ -151,3 +151,36 @@ export async function fetchVetDesertCounties(): Promise<VetDesertCounty[]> {
 }
 
 export { CBP_YEAR };
+
+// ── Shared cache ──────────────────────────────────────────────────────────────
+// Both /api/vet-deserts and /api/vet-deserts/lookup need the same per-county
+// tier data — fetch it once and share the cache instead of duplicating ~100
+// Census API requests per route.
+
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+let cachedCounties: VetDesertCounty[] | null = null;
+let cachedFetchedAt: string | null = null;
+let cacheExpiresAt = 0;
+
+export async function getVetDesertCounties(
+  forceRefresh = false
+): Promise<{ counties: VetDesertCounty[]; fetchedAt: string }> {
+  const now = Date.now();
+  if (!forceRefresh && cachedCounties && cachedFetchedAt && now < cacheExpiresAt) {
+    return { counties: cachedCounties, fetchedAt: cachedFetchedAt };
+  }
+
+  const counties = await fetchVetDesertCounties();
+  if (counties.length > 0) {
+    cachedCounties = counties;
+    cachedFetchedAt = new Date().toISOString();
+    cacheExpiresAt = now + CACHE_TTL_MS;
+    return { counties, fetchedAt: cachedFetchedAt };
+  }
+  // Fetch failed / empty — fall back to stale cache if we have one, so a
+  // transient Census outage doesn't blank out an already-working map.
+  if (cachedCounties && cachedFetchedAt) {
+    return { counties: cachedCounties, fetchedAt: cachedFetchedAt };
+  }
+  return { counties: [], fetchedAt: new Date().toISOString() };
+}
