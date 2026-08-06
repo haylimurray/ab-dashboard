@@ -150,11 +150,12 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   const [country, setCountry]   = useState<Country>("us");
 
   // US data
-  const [geoJson, setGeoJson]         = useState<GeoJSONFeatureCollection | null>(null);
+  const [geoJson, setGeoJson]           = useState<GeoJSONFeatureCollection | null>(null);
   const [stateGeoJson, setStateGeoJson] = useState<GeoJSONFeatureCollection | null>(null);
-  const [desertData, setDesertData]   = useState<VetDesertData | null>(null);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState<string | null>(null);
+  const [stateGeoError, setStateGeoError] = useState<string | null>(null);
+  const [desertData, setDesertData]     = useState<VetDesertData | null>(null);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState<string | null>(null);
 
   // Canada data
   const [caGeoJson, setCaGeoJson] = useState<GeoJSONFeatureCollection | null>(null);
@@ -174,25 +175,38 @@ export default function VetDesertMap({ darkMode = false }: Props) {
 
   useEffect(() => { setMounted(true); }, []);
 
+  // Fully independent of the main US data load below — a failure here
+  // (network error, CORS, bad response) is non-fatal to the map itself and
+  // must never be able to trigger the main `error` state. Still surfaced in
+  // the UI (not console-only) so a silent CDN/CORS failure doesn't look
+  // identical to "not built yet".
+  const loadStateOutline = useCallback(() => {
+    fetch(STATE_GEOJSON_URL, { cache: "force-cache" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((json) => {
+        setStateGeoJson(json);
+        setStateGeoError(null);
+      })
+      .catch((e) => {
+        setStateGeoError(e instanceof Error ? e.message : "Failed to load state outline");
+      });
+  }, []);
+
   const fetchData = useCallback(async (force = false) => {
     setLoading(true);
     setError(null);
     try {
-      const [geoRes, stateRes, dataRes] = await Promise.all([
+      const [geoRes, dataRes] = await Promise.all([
         geoJson ? Promise.resolve(null) : fetch(COUNTY_GEOJSON_URL, { cache: "force-cache" }),
-        stateGeoJson ? Promise.resolve(null) : fetch(STATE_GEOJSON_URL, { cache: "force-cache" }),
         fetch(force ? "/api/vet-deserts?refresh=1" : "/api/vet-deserts", { cache: "no-store" }),
       ]);
 
       if (geoRes) {
         if (!geoRes.ok) throw new Error(`Could not load county boundaries (HTTP ${geoRes.status})`);
         setGeoJson(await geoRes.json());
-      }
-      if (stateRes) {
-        // Non-fatal if this one fails — the map still works without the
-        // state outline overlay, it just looks a bit less crisp.
-        if (stateRes.ok) setStateGeoJson(await stateRes.json());
-        else console.error(`Could not load state boundaries (HTTP ${stateRes.status})`);
       }
 
       if (!dataRes.ok) {
@@ -237,6 +251,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { loadStateOutline(); }, [loadStateOutline]);
 
   // Lazily fetch Canada data the first time that tab is opened.
   useEffect(() => {
@@ -560,6 +575,11 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                   <span className="text-xs text-gray-500 dark:text-dark-muted">Uploaded employees</span>
                 </div>
               )}
+              {stateGeoError && (
+                <span className="text-xs text-amber-600 dark:text-amber-400" title={stateGeoError}>
+                  State outline overlay failed to load
+                </span>
+              )}
               <div className="ml-auto flex items-center gap-3">
                 {fetchedAtStr && (
                   <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block">
@@ -663,7 +683,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
             <p className="text-sm text-gray-500 dark:text-dark-muted">Loading Canada vet desert map…</p>
           </div>
         </div>
-      ) : caError && !caGeoJson ? (
+      ) : caError && !caData ? (
         <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-start gap-3">
           <div>
             <strong>Could not load Canada vet desert data:</strong> {caError}

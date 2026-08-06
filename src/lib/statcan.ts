@@ -81,6 +81,13 @@ async function fetchAndUnzipCsv(zipUrl: string): Promise<string[][]> {
   return parseCSVText(text);
 }
 
+// StatCan often appends a footnote-reference digit to GEO values (e.g.
+// "Ontario 6") — strip any trailing " <digits>" before matching against our
+// known province names.
+function normalizeGeo(raw: string): string {
+  return raw.trim().replace(/\s+\d+$/, "").trim();
+}
+
 // ── Business counts (NAICS 541940, Veterinary services) ──────────────────────
 
 async function fetchClinicCountsByProvince(): Promise<Map<string, number>> {
@@ -92,7 +99,7 @@ async function fetchClinicCountsByProvince(): Promise<Map<string, number>> {
   const iValue = header.findIndex((h) => h.trim().toUpperCase() === "VALUE");
 
   if (iGeo === -1 || iNaics === -1 || iValue === -1) {
-    throw new Error("StatCan business counts CSV layout unexpected — missing GEO/NAICS/VALUE columns");
+    throw new Error(`StatCan business counts CSV layout unexpected — headers were: ${header.join(" | ")}`);
   }
 
   // Sum every employment-size bucket per province for NAICS 541940 — the
@@ -101,14 +108,23 @@ async function fetchClinicCountsByProvince(): Promise<Map<string, number>> {
   // vintages omit it (double counting isn't a risk — size buckets partition
   // the total, they don't overlap).
   const totals = new Map<string, number>();
+  const sampleGeos = new Set<string>();
   for (const row of data) {
-    const geo = row[iGeo]?.trim();
+    const rawGeo = row[iGeo]?.trim();
+    if (!rawGeo) continue;
+    if (sampleGeos.size < 8) sampleGeos.add(rawGeo);
+    const geo = normalizeGeo(rawGeo);
+    if (!PROVINCES[geo]) continue;
     const naics = row[iNaics] ?? "";
-    if (!geo || !PROVINCES[geo]) continue;
     if (!naics.includes("541940")) continue;
     if (iEmpSize !== -1 && /total/i.test(row[iEmpSize] ?? "")) continue; // skip total row to avoid double count
     const value = Number(row[iValue]) || 0;
     totals.set(geo, (totals.get(geo) ?? 0) + value);
+  }
+  if (totals.size === 0) {
+    throw new Error(
+      `No business-count rows matched NAICS 541940 for a known province. Sample GEO values seen: ${Array.from(sampleGeos).join(" | ")}`
+    );
   }
   return totals;
 }
@@ -118,21 +134,40 @@ async function fetchClinicCountsByProvince(): Promise<Map<string, number>> {
 async function fetchDwellingsByProvince(): Promise<Map<string, number>> {
   const rows = await fetchAndUnzipCsv(POPULATION_ZIP);
   const [header, ...data] = rows;
+  const iRef = header.findIndex((h) => h.trim().toUpperCase() === "REF_DATE");
   const iGeo = header.findIndex((h) => h.trim().toUpperCase() === "GEO");
   const iDim = header.findIndex((h) => /population and dwelling counts/i.test(h));
   const iValue = header.findIndex((h) => h.trim().toUpperCase() === "VALUE");
 
   if (iGeo === -1 || iDim === -1 || iValue === -1) {
-    throw new Error("StatCan population CSV layout unexpected — missing GEO/dimension/VALUE columns");
+    throw new Error(`StatCan population CSV layout unexpected — headers were: ${header.join(" | ")}`);
   }
 
   const dwellings = new Map<string, number>();
+  const sampleDims = new Set<string>();
   for (const row of data) {
-    const geo = row[iGeo]?.trim();
+    const rawGeo = row[iGeo]?.trim();
+    if (!rawGeo) continue;
+    const geo = normalizeGeo(rawGeo);
+    if (!PROVINCES[geo]) continue;
+
     const dim = row[iDim] ?? "";
-    if (!geo || !PROVINCES[geo]) continue;
-    if (!/private dwelling/i.test(dim) || !dim.includes(String(DATA_YEAR))) continue;
+    if (sampleDims.size < 15) sampleDims.add(dim);
+    if (!/private dwelling/i.test(dim)) continue;
+
+    // Prefer REF_DATE for the year match (the standard, reliable column);
+    // fall back to the dimension label itself in case this table embeds
+    // the year there instead (e.g. "Total private dwellings, 2021").
+    const refYearMatches = iRef !== -1 && row[iRef]?.trim() === String(DATA_YEAR);
+    const dimYearMatches = dim.includes(String(DATA_YEAR));
+    if (iRef !== -1 && !refYearMatches && !dimYearMatches) continue;
+
     dwellings.set(geo, Number(row[iValue]) || 0);
+  }
+  if (dwellings.size === 0) {
+    throw new Error(
+      `No household rows matched for a known province (looked for a dimension containing "private dwelling" and year ${DATA_YEAR}). Sample dimension values seen: ${Array.from(sampleDims).join(" | ")}`
+    );
   }
   return dwellings;
 }
