@@ -25,4 +25,14 @@
   @page {
     size: landscape;
   }
+  /* Browsers drop CSS background-color by default when printing (to save
+     ink) unless told otherwise — that's why the legend swatches and the
+     state-table risk badges (both painted via inline backgroundColor)
+     vanished in print while the map's own SVG-filled counties, which use
+     the `fill` attribute rather than a CSS background, printed fine. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
 }

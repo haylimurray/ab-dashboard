@@ -12,7 +12,7 @@ import type {
 
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
-import type { Layer } from "leaflet";
+import type { Layer, Map as LeafletMap } from "leaflet";
 
 // County boundary polygons, keyed by 5-digit FIPS in each feature's `id`.
 // Served from a CDN mirror of a well-known public dataset (plotly/datasets)
@@ -172,6 +172,31 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   const [mapVersion, setMapVersion]         = useState(0);
   const [dragOver, setDragOver]             = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Leaflet caches the map's pixel size/position from whenever it last
+  // measured its container — which happens at mount, on screen. Printing
+  // renders the page in a different layout pass (often a different width,
+  // since sidebar/card UI gets hidden via print:hidden), so without an
+  // explicit re-measure the map prints stale: cropped, off-center, with
+  // dead space on one side. invalidateSize() forces Leaflet to re-measure
+  // and re-center on the same geographic point for the new container size.
+  const usMapRef = useRef<LeafletMap | null>(null);
+  const caMapRef = useRef<LeafletMap | null>(null);
+
+  useEffect(() => {
+    const fixForPrint = () => {
+      requestAnimationFrame(() => {
+        usMapRef.current?.invalidateSize();
+        caMapRef.current?.invalidateSize();
+      });
+    };
+    window.addEventListener("beforeprint", fixForPrint);
+    window.addEventListener("afterprint", fixForPrint);
+    return () => {
+      window.removeEventListener("beforeprint", fixForPrint);
+      window.removeEventListener("afterprint", fixForPrint);
+    };
+  }, []);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -656,7 +681,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
 
             {/* Map */}
             <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
-              <MapContainer center={[39.5, -98.35]} zoom={4} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
+              <MapContainer ref={usMapRef} center={[39.5, -98.35]} zoom={4} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
                 <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
                 {geoJson && (
                   <GeoJSON
@@ -800,7 +825,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
 
           {/* Map */}
           <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
-            <MapContainer center={[58, -98]} zoom={3} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
+            <MapContainer ref={caMapRef} center={[58, -98]} zoom={3} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
               <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
               {caGeoJson && (
                 <GeoJSON
