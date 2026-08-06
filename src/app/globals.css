@@ -35,4 +35,11 @@
     print-color-adjust: exact !important;
     color-adjust: exact !important;
   }
+  /* The basemap tiles are removed in print (see VetDesertMap.tsx's
+     isPrinting state) so the report reads as a clean data graphic rather
+     than a screenshot of the app — this fills in the plain background
+     Leaflet would otherwise leave transparent/gray where tiles used to be. */
+  .leaflet-container {
+    background: #ffffff !important;
+  }
 }
