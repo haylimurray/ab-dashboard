@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { VetDesertCounty, VetDesertData, VetDesertTier, ZipLookupResponse } from "@/types";
+import type {
+  CanadaVetDesertData,
+  CanadaVetDesertRegion,
+  VetDesertCounty,
+  VetDesertData,
+  VetDesertTier,
+  ZipLookupResponse,
+} from "@/types";
 
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
@@ -12,6 +19,12 @@ import type { Layer } from "leaflet";
 // rather than bundled in the repo, since it's ~2-3MB.
 const COUNTY_GEOJSON_URL =
   "https://cdn.jsdelivr.net/gh/plotly/datasets@master/geojson-counties-fips.json";
+
+// Province/territory boundary polygons, keyed by `properties.name` (e.g.
+// "Quebec", "Ontario"). A small public dataset — nowhere near the size of
+// the US county file since there are only 13 features.
+const PROVINCE_GEOJSON_URL =
+  "https://cdn.jsdelivr.net/gh/codeforgermany/click_that_hood@main/public/data/canada.geojson";
 
 const TILE_DARK  = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 const TILE_LIGHT = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -36,12 +49,14 @@ const TIER_LABEL: Record<VetDesertTier, string> = {
 const LEGEND_ORDER: VetDesertTier[] = ["wellServed", "adequate", "underserved", "desert", "noData"];
 const MATCH_OUTLINE = "#2563eb";
 
+type Country = "us" | "canada";
+
 interface GeoJSONFeatureCollection {
   type: "FeatureCollection";
   features: Array<{ type: "Feature"; id?: string | number; properties: Record<string, unknown> }>;
 }
 
-// ── Client-side file parsing ──────────────────────────────────────────────────
+// ── Client-side file parsing (US ZIP upload feature) ─────────────────────────
 
 // Minimal CSV parser — handles quoted fields, escaped quotes, and CRLF/LF.
 function parseCSVText(text: string): string[][] {
@@ -125,13 +140,23 @@ interface Props {
 }
 
 export default function VetDesertMap({ darkMode = false }: Props) {
-  const [mounted, setMounted]       = useState(false);
+  const [mounted, setMounted]   = useState(false);
+  const [country, setCountry]   = useState<Country>("us");
+
+  // US data
   const [geoJson, setGeoJson]       = useState<GeoJSONFeatureCollection | null>(null);
   const [desertData, setDesertData] = useState<VetDesertData | null>(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
 
-  // Prospect ZIP upload
+  // Canada data
+  const [caGeoJson, setCaGeoJson] = useState<GeoJSONFeatureCollection | null>(null);
+  const [caData, setCaData]       = useState<CanadaVetDesertData | null>(null);
+  const [caLoading, setCaLoading] = useState(false);
+  const [caError, setCaError]     = useState<string | null>(null);
+  const [caFetched, setCaFetched] = useState(false);
+
+  // Prospect ZIP upload (US only)
   const [uploadFileName, setUploadFileName] = useState<string | null>(null);
   const [uploadLoading, setUploadLoading]   = useState(false);
   const [uploadError, setUploadError]       = useState<string | null>(null);
@@ -169,7 +194,40 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fetchCanadaData = useCallback(async (force = false) => {
+    setCaLoading(true);
+    setCaError(null);
+    try {
+      const [geoRes, dataRes] = await Promise.all([
+        caGeoJson ? Promise.resolve(null) : fetch(PROVINCE_GEOJSON_URL, { cache: "force-cache" }),
+        fetch(force ? "/api/vet-deserts/canada?refresh=1" : "/api/vet-deserts/canada", { cache: "no-store" }),
+      ]);
+
+      if (geoRes) {
+        if (!geoRes.ok) throw new Error(`Could not load province boundaries (HTTP ${geoRes.status})`);
+        setCaGeoJson(await geoRes.json());
+      }
+
+      if (!dataRes.ok) {
+        const body = await dataRes.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${dataRes.status}`);
+      }
+      setCaData(await dataRes.json());
+    } catch (e) {
+      setCaError(e instanceof Error ? e.message : "Failed to load Canada vet desert data");
+    } finally {
+      setCaLoading(false);
+      setCaFetched(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Lazily fetch Canada data the first time that tab is opened.
+  useEffect(() => {
+    if (country === "canada" && !caFetched) fetchCanadaData();
+  }, [country, caFetched, fetchCanadaData]);
 
   const handleFile = useCallback(async (file: File) => {
     setUploadError(null);
@@ -205,6 +263,8 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     setMapVersion((v) => v + 1);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
+
+  // ── US derived data ───────────────────────────────────────────────────────
 
   const countyMap = useMemo(() => {
     const m = new Map<string, VetDesertCounty>();
@@ -281,7 +341,56 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     ? new Date(desertData.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : null;
 
-  if (!mounted || (loading && !geoJson)) {
+  // ── Canada derived data ───────────────────────────────────────────────────
+
+  const provinceMap = useMemo(() => {
+    const m = new Map<string, CanadaVetDesertRegion>();
+    for (const r of caData?.regions ?? []) m.set(r.name, r);
+    return m;
+  }, [caData]);
+
+  const caStyleForFeature = useCallback(
+    (feature?: { properties?: { name?: string } }) => {
+      const name = feature?.properties?.name ?? "";
+      const tier = provinceMap.get(name)?.tier ?? "noData";
+      return {
+        fillColor: TIER_COLOR[tier],
+        fillOpacity: 0.8,
+        color: darkMode ? "#111827" : "#ffffff",
+        weight: 0.8,
+      };
+    },
+    [provinceMap, darkMode]
+  );
+
+  const caOnEachFeature = useCallback(
+    (feature: { properties?: { name?: string } }, layer: Layer) => {
+      const name = feature?.properties?.name ?? "";
+      const region = provinceMap.get(name);
+      const html = region
+        ? `<div style="font-size:12px"><strong>${region.name}</strong><br/>${TIER_LABEL[region.tier]}<br/>${region.clinicsPer1000Households.toFixed(2)} vet clinics / 1,000 households</div>`
+        : `<div style="font-size:12px">${name || "No data"}</div>`;
+      layer.bindTooltip(html, { sticky: true });
+    },
+    [provinceMap]
+  );
+
+  const caFetchedAtStr = caData?.fetchedAt
+    ? new Date(caData.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : null;
+
+  const caRegionsSorted = useMemo(() => {
+    const rows = [...(caData?.regions ?? [])];
+    // Highest ratio (best served) first is confusing for a "who needs this
+    // most" read — sort worst-served (desert) first instead.
+    const tierRank: Record<VetDesertTier, number> = { desert: 0, underserved: 1, adequate: 2, wellServed: 3, noData: 4 };
+    rows.sort((a, b) => tierRank[a.tier] - tierRank[b.tier] || a.clinicsPer1000Households - b.clinicsPer1000Households);
+    return rows;
+  }, [caData]);
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (!mounted) {
     return (
       <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
         <div className="text-center">
@@ -292,210 +401,341 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     );
   }
 
-  if (error && !geoJson) {
-    return (
-      <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-start gap-3">
-        <div>
-          <strong>Could not load vet desert data:</strong> {error}
-          <button onClick={() => fetchData()} className="ml-3 text-red-600 dark:text-red-400 underline text-xs">
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const total = lookupResult?.total ?? 0;
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Stat callout */}
-      <div className="rounded-xl border border-blue-100 dark:border-dark-border bg-blue-50/60 dark:bg-dark-card px-5 py-4 flex items-start gap-3">
-        <svg className="w-5 h-5 text-airvet-blue flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p className="text-sm text-gray-700 dark:text-dark-text">
-          The U.S. is projected to face a shortage of roughly <strong>15,000 companion-animal veterinarians by 2030</strong> (Mars Veterinary Health). The map below estimates access to veterinary care by county, using Census establishment and employment data as a proxy for capacity relative to households.
-        </p>
+      {/* Country toggle */}
+      <div className="flex items-center gap-2">
+        {(["us", "canada"] as Country[]).map((c) => (
+          <button
+            key={c}
+            onClick={() => setCountry(c)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
+              country === c
+                ? "bg-airvet-blue text-white border-airvet-blue"
+                : "bg-white dark:bg-dark-card text-gray-600 dark:text-dark-muted border-gray-300 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover"
+            }`}
+          >
+            {c === "us" ? "United States" : "Canada"}
+          </button>
+        ))}
       </div>
 
-      {/* Prospect ZIP upload */}
-      <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card px-5 py-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text">
-            Check a prospect&apos;s employee footprint
-          </h3>
-          {(uploadFileName || lookupResult) && (
-            <button onClick={clearUpload} className="text-xs text-gray-400 dark:text-dark-muted hover:text-gray-600 dark:hover:text-dark-text">
-              ✕ Clear
-            </button>
-          )}
-        </div>
-
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            const file = e.dataTransfer.files?.[0];
-            if (file) handleFile(file);
-          }}
-          onClick={() => fileInputRef.current?.click()}
-          className={`rounded-lg border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors ${
-            dragOver ? "border-airvet-blue bg-blue-50/60 dark:bg-dark-hover" : "border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover"
-          }`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
-          />
-          {uploadLoading ? (
-            <p className="text-sm text-gray-500 dark:text-dark-muted">Processing {uploadFileName}…</p>
-          ) : (
-            <p className="text-sm text-gray-500 dark:text-dark-muted">
-              Drop a CSV or Excel file with employee ZIP codes, or <span className="text-airvet-blue font-medium">click to browse</span>.
-              Nothing is saved — this is a one-time, in-browser check.
-            </p>
-          )}
-        </div>
-
-        {uploadError && (
-          <p className="mt-2 text-xs text-red-600 dark:text-red-400">{uploadError}</p>
-        )}
-
-        {lookupResult && (
-          <div className="mt-4">
-            <p className="text-xs text-gray-400 dark:text-dark-muted mb-2">
-              {uploadFileName} · {total} ZIP{total !== 1 ? "s" : ""} matched
-              {lookupResult.summary.unmatched > 0 && ` · ${lookupResult.summary.unmatched} unmatched`}
-            </p>
-            <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-100 dark:bg-dark-hover mb-3">
-              {LEGEND_ORDER.map((tier) => {
-                const count = lookupResult.summary[tier] ?? 0;
-                if (count === 0) return null;
-                return <span key={tier} style={{ width: `${pct(count)}%`, backgroundColor: TIER_COLOR[tier] }} />;
-              })}
+      {country === "us" ? (
+        loading && !geoJson ? (
+          <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
+            <div className="text-center">
+              <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3" style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }} />
+              <p className="text-sm text-gray-500 dark:text-dark-muted">Loading vet desert map…</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          </div>
+        ) : error && !geoJson ? (
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-start gap-3">
+            <div>
+              <strong>Could not load vet desert data:</strong> {error}
+              <button onClick={() => fetchData()} className="ml-3 text-red-600 dark:text-red-400 underline text-xs">
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Prospect ZIP upload */}
+            <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text">
+                  Check a prospect&apos;s employee footprint
+                </h3>
+                {(uploadFileName || lookupResult) && (
+                  <button onClick={clearUpload} className="text-xs text-gray-400 dark:text-dark-muted hover:text-gray-600 dark:hover:text-dark-text">
+                    ✕ Clear
+                  </button>
+                )}
+              </div>
+
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleFile(file);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`rounded-lg border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors ${
+                  dragOver ? "border-airvet-blue bg-blue-50/60 dark:bg-dark-hover" : "border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                />
+                {uploadLoading ? (
+                  <p className="text-sm text-gray-500 dark:text-dark-muted">Processing {uploadFileName}…</p>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-dark-muted">
+                    Drop a CSV or Excel file with employee ZIP codes, or <span className="text-airvet-blue font-medium">click to browse</span>.
+                    Nothing is saved — this is a one-time, in-browser check.
+                  </p>
+                )}
+              </div>
+
+              {uploadError && (
+                <p className="mt-2 text-xs text-red-600 dark:text-red-400">{uploadError}</p>
+              )}
+
+              {lookupResult && (
+                <div className="mt-4">
+                  <p className="text-xs text-gray-400 dark:text-dark-muted mb-2">
+                    {uploadFileName} · {total} ZIP{total !== 1 ? "s" : ""} matched
+                    {lookupResult.summary.unmatched > 0 && ` · ${lookupResult.summary.unmatched} unmatched`}
+                  </p>
+                  <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-100 dark:bg-dark-hover mb-3">
+                    {LEGEND_ORDER.map((tier) => {
+                      const count = lookupResult.summary[tier] ?? 0;
+                      if (count === 0) return null;
+                      return <span key={tier} style={{ width: `${pct(count)}%`, backgroundColor: TIER_COLOR[tier] }} />;
+                    })}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    {LEGEND_ORDER.map((tier) => (
+                      <div key={tier} className="text-center">
+                        <p className="text-lg font-bold" style={{ color: TIER_COLOR[tier] }}>{pct(lookupResult.summary[tier] ?? 0)}%</p>
+                        <p className="text-[11px] text-gray-400 dark:text-dark-muted">{TIER_LABEL[tier]}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-gray-400 dark:text-dark-muted mt-3">
+                    Matched counties are outlined in blue on the map below.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Legend + refresh */}
+            <div className="flex flex-wrap items-center gap-5 px-1">
               {LEGEND_ORDER.map((tier) => (
-                <div key={tier} className="text-center">
-                  <p className="text-lg font-bold" style={{ color: TIER_COLOR[tier] }}>{pct(lookupResult.summary[tier] ?? 0)}%</p>
-                  <p className="text-[11px] text-gray-400 dark:text-dark-muted">{TIER_LABEL[tier]}</p>
+                <div key={tier} className="flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: TIER_COLOR[tier] }} />
+                  <span className="text-xs text-gray-500 dark:text-dark-muted">{TIER_LABEL[tier]}</span>
                 </div>
               ))}
+              {lookupResult && (
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-sm border-2" style={{ borderColor: MATCH_OUTLINE }} />
+                  <span className="text-xs text-gray-500 dark:text-dark-muted">Uploaded employees</span>
+                </div>
+              )}
+              <div className="ml-auto flex items-center gap-3">
+                {fetchedAtStr && (
+                  <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block">
+                    Census data refreshed {fetchedAtStr}
+                  </span>
+                )}
+                <button
+                  onClick={() => fetchData(true)}
+                  disabled={loading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
+                >
+                  <svg className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
             </div>
-            <p className="text-[11px] text-gray-400 dark:text-dark-muted mt-3">
-              Matched counties are outlined in blue on the map below.
-            </p>
-          </div>
-        )}
-      </div>
 
-      {/* Legend + refresh */}
-      <div className="flex flex-wrap items-center gap-5 px-1">
-        {LEGEND_ORDER.map((tier) => (
-          <div key={tier} className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: TIER_COLOR[tier] }} />
-            <span className="text-xs text-gray-500 dark:text-dark-muted">{TIER_LABEL[tier]}</span>
-          </div>
-        ))}
-        {lookupResult && (
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm border-2" style={{ borderColor: MATCH_OUTLINE }} />
-            <span className="text-xs text-gray-500 dark:text-dark-muted">Uploaded employees</span>
-          </div>
-        )}
-        <div className="ml-auto flex items-center gap-3">
-          {fetchedAtStr && (
-            <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block">
-              Census data refreshed {fetchedAtStr}
-            </span>
-          )}
-          <button
-            onClick={() => fetchData(true)}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
-          >
-            <svg className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </button>
-        </div>
-      </div>
+            {/* Map */}
+            <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
+              <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: "100%", width: "100%" }}>
+                <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
+                {geoJson && (
+                  <GeoJSON
+                    key={`${desertData?.fetchedAt ?? "geo"}-v${mapVersion}`}
+                    data={geoJson as never}
+                    style={styleForFeature as never}
+                    onEachFeature={onEachFeature as never}
+                  />
+                )}
+              </MapContainer>
+            </div>
 
-      {/* Map */}
-      <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
-        <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: "100%", width: "100%" }}>
-          <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
-          {geoJson && (
-            <GeoJSON
-              key={`${desertData?.fetchedAt ?? "geo"}-v${mapVersion}`}
-              data={geoJson as never}
-              style={styleForFeature as never}
-              onEachFeature={onEachFeature as never}
-            />
-          )}
-        </MapContainer>
-      </div>
+            {/* State breakdown */}
+            {stateStats.length > 0 && (
+              <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 dark:border-dark-border">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text">State breakdown</h3>
+                  <p className="text-xs text-gray-400 dark:text-dark-muted mt-0.5">
+                    Ranked by share of counties that are underserved or a vet desert — numbers to cite in a pitch.
+                  </p>
+                </div>
+                <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="sticky top-0 bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">State</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Counties</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">% underserved/desert</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Households at risk</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                      {stateStats.map((s) => (
+                        <tr key={s.state} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
+                          <td className="px-4 py-2 font-medium text-gray-900 dark:text-dark-text">{s.state}</td>
+                          <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">
+                            {s.atRiskCounties} / {s.totalCounties}
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums">
+                            <span
+                              className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                              style={{
+                                backgroundColor: s.pctCountiesAtRisk >= 50 ? "#fee2e2" : s.pctCountiesAtRisk >= 25 ? "#fef3c7" : "#dcfce7",
+                                color: s.pctCountiesAtRisk >= 50 ? "#dc2626" : s.pctCountiesAtRisk >= 25 ? "#b45309" : "#15803d",
+                              }}
+                            >
+                              {s.pctCountiesAtRisk}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">
+                            {s.householdsAtRisk.toLocaleString()} <span className="text-gray-300 dark:text-dark-border">/ {s.totalHouseholds.toLocaleString()}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
-      {/* State breakdown */}
-      {stateStats.length > 0 && (
-        <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 dark:border-dark-border">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text">State breakdown</h3>
-            <p className="text-xs text-gray-400 dark:text-dark-muted mt-0.5">
-              Ranked by share of counties that are underserved or a vet desert — numbers to cite in a pitch.
-            </p>
-          </div>
-          <div className="overflow-x-auto max-h-80 overflow-y-auto">
-            <table className="min-w-full text-sm">
-              <thead className="sticky top-0 bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">State</th>
-                  <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Counties</th>
-                  <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">% underserved/desert</th>
-                  <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Households at risk</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
-                {stateStats.map((s) => (
-                  <tr key={s.state} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
-                    <td className="px-4 py-2 font-medium text-gray-900 dark:text-dark-text">{s.state}</td>
-                    <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">
-                      {s.atRiskCounties} / {s.totalCounties}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      <span
-                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
-                        style={{
-                          backgroundColor: s.pctCountiesAtRisk >= 50 ? "#fee2e2" : s.pctCountiesAtRisk >= 25 ? "#fef3c7" : "#dcfce7",
-                          color: s.pctCountiesAtRisk >= 50 ? "#dc2626" : s.pctCountiesAtRisk >= 25 ? "#b45309" : "#15803d",
-                        }}
-                      >
-                        {s.pctCountiesAtRisk}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">
-                      {s.householdsAtRisk.toLocaleString()} <span className="text-gray-300 dark:text-dark-border">/ {s.totalHouseholds.toLocaleString()}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {!desertData?.total ? null : (
+              <p className="text-xs text-gray-400 dark:text-dark-muted px-1">
+                {desertData.total} counties · Census {desertData.dataYear} County Business Patterns (NAICS 541940, Veterinary Services) + ACS5 household estimates. Counties with no reported vet establishments are scored as deserts. Note: Census suppresses exact employee counts for some small clinics, which can undercount capacity in a handful of counties. This is a directional estimate, not the official Veterinary Care Accessibility Project index.
+              </p>
+            )}
+          </>
+        )
+      ) : caLoading && !caGeoJson ? (
+        <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3" style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }} />
+            <p className="text-sm text-gray-500 dark:text-dark-muted">Loading Canada vet desert map…</p>
           </div>
         </div>
-      )}
+      ) : caError && !caGeoJson ? (
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-start gap-3">
+          <div>
+            <strong>Could not load Canada vet desert data:</strong> {caError}
+            <button onClick={() => fetchCanadaData()} className="ml-3 text-red-600 dark:text-red-400 underline text-xs">
+              Try again
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-xl border border-amber-100 dark:border-dark-border bg-amber-50/60 dark:bg-dark-card px-5 py-3 text-xs text-amber-800 dark:text-dark-muted">
+            Province-level only — Statistics Canada&apos;s finest publicly confirmed geography for this data. Tiers are ranked relative to other provinces (quartile-based), not tied to a fixed benchmark like the US map.
+          </div>
 
-      {!desertData?.total ? null : (
-        <p className="text-xs text-gray-400 dark:text-dark-muted px-1">
-          {desertData.total} counties · Census {desertData.dataYear} County Business Patterns (NAICS 541940, Veterinary Services) + ACS5 household estimates. Counties with no reported vet establishments are scored as deserts. Note: Census suppresses exact employee counts for some small clinics, which can undercount capacity in a handful of counties. This is a directional estimate, not the official Veterinary Care Accessibility Project index.
-        </p>
+          {/* Legend + refresh */}
+          <div className="flex flex-wrap items-center gap-5 px-1">
+            {LEGEND_ORDER.map((tier) => (
+              <div key={tier} className="flex items-center gap-1.5">
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: TIER_COLOR[tier] }} />
+                <span className="text-xs text-gray-500 dark:text-dark-muted">{TIER_LABEL[tier]}</span>
+              </div>
+            ))}
+            <div className="ml-auto flex items-center gap-3">
+              {caFetchedAtStr && (
+                <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block">
+                  StatCan data refreshed {caFetchedAtStr}
+                </span>
+              )}
+              <button
+                onClick={() => fetchCanadaData(true)}
+                disabled={caLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
+              >
+                <svg className={`w-3.5 h-3.5 ${caLoading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* Map */}
+          <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
+            <MapContainer center={[58, -98]} zoom={3} style={{ height: "100%", width: "100%" }}>
+              <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
+              {caGeoJson && (
+                <GeoJSON
+                  key={caData?.fetchedAt ?? "ca-geo"}
+                  data={caGeoJson as never}
+                  style={caStyleForFeature as never}
+                  onEachFeature={caOnEachFeature as never}
+                />
+              )}
+            </MapContainer>
+          </div>
+
+          {/* Province breakdown */}
+          {caRegionsSorted.length > 0 && (
+            <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100 dark:border-dark-border">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text">Province breakdown</h3>
+                <p className="text-xs text-gray-400 dark:text-dark-muted mt-0.5">
+                  Ranked worst-served to best-served, by vet clinics per 1,000 households.
+                </p>
+              </div>
+              <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="sticky top-0 bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Province</th>
+                      <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Tier</th>
+                      <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Clinics / 1,000 hh</th>
+                      <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Households</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                    {caRegionsSorted.map((r) => (
+                      <tr key={r.code} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
+                        <td className="px-4 py-2 font-medium text-gray-900 dark:text-dark-text">{r.name}</td>
+                        <td className="px-4 py-2 text-right">
+                          <span
+                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                            style={{ backgroundColor: `${TIER_COLOR[r.tier]}22`, color: TIER_COLOR[r.tier] }}
+                          >
+                            {TIER_LABEL[r.tier]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">
+                          {r.clinicsPer1000Households.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">
+                          {r.households.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {!caData?.total ? null : (
+            <p className="text-xs text-gray-400 dark:text-dark-muted px-1">
+              {caData.total} provinces/territories · Statistics Canada {caData.dataYear} Census (private dwellings) + Canadian Business Counts (NAICS 541940, Veterinary Services). Canada&apos;s own workforce data points to a national shortfall concentrated in remote and rural areas rather than one blanket figure — this map reflects relative access by province, not an absolute benchmark.
+            </p>
+          )}
+        </>
       )}
     </div>
   );

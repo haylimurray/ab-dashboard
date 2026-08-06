@@ -138,6 +138,27 @@ export interface VetDesertData {
   total: number;
 }
 
+// ── Canada vet deserts (from GET /api/vet-deserts/canada) ───────────────────
+// Province-level only — see src/lib/statcan.ts for why this doesn't match
+// the US map's county granularity, and why tiers are quantile-based here
+// rather than tied to an absolute published benchmark.
+
+export interface CanadaVetDesertRegion {
+  code: string;   // 2-letter province/territory code, e.g. "ON"
+  name: string;   // full name, e.g. "Ontario" — matches the boundary GeoJSON's `properties.name`
+  establishments: number;
+  households: number; // total private dwellings, used as a household proxy
+  clinicsPer1000Households: number;
+  tier: VetDesertTier;
+}
+
+export interface CanadaVetDesertData {
+  regions: CanadaVetDesertRegion[];
+  dataYear: number;
+  fetchedAt: string;
+  total: number;
+}
+
 // ── ZIP lookup (from POST /api/vet-deserts/lookup) ───────────────────────────
 // Joins an uploaded list of employee/prospect ZIP codes against the county
 // tier data above, for the "how many of this prospect's employees are in a
