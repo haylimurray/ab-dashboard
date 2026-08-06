@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVetDesertCounties } from "@/lib/census";
 import { getZipCrosswalk } from "@/lib/zipCrosswalk";
+import { estimateCostOfCare } from "@/lib/vetCosts";
 import type { VetDesertTier, ZipLookupResponse, ZipLookupResult } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -59,11 +60,22 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // Cost-of-care narrative: for employees whose county is well-served or
+    // adequate (i.e. NOT an access problem), estimate what they're likely
+    // still paying for routine in-person care, weighted by the states they
+    // actually live in. See src/lib/vetCosts.ts for sourcing.
+    const wellCoveredStates = results
+      .filter((r) => r.tier === "wellServed" || r.tier === "adequate")
+      .map((r) => r.state)
+      .filter((s): s is string => !!s);
+    const costOfCare = estimateCostOfCare(wellCoveredStates);
+
     const response: ZipLookupResponse = {
       results,
       summary,
       matchedFips: Array.from(matchedFipsSet),
       total: zips.length,
+      costOfCare,
     };
 
     return NextResponse.json(response);

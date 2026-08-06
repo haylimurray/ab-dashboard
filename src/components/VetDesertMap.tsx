@@ -554,8 +554,40 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                       </div>
                     ))}
                   </div>
+
+                  {(() => {
+                    const accessGapCount = (lookupResult.summary.underserved ?? 0) + (lookupResult.summary.desert ?? 0);
+                    const accessGapPct = pct(accessGapCount);
+                    const cost = lookupResult.costOfCare;
+                    if (accessGapCount === 0 && !cost) return null;
+                    return (
+                      <div className="mt-4 grid sm:grid-cols-2 gap-3">
+                        {accessGapCount > 0 && (
+                          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-3 py-3">
+                            <p className="text-xs font-semibold text-red-700 dark:text-red-400">
+                              {accessGapPct}% ({accessGapCount.toLocaleString()} employees) have limited or no local access
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-dark-muted mt-1">
+                              In a vet desert or underserved county, in-person care can mean long drives or long waits — Airvet gives them a same-day option regardless of ZIP code.
+                            </p>
+                          </div>
+                        )}
+                        {cost && (
+                          <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 px-3 py-3">
+                            <p className="text-xs font-semibold text-airvet-blue">
+                              ~${cost.estimatedAnnualSpend.toLocaleString()}/yr even where care is nearby
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-dark-muted mt-1">
+                              The {pct(cost.segmentEmployeeCount)}% with ready access still face a state-adjusted average of ${cost.avgRoutineExamCost}/visit (~${cost.avgAnnualRoutineCarePerPet}/yr per pet) for routine in-person care — an estimated {cost.estimatedPetOwningEmployees.toLocaleString()} pet-owning employees, cost Airvet can take off the table.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <p className="text-[11px] text-gray-400 dark:text-dark-muted mt-3">
-                    Matched counties are outlined in blue on the map below.
+                    Matched counties are outlined in blue on the map below. Cost estimate uses state-indexed veterinary pricing (AVMA, PetPlanWise/AAHA/CareCredit/BLS) and APPA pet-ownership rates — directional, not a quote.
                   </p>
                 </div>
               )}

@@ -172,11 +172,24 @@ export interface ZipLookupResult {
   tier: VetDesertTier | "unmatched";
 }
 
+// Cost-of-care estimate for the well-served/adequate segment of an uploaded
+// employee list — see src/lib/vetCosts.ts for sourcing/methodology.
+export interface CostOfCareEstimate {
+  segmentEmployeeCount: number;
+  estimatedPetOwningEmployees: number;
+  avgRoutineExamCost: number;
+  avgAnnualRoutineCarePerPet: number;
+  estimatedAnnualSpend: number;
+  petOwnershipRatePct: number;
+  dataYear: number;
+}
+
 export interface ZipLookupResponse {
   results: ZipLookupResult[];
   summary: Record<VetDesertTier | "unmatched", number>;
   matchedFips: string[]; // unique county FIPS codes, for map highlighting
   total: number;
+  costOfCare: CostOfCareEstimate | null;
 }
 
 // ── News intelligence ─────────────────────────────────────────────────────────
