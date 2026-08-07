@@ -13,12 +13,20 @@ import type {
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import type { Layer, Map as LeafletMap } from "leaflet";
+import { feature as topojsonFeature } from "topojson-client";
 
-// County boundary polygons, keyed by 5-digit FIPS in each feature's `id`.
-// Served from a CDN mirror of a well-known public dataset (plotly/datasets)
-// rather than bundled in the repo, since it's ~2-3MB.
-const COUNTY_GEOJSON_URL =
-  "https://cdn.jsdelivr.net/gh/plotly/datasets@master/geojson-counties-fips.json";
+// County boundary polygons (TopoJSON, ~10m scale), keyed by 5-digit FIPS in
+// each feature's `properties.GEOID`. This specific fork of us-atlas swaps in
+// Connecticut's 9 planning regions (FIPS 09110-09190) in place of CT's 8
+// legacy counties (09001-09015) — the Census Bureau retired the legacy CT
+// county FIPS starting with 2022-vintage data, which is exactly the CBP/ACS
+// vintage this app queries. Using an older county file (e.g. plotly's, which
+// still has the legacy CT counties) means every 2022+ Census record for CT
+// fails to match any polygon on the map, so all of Connecticut renders as
+// "No data" even though the underlying county data is real — a mismatch
+// between two datasets' vintages, not an actual data gap.
+const COUNTY_TOPOJSON_URL =
+  "https://cdn.jsdelivr.net/gh/growella/us-counties-10m-topojson@main/data/us-counties-hb-with-ct-planning-regions.json";
 
 // Province/territory boundary polygons, keyed by `properties.name` (e.g.
 // "Quebec", "Ontario"). A small public dataset — nowhere near the size of
@@ -95,6 +103,27 @@ type Country = "us" | "canada";
 interface GeoJSONFeatureCollection {
   type: "FeatureCollection";
   features: Array<{ type: "Feature"; id?: string | number; properties: Record<string, unknown> }>;
+}
+
+// The county boundary source is TopoJSON, not GeoJSON — react-leaflet's
+// <GeoJSON> needs the latter. Converts once on load; tolerant of a plain
+// GeoJSON response too (checks `type` first) in case the CDN source ever
+// changes shape.
+function toGeoJsonFeatureCollection(raw: unknown): GeoJSONFeatureCollection {
+  const obj = raw as { type?: string; objects?: Record<string, unknown> };
+  if (obj?.type === "Topology" && obj.objects) {
+    const objectKey = Object.keys(obj.objects)[0];
+    return topojsonFeature(obj as never, obj.objects[objectKey] as never) as never;
+  }
+  return raw as GeoJSONFeatureCollection;
+}
+
+// FIPS lives in `properties.GEOID` on the current county source, but the
+// old plotly source (and the state-outline file) key it as `feature.id` —
+// check both so either shape works.
+function extractFips(feature?: { id?: string | number; properties?: Record<string, unknown> }): string {
+  const raw = feature?.properties?.GEOID ?? feature?.id ?? "";
+  return String(raw).padStart(5, "0");
 }
 
 // ── Client-side file parsing (US ZIP upload feature) ─────────────────────────
@@ -278,13 +307,13 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     setError(null);
     try {
       const [geoRes, dataRes] = await Promise.all([
-        geoJson ? Promise.resolve(null) : fetch(COUNTY_GEOJSON_URL, { cache: "force-cache" }),
+        geoJson ? Promise.resolve(null) : fetch(COUNTY_TOPOJSON_URL, { cache: "force-cache" }),
         fetch(force ? "/api/vet-deserts?refresh=1" : "/api/vet-deserts", { cache: "no-store" }),
       ]);
 
       if (geoRes) {
         if (!geoRes.ok) throw new Error(`Could not load county boundaries (HTTP ${geoRes.status})`);
-        setGeoJson(await geoRes.json());
+        setGeoJson(toGeoJsonFeatureCollection(await geoRes.json()));
       }
 
       if (!dataRes.ok) {
@@ -447,8 +476,8 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   const matchedFipsSet = useMemo(() => new Set(lookupResult?.matchedFips ?? []), [lookupResult]);
 
   const styleForFeature = useCallback(
-    (feature?: { id?: string | number }) => {
-      const fips = String(feature?.id ?? "").padStart(5, "0");
+    (feature?: { id?: string | number; properties?: Record<string, unknown> }) => {
+      const fips = extractFips(feature);
       const tier = countyMap.get(fips)?.tier ?? "noData";
       const isMatched = matchedFipsSet.has(fips);
       return {
@@ -476,8 +505,8 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   );
 
   const onEachFeature = useCallback(
-    (feature: { id?: string | number }, layer: Layer) => {
-      const fips = String(feature?.id ?? "").padStart(5, "0");
+    (feature: { id?: string | number; properties?: Record<string, unknown> }, layer: Layer) => {
+      const fips = extractFips(feature);
       const county = countyMap.get(fips);
       const matchedNote = matchedFipsSet.has(fips) ? "<br/><em>Includes uploaded employees</em>" : "";
       const stateInfo = county ? stateStatsByAbbr.get(county.state) : undefined;
