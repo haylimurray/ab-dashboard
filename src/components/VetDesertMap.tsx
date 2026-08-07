@@ -53,11 +53,11 @@ const TIER_COLOR: Record<VetDesertTier, string> = {
 };
 
 const TIER_LABEL: Record<VetDesertTier, string> = {
-  wellServed:  "Well served",
+  wellServed:  "Well-Served",
   adequate:    "Adequate",
   underserved: "Underserved",
-  desert:      "Vet desert",
-  noData:      "No data",
+  desert:      "Veterinary Desert",
+  noData:      "No Data",
 };
 
 const LEGEND_ORDER: VetDesertTier[] = ["wellServed", "adequate", "underserved", "desert", "noData"];
@@ -814,10 +814,10 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                 just the color/label, so it holds up in a printed report
                 without anyone having to hover. */}
             <p className="text-xs text-gray-400 dark:text-dark-muted px-1 -mt-1">
-              Measured in vet employees per 1,000 households: <strong className="font-medium text-gray-500 dark:text-dark-muted">well served</strong> 3.0+ ·{" "}
+              Measured in vet employees per 1,000 households: <strong className="font-medium text-gray-500 dark:text-dark-muted">well-served</strong> 3.0+ ·{" "}
               <strong className="font-medium text-gray-500 dark:text-dark-muted">adequate</strong> 1.68–2.99 ·{" "}
               <strong className="font-medium text-gray-500 dark:text-dark-muted">underserved</strong> 0.8–1.67 ·{" "}
-              <strong className="font-medium text-gray-500 dark:text-dark-muted">vet desert</strong> under 0.8, including counties with no reported clinic ·{" "}
+              <strong className="font-medium text-gray-500 dark:text-dark-muted">veterinary desert</strong> under 0.8, including counties with no reported clinic ·{" "}
               <strong className="font-medium text-gray-500 dark:text-dark-muted">no data</strong> no Census household estimate for that county.
             </p>
 
@@ -992,10 +992,10 @@ export default function VetDesertMap({ darkMode = false }: Props) {
           {/* Key */}
           <p className="text-xs text-gray-400 dark:text-dark-muted px-1 -mt-1">
             Ranked by vet clinics per 1,000 households, relative to other provinces/territories (no fixed national benchmark exists for Canada):{" "}
-            <strong className="font-medium text-gray-500 dark:text-dark-muted">well served</strong> top 25% ·{" "}
+            <strong className="font-medium text-gray-500 dark:text-dark-muted">well-served</strong> top 25% ·{" "}
             <strong className="font-medium text-gray-500 dark:text-dark-muted">adequate</strong> next 30% ·{" "}
             <strong className="font-medium text-gray-500 dark:text-dark-muted">underserved</strong> next 30% ·{" "}
-            <strong className="font-medium text-gray-500 dark:text-dark-muted">vet desert</strong> bottom 20% ·{" "}
+            <strong className="font-medium text-gray-500 dark:text-dark-muted">veterinary desert</strong> bottom 20% ·{" "}
             <strong className="font-medium text-gray-500 dark:text-dark-muted">no data</strong> no household estimate available.
           </p>
 

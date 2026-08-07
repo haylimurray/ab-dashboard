@@ -89,7 +89,7 @@ function sortAdvisors(
 const TABS: { id: Tab; label: string }[] = [
   { id: "advisors",   label: "Advisors" },
   { id: "map",        label: "Map" },
-  { id: "vetDeserts", label: "Vet Deserts" },
+  { id: "vetDeserts", label: "Veterinary Deserts" },
   { id: "requests",   label: "Requests" },
   { id: "recruiting", label: "Recruiting" },
   // { id: "news", label: "News Intelligence" }, // temporarily disabled
