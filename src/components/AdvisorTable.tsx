@@ -539,7 +539,7 @@ export default function AdvisorTable({
                       type="checkbox"
                       checked={visibility[col.id]}
                       onChange={() => toggleColumn(col.id)}
-                      style={{ accentColor: "#1E6CD9" }}
+                      style={{ accentColor: "#0062F5" }}
                     />
                     {col.label}
                   </label>

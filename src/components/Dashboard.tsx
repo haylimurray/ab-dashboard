@@ -312,24 +312,21 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
       {/* Header — hidden when printing (e.g. the Vet Deserts PDF export),
-          since that export has its own branded report header. */}
-      <header className="print:hidden bg-[#1B3A6B] dark:bg-dark-card shadow-md border-b border-white/10 dark:border-dark-border">
+          since that export has its own branded report header. Light
+          background with the logo in its natural blue, rather than the old
+          navy bar with a white-inverted logo — matches the masthead style
+          used on the PDF export. */}
+      <header className="print:hidden bg-white dark:bg-dark-card shadow-md border-b border-gray-100 dark:border-dark-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img
-              src="/airvet-logo.png"
-              alt="Airvet"
-              className="h-6 w-auto dark:[filter:none]"
-              style={{ filter: "brightness(0) invert(1)" }}
-            />
+            <img src="/airvet-logo.png" alt="Airvet" className="h-6 w-auto" />
             <div>
-              <h1 className="text-white dark:text-airvet-blue text-sm font-semibold leading-tight">Advisory Board</h1>
-              <p className="text-blue-200/70 dark:text-dark-muted text-xs">Health Score Dashboard</p>
+              <h1 className="text-gray-900 dark:text-airvet-blue text-sm font-semibold leading-tight">AB &amp; GTM Dashboard</h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
             {fetchedAtStr && (
-              <span className="text-blue-300/70 dark:text-dark-muted text-xs hidden sm:block">
+              <span className="text-gray-400 dark:text-dark-muted text-xs hidden sm:block">
                 Updated {fetchedAtStr}
               </span>
             )}
@@ -337,7 +334,7 @@ export default function Dashboard() {
             <button
               onClick={toggleDark}
               aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:text-white/70 dark:hover:text-white dark:hover:bg-white/10 transition-colors"
             >
               {darkMode ? (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -352,7 +349,7 @@ export default function Dashboard() {
             <button
               onClick={() => fetchData(true)}
               disabled={contactsLoading}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium text-white border border-white/30 hover:bg-white/10 transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium text-airvet-blue border border-airvet-blue/30 hover:bg-airvet-blue/10 dark:text-white dark:border-white/30 dark:hover:bg-white/10 transition-colors disabled:opacity-40"
             >
               <svg
                 className={`w-4 h-4 ${contactsLoading ? "animate-spin" : ""}`}
@@ -368,11 +365,11 @@ export default function Dashboard() {
         {/* Health progress bar */}
         {healthPending && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2 flex items-center gap-2">
-            <div className="w-3 h-3 border-2 border-blue-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-            <span className="text-xs text-blue-300 dark:text-dark-muted">
+            <div className="w-3 h-3 border-2 border-airvet-blue border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            <span className="text-xs text-gray-500 dark:text-dark-muted">
               Loading health scores… {healthDone} / {healthTotal}
             </span>
-            <div className="flex-1 max-w-xs h-1 rounded-full bg-white/20 overflow-hidden">
+            <div className="flex-1 max-w-xs h-1 rounded-full bg-gray-100 dark:bg-white/20 overflow-hidden">
               <div
                 className="h-full rounded-full bg-airvet-blue transition-all duration-300"
                 style={{ width: `${(healthDone / healthTotal) * 100}%` }}
@@ -390,8 +387,8 @@ export default function Dashboard() {
                 onClick={() => setActiveTab(id)}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === id
-                    ? "border-white dark:border-airvet-blue text-white dark:text-airvet-blue"
-                    : "border-transparent text-blue-300 dark:text-dark-muted hover:text-white hover:border-blue-300"
+                    ? "border-airvet-blue text-airvet-blue"
+                    : "border-transparent text-gray-500 dark:text-dark-muted hover:text-airvet-blue hover:border-airvet-blue/40"
                 }`}
               >
                 {label}
@@ -414,7 +411,7 @@ export default function Dashboard() {
             <div className="text-center">
               <div
                 className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3"
-                style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }}
+                style={{ borderColor: "#0062F5", borderTopColor: "transparent" }}
               />
               <p className="text-gray-500 dark:text-dark-muted text-sm">Loading advisors…</p>
             </div>

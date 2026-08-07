@@ -12,7 +12,7 @@ const config: Config = {
       colors: {
         airvet: {
           navy: "#1B3A6B",
-          blue: "#1E6CD9",
+          blue: "#0062F5",
         },
         dark: {
           bg:     "#0F1923",

@@ -578,7 +578,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     return (
       <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3" style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }} />
+          <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3" style={{ borderColor: "#0062F5", borderTopColor: "transparent" }} />
           <p className="text-sm text-gray-500 dark:text-dark-muted">Loading vet desert map…</p>
         </div>
       </div>
@@ -611,7 +611,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
         loading && !geoJson ? (
           <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
             <div className="text-center">
-              <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3" style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }} />
+              <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3" style={{ borderColor: "#0062F5", borderTopColor: "transparent" }} />
               <p className="text-sm text-gray-500 dark:text-dark-muted">Loading vet desert map…</p>
             </div>
           </div>
@@ -750,7 +750,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
               <h2 className="text-xl font-bold text-gray-900">United States: County-Level Veterinary Access</h2>
               {nationalStats.totalCounties > 0 && (
                 <p className="text-sm mt-1 text-gray-700">
-                  <strong style={{ color: "#1E6CD9" }}>{nationalStats.pctCountiesAtRisk}%</strong> of U.S. counties (
+                  <strong style={{ color: "#0062F5" }}>{nationalStats.pctCountiesAtRisk}%</strong> of U.S. counties (
                   {nationalStats.atRiskCounties.toLocaleString()} of {nationalStats.totalCounties.toLocaleString()}) are
                   underserved or a vet desert — an estimated <strong>{nationalStats.householdsAtRisk.toLocaleString()}</strong>{" "}
                   households ({nationalStats.pctHouseholdsAtRisk}%) with limited access to in-person veterinary care.
@@ -909,7 +909,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
       ) : caLoading && !caGeoJson ? (
         <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
           <div className="text-center">
-            <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3" style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }} />
+            <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3" style={{ borderColor: "#0062F5", borderTopColor: "transparent" }} />
             <p className="text-sm text-gray-500 dark:text-dark-muted">Loading Canada vet desert map…</p>
           </div>
         </div>
@@ -941,7 +941,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
             <h2 className="text-xl font-bold text-gray-900">Canada: Province-Level Veterinary Access</h2>
             {caNationalStats.total > 0 && (
               <p className="text-sm mt-1 text-gray-700">
-                <strong style={{ color: "#1E6CD9" }}>{caNationalStats.atRiskCount}</strong> of {caNationalStats.total} provinces/territories
+                <strong style={{ color: "#0062F5" }}>{caNationalStats.atRiskCount}</strong> of {caNationalStats.total} provinces/territories
                 are underserved or a vet desert (relative ranking) — an estimated{" "}
                 <strong>{caNationalStats.householdsAtRisk.toLocaleString()}</strong> households ({caNationalStats.pctHouseholdsAtRisk}%)
                 with limited access to in-person veterinary care.

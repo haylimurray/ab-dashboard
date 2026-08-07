@@ -56,7 +56,7 @@ export default function NewsIntelligence() {
           onClick={handleLoad}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white whitespace-nowrap transition-opacity disabled:opacity-50 flex-shrink-0"
-          style={{ backgroundColor: "#1E6CD9" }}
+          style={{ backgroundColor: "#0062F5" }}
         >
           <svg
             className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
@@ -88,7 +88,7 @@ export default function NewsIntelligence() {
           <div className="text-center">
             <div
               className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3"
-              style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }}
+              style={{ borderColor: "#0062F5", borderTopColor: "transparent" }}
             />
             <p className="text-sm text-gray-600 font-medium">
               Fetching news &amp; scoring with AI…

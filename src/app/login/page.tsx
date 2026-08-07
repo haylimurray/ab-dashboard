@@ -39,15 +39,15 @@ export default function LoginPage() {
           <div className="flex items-center gap-3 mb-8">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
-              style={{ backgroundColor: "#1E6CD9" }}
+              style={{ backgroundColor: "#0062F5" }}
             >
               AV
             </div>
             <div>
               <p className="text-gray-900 text-base font-bold leading-tight">
-                Airvet Advisory Board
+                Airvet
               </p>
-              <p className="text-gray-400 text-xs">Health Score Dashboard</p>
+              <p className="text-gray-400 text-xs">AB &amp; GTM Dashboard</p>
             </div>
           </div>
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
                 autoFocus
                 required
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
-                style={{ "--tw-ring-color": "#1E6CD9" } as React.CSSProperties}
+                style={{ "--tw-ring-color": "#0062F5" } as React.CSSProperties}
               />
             </div>
 
@@ -77,7 +77,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading || !password}
               className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: "#1E6CD9" }}
+              style={{ backgroundColor: "#0062F5" }}
             >
               {loading ? "Signing in…" : "Sign in"}
             </button>

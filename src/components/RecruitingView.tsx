@@ -95,7 +95,7 @@ export default function RecruitingView() {
         <div className="text-center">
           <div
             className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3"
-            style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }}
+            style={{ borderColor: "#0062F5", borderTopColor: "transparent" }}
           />
           <p className="text-sm text-gray-500 dark:text-dark-muted">Loading recruiting data…</p>
         </div>

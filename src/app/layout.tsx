@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Airvet Advisory Board Dashboard",
-  description: "Advisory board health score monitoring",
+  title: "Airvet AB & GTM Dashboard",
+  description: "Advisory board health scores, requests, recruiting, and go-to-market tools",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

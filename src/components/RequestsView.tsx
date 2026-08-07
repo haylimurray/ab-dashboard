@@ -52,7 +52,7 @@ const TH = "px-3 py-2.5 text-left text-xs font-bold text-gray-500 dark:text-dark
 const SUMMARY_CARDS = [
   { label: "Total",       filterKey: "",            accent: "#1B3A6B", bg: "bg-white dark:bg-dark-card",      text: "text-gray-900 dark:text-dark-text"   },
   { label: "New",         filterKey: "New",         accent: "#6b7280", bg: "bg-gray-50 dark:bg-dark-card",    text: "text-gray-700 dark:text-gray-400"    },
-  { label: "In Progress", filterKey: "In Progress", accent: "#1E6CD9", bg: "bg-blue-50 dark:bg-dark-card",    text: "text-blue-700 dark:text-blue-400"    },
+  { label: "In Progress", filterKey: "In Progress", accent: "#0062F5", bg: "bg-blue-50 dark:bg-dark-card",    text: "text-blue-700 dark:text-blue-400"    },
   { label: "Completed",   filterKey: "Completed",   accent: "#16a34a", bg: "bg-green-50 dark:bg-dark-card",   text: "text-green-700 dark:text-green-400"  },
 ];
 
@@ -151,7 +151,7 @@ export default function RequestsView() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3"
-            style={{ borderColor: "#1E6CD9", borderTopColor: "transparent" }} />
+            style={{ borderColor: "#0062F5", borderTopColor: "transparent" }} />
           <p className="text-sm text-gray-500 dark:text-dark-muted">Loading requests…</p>
         </div>
       </div>
