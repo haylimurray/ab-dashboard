@@ -6,7 +6,7 @@ import type { VetDesertTier, ZipLookupResponse, ZipLookupResult } from "@/types"
 
 export const dynamic = "force-dynamic";
 
-const MAX_ZIPS = 20000; // sanity cap — largest realistic employer upload
+const MAX_ZIPS = 100_000; // sanity cap — largest realistic employer upload
 
 function normalizeZip(raw: string): string | null {
   const digits = raw.trim().split("-")[0].replace(/\D/g, "");
