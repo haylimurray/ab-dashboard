@@ -184,12 +184,25 @@ export interface CostOfCareEstimate {
   dataYear: number;
 }
 
+// Urgent/emergent cost exposure across ALL matched employees (any tier) —
+// see src/lib/vetCosts.ts for why this isn't scoped to well-served/adequate
+// like CostOfCareEstimate above.
+export interface EmergencyCostEstimate {
+  employeeCount: number;
+  estimatedPetOwningEmployees: number;
+  avgEmergencyExamCost: number;
+  avgEmergencyVisitCost: number;
+  petOwnershipRatePct: number;
+  dataYear: number;
+}
+
 export interface ZipLookupResponse {
   results: ZipLookupResult[];
   summary: Record<VetDesertTier | "unmatched", number>;
   matchedFips: string[]; // unique county FIPS codes, for map highlighting
   total: number;
   costOfCare: CostOfCareEstimate | null;
+  emergencyCost: EmergencyCostEstimate | null;
 }
 
 // ── News intelligence ─────────────────────────────────────────────────────────

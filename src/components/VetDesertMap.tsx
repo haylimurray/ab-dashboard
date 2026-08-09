@@ -8,10 +8,12 @@ import type {
   VetDesertData,
   VetDesertTier,
   ZipLookupResponse,
+  ZipLookupResult,
 } from "@/types";
 
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import L from "leaflet";
 import type { Layer, Map as LeafletMap } from "leaflet";
 import { feature as topojsonFeature } from "topojson-client";
 
@@ -237,6 +239,14 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   const [dragOver, setDragOver]             = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Single-ZIP lookup (US only) — a quick "just check one ZIP" path that
+  // doesn't require building a whole file, reusing the same lookup API and
+  // the same blue match-outline styling as the file-upload feature.
+  const [zipSearchInput, setZipSearchInput]   = useState("");
+  const [zipSearchLoading, setZipSearchLoading] = useState(false);
+  const [zipSearchError, setZipSearchError]   = useState<string | null>(null);
+  const [zipSearchResult, setZipSearchResult] = useState<ZipLookupResult | null>(null);
+
   // Leaflet caches the map's pixel size/position from whenever it last
   // measured its container — which happens at mount, on screen. Printing
   // renders the page in a different layout pass (often a different width,
@@ -400,6 +410,63 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
+  // Zooms the map to whichever county a lookup just matched — geoJson
+  // already holds every county's geometry, so no extra fetch is needed to
+  // find where a ZIP landed.
+  const flyToCounty = useCallback((fips: string) => {
+    const map = usMapRef.current;
+    if (!map || !geoJson) return;
+    const feat = geoJson.features.find((f) => extractFips(f) === fips);
+    if (!feat) return;
+    try {
+      const bounds = L.geoJSON(feat as never).getBounds();
+      if (bounds.isValid()) map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 9 });
+    } catch {
+      // Bad/empty geometry — not worth surfacing an error for a purely
+      // cosmetic zoom; the match still shows in the result card and the
+      // blue outline on the map.
+    }
+  }, [geoJson]);
+
+  const handleZipSearch = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    const zip = zipSearchInput.trim();
+    if (!zip) return;
+    setZipSearchLoading(true);
+    setZipSearchError(null);
+    setZipSearchResult(null);
+    try {
+      const res = await fetch("/api/vet-deserts/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ zips: [zip] }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      const data: ZipLookupResponse = await res.json();
+      const result = data.results[0];
+      if (!result || result.tier === "unmatched" || !result.fips) {
+        throw new Error(`Couldn't find a matching county for ZIP ${zip}.`);
+      }
+      setZipSearchResult(result);
+      setMapVersion((v) => v + 1);
+      flyToCounty(result.fips);
+    } catch (err) {
+      setZipSearchError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setZipSearchLoading(false);
+    }
+  }, [zipSearchInput, flyToCounty]);
+
+  const clearZipSearch = useCallback(() => {
+    setZipSearchInput("");
+    setZipSearchError(null);
+    setZipSearchResult(null);
+    setMapVersion((v) => v + 1);
+  }, []);
+
   // ── US derived data ───────────────────────────────────────────────────────
 
   const countyMap = useMemo(() => {
@@ -473,7 +540,11 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     };
   }, [caData]);
 
-  const matchedFipsSet = useMemo(() => new Set(lookupResult?.matchedFips ?? []), [lookupResult]);
+  const matchedFipsSet = useMemo(() => {
+    const set = new Set(lookupResult?.matchedFips ?? []);
+    if (zipSearchResult?.fips) set.add(zipSearchResult.fips);
+    return set;
+  }, [lookupResult, zipSearchResult]);
 
   const styleForFeature = useCallback(
     (feature?: { id?: string | number; properties?: Record<string, unknown> }) => {
@@ -490,15 +561,18 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     [countyMap, darkMode, matchedFipsSet]
   );
 
-  // Bold, non-fill state outline — drawn on top of the county layer. Not
-  // interactive, so hover/click events pass through to the county polygon
-  // underneath and the per-county tooltip still works.
+  // Non-fill state outline, drawn on top of the county layer. Kept
+  // deliberately light — a medium gray at partial opacity reads as "state
+  // lines are there if you look" rather than a bold border competing with
+  // the tier coloring underneath. Not interactive, so hover/click events
+  // pass through to the county polygon underneath and the per-county
+  // tooltip still works.
   const stateOutlineStyle = useCallback(
     () => ({
       fillOpacity: 0,
-      color: darkMode ? "#f9fafb" : "#111827",
-      weight: 1.6,
-      opacity: 0.75,
+      color: darkMode ? "#f1f5f9" : "#1f2937",
+      weight: 1.75,
+      opacity: 0.85,
       interactive: false,
     }),
     [darkMode]
@@ -508,7 +582,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     (feature: { id?: string | number; properties?: Record<string, unknown> }, layer: Layer) => {
       const fips = extractFips(feature);
       const county = countyMap.get(fips);
-      const matchedNote = matchedFipsSet.has(fips) ? "<br/><em>Includes uploaded employees</em>" : "";
+      const matchedNote = matchedFipsSet.has(fips) ? "<br/><em>Matched (upload or ZIP search)</em>" : "";
       const stateInfo = county ? stateStatsByAbbr.get(county.state) : undefined;
       const stateLine = stateInfo
         ? `<hr style="margin:5px 0;border-color:#e5e7eb"/><span style="color:#6b7280">${stateInfo.state} overall: ${stateInfo.pctCountiesAtRisk}% of counties underserved or worse (${stateInfo.householdsAtRisk.toLocaleString()} households)</span>`
@@ -626,6 +700,70 @@ export default function VetDesertMap({ darkMode = false }: Props) {
           </div>
         ) : (
           <>
+            {/* Single ZIP search — quick lookup for one address without
+                building a file, excluded from the PDF export for the same
+                reason the upload card below is. */}
+            <div className="print:hidden rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card px-5 py-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text mb-3">
+                Look up a single ZIP code
+              </h3>
+              <form onSubmit={handleZipSearch} className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="e.g. 90210"
+                  value={zipSearchInput}
+                  onChange={(e) => setZipSearchInput(e.target.value)}
+                  className="flex-1 rounded-lg border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg px-3 py-1.5 text-sm text-gray-900 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue/40"
+                />
+                <button
+                  type="submit"
+                  disabled={zipSearchLoading || !zipSearchInput.trim()}
+                  className="px-4 py-1.5 text-sm font-medium text-white bg-airvet-blue rounded-lg hover:bg-airvet-blue/90 transition-colors disabled:opacity-50"
+                >
+                  {zipSearchLoading ? "Searching…" : "Search"}
+                </button>
+                {(zipSearchResult || zipSearchError) && (
+                  <button
+                    type="button"
+                    onClick={clearZipSearch}
+                    className="px-3 py-1.5 text-sm text-gray-400 dark:text-dark-muted hover:text-gray-600 dark:hover:text-dark-text"
+                  >
+                    Clear
+                  </button>
+                )}
+              </form>
+
+              {zipSearchError && (
+                <p className="mt-2 text-xs text-red-600 dark:text-red-400">{zipSearchError}</p>
+              )}
+
+              {zipSearchResult && (
+                <div
+                  className="mt-3 flex items-center gap-2 rounded-lg border px-3 py-2"
+                  style={{
+                    borderColor: `${TIER_COLOR[zipSearchResult.tier as VetDesertTier]}55`,
+                    backgroundColor: `${TIER_COLOR[zipSearchResult.tier as VetDesertTier]}11`,
+                  }}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: TIER_COLOR[zipSearchResult.tier as VetDesertTier] }}
+                  />
+                  <p className="text-xs text-gray-700 dark:text-dark-text">
+                    <strong>{zipSearchResult.zip}</strong> — {zipSearchResult.countyName}, {zipSearchResult.state}:{" "}
+                    <strong>{TIER_LABEL[zipSearchResult.tier as VetDesertTier]}</strong>
+                    {(() => {
+                      const detail = zipSearchResult.fips ? countyMap.get(zipSearchResult.fips) : undefined;
+                      return detail ? ` (${detail.vetsPer1000Households.toFixed(2)} vet employees / 1,000 households)` : "";
+                    })()}
+                    {" "}· highlighted on the map below
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Prospect ZIP upload — excluded from the PDF export, which is meant
                 as general-purpose access collateral rather than a specific
                 prospect's data. */}
@@ -702,9 +840,10 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                     const accessGapCount = (lookupResult.summary.underserved ?? 0) + (lookupResult.summary.desert ?? 0);
                     const accessGapPct = pct(accessGapCount);
                     const cost = lookupResult.costOfCare;
-                    if (accessGapCount === 0 && !cost) return null;
+                    const emergency = lookupResult.emergencyCost;
+                    if (accessGapCount === 0 && !cost && !emergency) return null;
                     return (
-                      <div className="mt-4 grid sm:grid-cols-2 gap-3">
+                      <div className="mt-4 grid sm:grid-cols-3 gap-3">
                         {accessGapCount > 0 && (
                           <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-3 py-3">
                             <p className="text-xs font-semibold text-red-700 dark:text-red-400">
@@ -718,10 +857,20 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                         {cost && (
                           <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 px-3 py-3">
                             <p className="text-xs font-semibold text-airvet-blue">
-                              ~${cost.estimatedAnnualSpend.toLocaleString()}/yr even where care is nearby
+                              ~${cost.avgRoutineExamCost}/visit on routine care, even where access is good
                             </p>
                             <p className="text-[11px] text-gray-500 dark:text-dark-muted mt-1">
-                              The {pct(cost.segmentEmployeeCount)}% with ready access still face a state-adjusted average of ${cost.avgRoutineExamCost}/visit (~${cost.avgAnnualRoutineCarePerPet}/yr per pet) for routine in-person care — an estimated {cost.estimatedPetOwningEmployees.toLocaleString()} pet-owning employees, cost Airvet can take off the table.
+                              The {pct(cost.segmentEmployeeCount)}% with ready access still pay a state-adjusted ~${cost.avgRoutineExamCost}/visit (~${cost.avgAnnualRoutineCarePerPet}/yr per pet) for hands-on care Airvet doesn&apos;t replace, like vaccines. Airvet&apos;s fit: unlimited virtual visits between those trips, so questions that don&apos;t need a vet in the room don&apos;t turn into one.
+                            </p>
+                          </div>
+                        )}
+                        {emergency && (
+                          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 px-3 py-3">
+                            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                              ~${emergency.avgEmergencyVisitCost.toLocaleString()}/visit if it becomes an ER trip
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-dark-muted mt-1">
+                              A state-adjusted average full ER visit runs ~${emergency.avgEmergencyVisitCost.toLocaleString()} (exam fee alone ~${emergency.avgEmergencyExamCost}), across all {emergency.employeeCount.toLocaleString()} matched employees. Airvet&apos;s 24/7 vets triage first — telling a pet parent whether that trip is actually necessary, or what to do until they get there.
                             </p>
                           </div>
                         )}
@@ -730,7 +879,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                   })()}
 
                   <p className="text-[11px] text-gray-400 dark:text-dark-muted mt-3">
-                    Matched counties are outlined in blue on the map below. Cost estimate uses state-indexed veterinary pricing (AVMA, PetPlanWise/AAHA/CareCredit/BLS) and APPA pet-ownership rates — directional, not a quote.
+                    Matched counties are outlined in blue on the map below. Cost estimates use state-indexed veterinary pricing (AVMA, PetPlanWise/AAHA/CareCredit/BLS, Synchrony ER cost study) and APPA pet-ownership rates — directional, not a quote.
                   </p>
                 </div>
               )}
@@ -770,10 +919,12 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                   <span className="text-xs text-gray-500 dark:text-dark-muted">{TIER_LABEL[tier]}</span>
                 </div>
               ))}
-              {lookupResult && (
+              {(lookupResult || zipSearchResult) && (
                 <div className="print:hidden flex items-center gap-1.5">
                   <span className="inline-block w-3 h-3 rounded-sm border-2" style={{ borderColor: MATCH_OUTLINE }} />
-                  <span className="text-xs text-gray-500 dark:text-dark-muted">Uploaded employees</span>
+                  <span className="text-xs text-gray-500 dark:text-dark-muted">
+                    {lookupResult ? "Uploaded employees" : "Searched ZIP"}
+                  </span>
                 </div>
               )}
               {stateGeoError && (

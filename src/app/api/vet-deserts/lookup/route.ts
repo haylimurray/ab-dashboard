@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVetDesertCounties } from "@/lib/census";
 import { getZipCrosswalk } from "@/lib/zipCrosswalk";
-import { estimateCostOfCare } from "@/lib/vetCosts";
+import { estimateCostOfCare, estimateEmergencyCost } from "@/lib/vetCosts";
 import type { VetDesertTier, ZipLookupResponse, ZipLookupResult } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -70,12 +70,22 @@ export async function POST(request: NextRequest) {
       .filter((s): s is string => !!s);
     const costOfCare = estimateCostOfCare(wellCoveredStates);
 
+    // Emergency/urgent cost exposure, across every matched employee
+    // regardless of tier — see src/lib/vetCosts.ts for why this is a
+    // separate, broader segment than the routine-care estimate above.
+    const allMatchedStates = results
+      .filter((r) => r.tier !== "unmatched")
+      .map((r) => r.state)
+      .filter((s): s is string => !!s);
+    const emergencyCost = estimateEmergencyCost(allMatchedStates);
+
     const response: ZipLookupResponse = {
       results,
       summary,
       matchedFips: Array.from(matchedFipsSet),
       total: zips.length,
       costOfCare,
+      emergencyCost,
     };
 
     return NextResponse.json(response);

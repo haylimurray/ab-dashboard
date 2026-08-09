@@ -17,12 +17,24 @@
 //    Products Association (APPA) 2026 State of the Industry Report, citing
 //    the 2025 National Pet Owners Survey.
 //    https://americanpetproducts.org/news/the-american-pet-products-association-appa-releases-2025-state-of-the-industry-report
+//  - Emergency/urgent care baseline ($139 ER exam, $1,150 typical full ER
+//    visit): 2025 Synchrony/CareCredit Average Procedural Cost Study
+//    (national avg ER exam $135 dog / $143 cat, blended $139; state-level
+//    exam costs independently confirm the same regional pattern as the
+//    STATE_COST_INDEX below, e.g. CA/NY/MA/HI/DC high, Midwest/South low —
+//    reused here rather than a second index), cross-checked against
+//    Pawlicy Advisor, Spot Pet Insurance, and Webvet 2026 guides, which
+//    put a full ER visit (exam + diagnostics/treatment) at $800–$1,500 on
+//    average, and $1,000–$8,000+ for serious cases (bloat, blockage,
+//    trauma, surgery). https://www.carecredit.com/well-u/pet-care/emergency-vet-visit-cost-and-veterinary-financing/
 //
 // These are directional planning estimates for sales collateral, not
 // individualized quotes — actual costs vary by clinic, pet, and procedure.
 
 export const NATIONAL_AVG_ROUTINE_EXAM = 150; // $, national benchmark
 export const NATIONAL_AVG_ANNUAL_ROUTINE_DOG = 300; // $/yr, national benchmark
+export const NATIONAL_AVG_EMERGENCY_EXAM = 139; // $, ER exam fee only, national benchmark
+export const NATIONAL_AVG_EMERGENCY_VISIT = 1150; // $, typical full ER visit incl. diagnostics/treatment
 export const PET_OWNERSHIP_RATE = 0.716; // 71.6% of U.S. households own a pet (APPA)
 export const COST_DATA_YEAR = 2026;
 
@@ -70,6 +82,41 @@ export function estimateCostOfCare(stateCodes: string[]): CostOfCareEstimate | n
     avgRoutineExamCost,
     avgAnnualRoutineCarePerPet,
     estimatedAnnualSpend,
+    petOwnershipRatePct: Math.round(PET_OWNERSHIP_RATE * 1000) / 10,
+    dataYear: COST_DATA_YEAR,
+  };
+}
+
+export interface EmergencyCostEstimate {
+  employeeCount: number; // all matched employees, any tier (ER risk isn't limited to well-served counties)
+  estimatedPetOwningEmployees: number; // employeeCount * pet ownership rate
+  avgEmergencyExamCost: number; // state-weighted, $ (exam fee only)
+  avgEmergencyVisitCost: number; // state-weighted, $ (full visit incl. diagnostics/treatment)
+  petOwnershipRatePct: number; // e.g. 71.6
+  dataYear: number;
+}
+
+// Urgent/emergent care is a different sale than routine/preventive care:
+// Airvet doesn't administer vaccines or hands-on procedures, but its
+// 24/7 virtual triage is exactly the product for "is this an emergency?" —
+// helping a pet parent avoid an unnecessary ER trip, or get immediate
+// guidance on the way to one. Computed across every matched employee
+// (any tier), since the need for triage doesn't depend on how well-served
+// their county is — if anything it matters most in deserts, where the
+// nearest ER may be hours away.
+export function estimateEmergencyCost(stateCodes: string[]): EmergencyCostEstimate | null {
+  if (stateCodes.length === 0) return null;
+
+  const avgIndex = stateCodes.reduce((sum, s) => sum + costIndexForState(s), 0) / stateCodes.length;
+  const avgEmergencyExamCost = Math.round((avgIndex / 100) * NATIONAL_AVG_EMERGENCY_EXAM);
+  const avgEmergencyVisitCost = Math.round((avgIndex / 100) * NATIONAL_AVG_EMERGENCY_VISIT);
+  const estimatedPetOwningEmployees = Math.round(stateCodes.length * PET_OWNERSHIP_RATE);
+
+  return {
+    employeeCount: stateCodes.length,
+    estimatedPetOwningEmployees,
+    avgEmergencyExamCost,
+    avgEmergencyVisitCost,
     petOwnershipRatePct: Math.round(PET_OWNERSHIP_RATE * 1000) / 10,
     dataYear: COST_DATA_YEAR,
   };
