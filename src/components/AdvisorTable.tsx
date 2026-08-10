@@ -418,7 +418,7 @@ export default function AdvisorTable({
       <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg">
         <input
           type="search"
-          placeholder="Search name or email…"
+          placeholder="Search name, email, title, or company…"
           value={filters.search}
           onChange={(e) => onFilterChange("search", e.target.value)}
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue w-52"

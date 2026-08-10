@@ -265,7 +265,11 @@ export default function Dashboard() {
     if (filters.search) {
       const q = filters.search.toLowerCase();
       result = result.filter(
-        (a) => a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.email.toLowerCase().includes(q) ||
+          (a.jobTitle ?? "").toLowerCase().includes(q) ||
+          (a.company ?? "").toLowerCase().includes(q)
       );
     }
     if (filters.advisorType) result = result.filter((a) => a.advisorType === filters.advisorType);
