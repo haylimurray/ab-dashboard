@@ -597,9 +597,9 @@ export default function AdvisorTable({
               advisors.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
                   {visibility.name && (
-                    <td className="px-3 py-2 whitespace-nowrap cursor-pointer" onClick={() => onSelectAdvisor(a)}>
-                      <div className="font-semibold text-gray-900 dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug">{a.name}</div>
-                      {a.email && <div className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">{a.email}</div>}
+                    <td className="px-3 py-2 max-w-[190px] cursor-pointer" onClick={() => onSelectAdvisor(a)}>
+                      <div className="font-semibold text-gray-900 dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug truncate">{a.name}</div>
+                      {a.email && <div className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight truncate" title={a.email}>{a.email}</div>}
                     </td>
                   )}
                   {visibility.title && (
