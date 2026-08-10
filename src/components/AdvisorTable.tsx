@@ -603,7 +603,7 @@ export default function AdvisorTable({
                     </td>
                   )}
                   {visibility.title && (
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-dark-text">
+                    <td className="px-3 py-2 max-w-[200px] text-gray-600 dark:text-dark-text leading-snug">
                       {a.jobTitle || <span className="text-gray-300 dark:text-dark-border">—</span>}
                     </td>
                   )}
