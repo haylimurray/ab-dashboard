@@ -8,7 +8,7 @@ import { normalizeState } from "@/lib/geocode";
 // ── Column definitions ────────────────────────────────────────────────────────
 
 type ColId =
-  | "name" | "advisorType" | "tier" | "location" | "lastContacted"
+  | "name" | "title" | "advisorType" | "tier" | "location" | "lastContacted"
   | "daysSinceContact" | "healthScore" | "availability" | "connector"
   | "contract" | "priority" | "salesStatus" | "status";
 
@@ -21,6 +21,7 @@ interface ColDef {
 
 const COLS: ColDef[] = [
   { id: "name",             label: "Name",            field: "name",            alwaysVisible: true },
+  { id: "title",            label: "Title" },
   { id: "connector",        label: "Connector",                                 alwaysVisible: true },
   { id: "tier",             label: "Tier",            field: "tier" },
   { id: "location",         label: "Location" },
@@ -599,6 +600,11 @@ export default function AdvisorTable({
                     <td className="px-3 py-2 whitespace-nowrap cursor-pointer" onClick={() => onSelectAdvisor(a)}>
                       <div className="font-semibold text-gray-900 dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug">{a.name}</div>
                       {a.email && <div className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight">{a.email}</div>}
+                    </td>
+                  )}
+                  {visibility.title && (
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-dark-text">
+                      {a.jobTitle || <span className="text-gray-300 dark:text-dark-border">—</span>}
                     </td>
                   )}
                   {/* Connector — alwaysVisible, no visibility guard needed */}
