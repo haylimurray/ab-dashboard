@@ -424,14 +424,6 @@ export default function AdvisorTable({
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue w-52"
         />
         <select
-          value={filters.advisorType}
-          onChange={(e) => onFilterChange("advisorType", e.target.value)}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">All Advisor Types</option>
-          {uniqueTypes.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <select
           value={filters.tier}
           onChange={(e) => onFilterChange("tier", e.target.value)}
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
