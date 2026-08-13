@@ -506,6 +506,38 @@ export default function VetDesertMap({ darkMode = false }: Props) {
     [stateStats]
   );
 
+  // State-level rollup of the *uploaded prospect's own employees* — distinct
+  // from stateStats above, which is the nationwide county rollup. This is
+  // "of the {total} ZIPs this specific prospect gave us, how do they break
+  // down state by state" rather than "how does the whole country look."
+  const prospectStateStats = useMemo(() => {
+    if (!lookupResult) return [];
+    interface Acc { total: number; counts: Record<VetDesertTier, number> }
+    const acc = new Map<string, Acc>();
+    for (const r of lookupResult.results) {
+      if (!r.state || r.tier === "unmatched") continue;
+      const cur = acc.get(r.state) ?? {
+        total: 0,
+        counts: { wellServed: 0, adequate: 0, underserved: 0, desert: 0, noData: 0 },
+      };
+      cur.total += 1;
+      cur.counts[r.tier] += 1;
+      acc.set(r.state, cur);
+    }
+    const rows = Array.from(acc.entries()).map(([state, v]) => {
+      const atRisk = v.counts.underserved + v.counts.desert;
+      return {
+        state,
+        total: v.total,
+        counts: v.counts,
+        atRisk,
+        pctAtRisk: v.total > 0 ? Math.round((atRisk / v.total) * 100) : 0,
+      };
+    });
+    rows.sort((a, b) => b.pctAtRisk - a.pctAtRisk || b.total - a.total);
+    return rows;
+  }, [lookupResult]);
+
   // Nationwide rollup for the headline stat on the printed/exported report —
   // the single number a prospect-facing PDF needs above the fold.
   const nationalStats = useMemo(() => {
@@ -995,6 +1027,64 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                 )}
               </MapContainer>
             </div>
+
+            {/* Prospect's own state breakdown — only when a file is
+                uploaded, and only on-screen (excluded from print for the
+                same reason the upload card itself is: this is one
+                prospect's data, not general-purpose collateral). */}
+            {lookupResult && prospectStateStats.length > 0 && (
+              <div className="print:hidden rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 dark:border-dark-border">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text">
+                    {uploadFileName ?? "This prospect"}&apos;s employees, by state
+                  </h3>
+                  <p className="text-xs text-gray-400 dark:text-dark-muted mt-0.5">
+                    Where their {total.toLocaleString()} matched ZIPs actually live — ranked by share underserved or a vet desert.
+                  </p>
+                </div>
+                <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="sticky top-0 bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">State</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Employees</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">Mix</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider">% underserved/desert</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                      {prospectStateStats.map((s) => (
+                        <tr key={s.state} className="even:bg-gray-50/60 dark:even:bg-dark-hover/30 hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
+                          <td className="px-4 py-2 font-medium text-gray-900 dark:text-dark-text">{s.state}</td>
+                          <td className="px-4 py-2 text-right text-gray-500 dark:text-dark-muted tabular-nums">{s.total.toLocaleString()}</td>
+                          <td className="px-4 py-2">
+                            <div className="flex h-2 w-24 rounded-full overflow-hidden bg-gray-100 dark:bg-dark-hover">
+                              {LEGEND_ORDER.map((tier) => {
+                                const count = s.counts[tier] ?? 0;
+                                if (count === 0) return null;
+                                const w = Math.round((count / s.total) * 100);
+                                return <span key={tier} title={`${TIER_LABEL[tier]}: ${count}`} style={{ width: `${w}%`, backgroundColor: TIER_COLOR[tier] }} />;
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums">
+                            <span
+                              className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                              style={{
+                                backgroundColor: s.pctAtRisk >= 50 ? "#fee2e2" : s.pctAtRisk >= 25 ? "#fef3c7" : "#dcfce7",
+                                color: s.pctAtRisk >= 50 ? "#dc2626" : s.pctAtRisk >= 25 ? "#b45309" : "#15803d",
+                              }}
+                            >
+                              {s.pctAtRisk}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* State breakdown */}
             {stateStats.length > 0 && (
