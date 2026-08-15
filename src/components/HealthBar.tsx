@@ -5,9 +5,9 @@ interface Props {
 }
 
 const LABEL: Record<Props["color"], string> = {
-  green:  "Healthy",
+  green:  "Available",
   yellow: "Caution",
-  red:    "In Cooldown",
+  red:    "Cooldown",
 };
 
 const PILL: Record<Props["color"], string> = {

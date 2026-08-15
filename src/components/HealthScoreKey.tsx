@@ -8,6 +8,7 @@ const DOT_CLASS: Record<string, string> = {
   gray:   "bg-gray-400",
   green:  "bg-green-500",
   yellow: "bg-amber-400",
+  orange: "bg-orange-500",
   red:    "bg-red-500",
   violet: "bg-violet-500",
 };
@@ -16,6 +17,7 @@ const LABEL_CLASS: Record<string, string> = {
   gray:   "text-gray-500 dark:text-dark-muted",
   green:  "text-green-700 dark:text-green-400",
   yellow: "text-amber-600 dark:text-amber-400",
+  orange: "text-orange-600 dark:text-orange-400",
   red:    "text-red-600 dark:text-red-400",
   violet: "text-violet-700 dark:text-violet-400",
 };
@@ -24,7 +26,7 @@ export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
   const tiers = [
     {
       color: "green",
-      label: "Healthy",
+      label: "Available",
       desc: "Last contacted 60+ days ago, or never contacted",
       note: null,
     },
@@ -35,14 +37,14 @@ export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
       note: null,
     },
     {
-      color: "red",
-      label: "At Risk",
+      color: "orange",
+      label: "Cooldown",
       desc: "Last contacted 15–30 days ago",
       note: null,
     },
     {
       color: "red",
-      label: "In Cooldown",
+      label: "Pause Outreach",
       desc: `Last contacted within ${cooldownDays} days`,
       note: "Do not request",
     },
@@ -102,7 +104,7 @@ export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
 
       {/* Availability note */}
       <p className="mt-2.5 text-[11px] text-gray-400 dark:text-dark-muted border-t border-gray-200 dark:border-dark-border pt-2">
-        If availability is <span className="font-medium text-gray-500">"Possibility of Requests"</span>, status is capped at Caution even when timing would be Healthy.
+        If availability is <span className="font-medium text-gray-500">"Possibility of Requests"</span>, status is capped at Caution even when timing would be Available.
       </p>
     </div>
   );

@@ -85,17 +85,23 @@ const STATUS_PILL: Record<string, string> = {
   client:     "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400",
   healthy:    "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
   caution:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
-  atRisk:     "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
+  atRisk:     "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400",
   inCooldown: "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
 };
 
+// Display labels are action-oriented ("what should I do"), not
+// status-mood-oriented — these tiers are purely a days-since-contact
+// cadence gate, not a relationship-health score. Available → Caution →
+// Cooldown → Pause Outreach reads as escalating "ease off the closer we
+// are to a recent touch," ending in Client, which sits outside the ladder
+// entirely (timing isn't tracked once someone's a paying customer).
 const STATUS_LABEL: Record<string, string> = {
   paused:     "Paused",
   client:     "Client",
-  healthy:    "Healthy",
+  healthy:    "Available",
   caution:    "Caution",
-  atRisk:     "At Risk",
-  inCooldown: "In Cooldown",
+  atRisk:     "Cooldown",
+  inCooldown: "Pause Outreach",
 };
 
 interface OutreachProps {
@@ -253,7 +259,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
   const headers = [
     "Name", "Email", "Company", "Title", "Location",
     "Advisor Type", "Tier", "Availability", "Connector", "Contract", "Priority",
-    "Last Contacted", "Days Since Contact", "Health Status", "Last Touched By",
+    "Last Contacted", "Days Since Contact", "Outreach Status", "Last Touched By",
   ];
 
   const rows = advisors.map((a) => {
@@ -437,10 +443,10 @@ export default function AdvisorTable({
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
         >
           <option value="">All Outreach Statuses</option>
-          <option value="healthy">Healthy</option>
+          <option value="healthy">Available</option>
           <option value="caution">Caution</option>
-          <option value="atRisk">At Risk</option>
-          <option value="inCooldown">In Cooldown</option>
+          <option value="atRisk">Cooldown</option>
+          <option value="inCooldown">Pause Outreach</option>
           <option value="client">Client</option>
           <option value="paused">Paused</option>
         </select>

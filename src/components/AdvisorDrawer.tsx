@@ -178,12 +178,12 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                             client:     "bg-violet-100 text-violet-700",
                             healthy:    "bg-green-100 text-green-700",
                             caution:    "bg-amber-100 text-amber-700",
-                            atRisk:     "bg-red-100 text-red-600",
+                            atRisk:     "bg-orange-100 text-orange-700",
                             inCooldown: "bg-red-100 text-red-600",
                           };
                           const LABEL: Record<OutreachStatus, string> = {
-                            paused: "Paused", client: "Client", healthy: "Healthy", caution: "Caution",
-                            atRisk: "At Risk", inCooldown: "In Cooldown",
+                            paused: "Paused", client: "Client", healthy: "Available", caution: "Caution",
+                            atRisk: "Cooldown", inCooldown: "Pause Outreach",
                           };
                           return (
                             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${PILL[status]}`}>
@@ -196,7 +196,7 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
 
                     {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "inCooldown" && (
                       <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700">
-                        <strong>In Cooldown</strong> — contacted within the last 15 days. Do not request.
+                        <strong>Pause Outreach</strong> — contacted within the last 15 days. Do not request.
                       </div>
                     )}
                     {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "paused" && (
