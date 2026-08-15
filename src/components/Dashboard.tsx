@@ -371,7 +371,7 @@ export default function Dashboard() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2 flex items-center gap-2">
             <div className="w-3 h-3 border-2 border-airvet-blue border-t-transparent rounded-full animate-spin flex-shrink-0" />
             <span className="text-xs text-gray-500 dark:text-dark-muted">
-              Loading health scores… {healthDone} / {healthTotal}
+              Loading engagement status… {healthDone} / {healthTotal}
             </span>
             <div className="flex-1 max-w-xs h-1 rounded-full bg-gray-100 dark:bg-white/20 overflow-hidden">
               <div

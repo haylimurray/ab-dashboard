@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Airvet AB & GTM Dashboard",
-  description: "Advisory board health scores, requests, recruiting, and go-to-market tools",
+  description: "Advisory board engagement status, requests, recruiting, and go-to-market tools",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
