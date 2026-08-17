@@ -133,6 +133,22 @@ export interface VetDesertCounty {
   peConsolidators: string[];  // top consolidator brands present, most-common first
 }
 
+// ── PE/corporate-backed location dots (from GET /api/vet-deserts/pe-locations) ─
+// Point-level view of the same underlying data as VetDesertCounty.peBackedCount
+// — one point per ZIP with at least one known location, not one per practice.
+export interface PeLocationPoint {
+  zip: string;
+  lat: number;
+  lng: number;
+  count: number;
+  consolidators: string[];
+}
+
+export interface PeLocationsResponse {
+  points: PeLocationPoint[];
+  total: number; // sum of point counts — total known locations represented
+}
+
 export interface VetDesertData {
   counties: VetDesertCounty[];
   dataYear: number;    // Census data vintage year used

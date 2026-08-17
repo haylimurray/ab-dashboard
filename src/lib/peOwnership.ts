@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { getZipCrosswalk } from "./zipCrosswalk";
+import { getZipCentroids } from "./zipCentroids";
 
 // ── Private-equity / corporate ownership overlay ─────────────────────────────
 // Census's CBP establishment counts are anonymous — no brand or ownership
@@ -108,4 +109,52 @@ export async function getPeOwnershipByFips(): Promise<Map<string, CountyPeOwners
 
   cachedByFips = result;
   return result;
+}
+
+export interface PeLocationPoint {
+  zip: string;
+  lat: number;
+  lng: number;
+  count: number; // known locations at/near this ZIP
+  consolidators: string[]; // top brands present, most-common first (max 3)
+}
+
+// Point-level view for the "dots across the country" map layer — one point
+// per ZIP with at least one known location (not one point per practice;
+// several practices sharing a ZIP collapse into a single, larger dot via
+// `count`, since plotting them individually would just stack identical
+// points on top of each other at this map's zoom level).
+let cachedPoints: PeLocationPoint[] | null = null;
+
+export async function getPeLocationPoints(): Promise<PeLocationPoint[]> {
+  if (cachedPoints) return cachedPoints;
+
+  const rows = loadRows();
+  const centroids = await getZipCentroids();
+
+  const byZip = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    const consolidatorCounts = byZip.get(row.zip) ?? new Map<string, number>();
+    consolidatorCounts.set(row.consolidator, (consolidatorCounts.get(row.consolidator) ?? 0) + 1);
+    byZip.set(row.zip, consolidatorCounts);
+  }
+
+  const points: PeLocationPoint[] = [];
+  let skippedNoCentroid = 0;
+  for (const [zip, counts] of Array.from(byZip.entries())) {
+    const centroid = centroids.get(zip);
+    if (!centroid) { skippedNoCentroid++; continue; } // rare — ZIP not in the Gazetteer file
+    const count = Array.from(counts.values()).reduce((a, b) => a + b, 0);
+    const consolidators = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name]) => name);
+    points.push({ zip, lat: centroid.lat, lng: centroid.lng, count, consolidators });
+  }
+  if (skippedNoCentroid > 0) {
+    console.warn(`[peOwnership] ${skippedNoCentroid} ZIP(s) had no Gazetteer centroid match — dropped from the point layer`);
+  }
+
+  cachedPoints = points;
+  return points;
 }

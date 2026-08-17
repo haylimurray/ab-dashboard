@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CanadaVetDesertData,
   CanadaVetDesertRegion,
+  PeLocationPoint,
+  PeLocationsResponse,
   VetDesertCounty,
   VetDesertData,
   VetDesertTier,
@@ -14,7 +16,7 @@ import type {
 import { PE_PRICE_PREMIUM } from "@/lib/vetCosts";
 
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 import type { Layer, Map as LeafletMap } from "leaflet";
 import { feature as topojsonFeature } from "topojson-client";
@@ -209,6 +211,37 @@ async function extractZipsFromFile(file: File): Promise<string[]> {
   return dataRows.map((r) => (r[index] ?? "").toString().trim()).filter(Boolean);
 }
 
+// Renders PE/corporate-backed location points as a single imperative
+// Leaflet layer group rather than ~5,500 individual react-leaflet
+// <CircleMarker> components — much cheaper to mount/unmount, and matches
+// the same bindTooltip() pattern already used for the county GeoJSON layer
+// below. One dot per ZIP (not per practice — see PeLocationPoint), sized
+// by how many known locations are at that ZIP.
+function PeLocationDots({ points }: { points: PeLocationPoint[] }) {
+  const map = useMap();
+  useEffect(() => {
+    const layerGroup = L.layerGroup();
+    for (const p of points) {
+      const radius = Math.min(3 + p.count * 1.2, 14);
+      const marker = L.circleMarker([p.lat, p.lng], {
+        radius,
+        color: "#5b21b6",
+        weight: 1,
+        fillColor: "#7c3aed",
+        fillOpacity: 0.55,
+      });
+      marker.bindTooltip(
+        `<div style="font-size:12px"><strong>${p.count}</strong> PE/corporate-backed location${p.count === 1 ? "" : "s"} near ${p.zip}<br/>${p.consolidators.join(", ")}</div>`,
+        { sticky: true }
+      );
+      layerGroup.addLayer(marker);
+    }
+    layerGroup.addTo(map);
+    return () => { layerGroup.remove(); };
+  }, [map, points]);
+  return null;
+}
+
 interface Props {
   darkMode?: boolean;
 }
@@ -224,6 +257,14 @@ export default function VetDesertMap({ darkMode = false }: Props) {
   const [desertData, setDesertData]     = useState<VetDesertData | null>(null);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState<string | null>(null);
+
+  // PE/corporate-backed location dots (US only) — opt-in and lazily
+  // fetched on first toggle-on, since it's ~5,500 points nobody needs on
+  // every page load. See src/lib/peOwnership.ts / src/lib/zipCentroids.ts.
+  const [showPeDots, setShowPeDots]           = useState(false);
+  const [peLocations, setPeLocations]         = useState<PeLocationPoint[] | null>(null);
+  const [peLocationsLoading, setPeLocationsLoading] = useState(false);
+  const [peLocationsError, setPeLocationsError]     = useState<string | null>(null);
 
   // Canada data
   const [caGeoJson, setCaGeoJson] = useState<GeoJSONFeatureCollection | null>(null);
@@ -313,6 +354,27 @@ export default function VetDesertMap({ darkMode = false }: Props) {
         setStateGeoError(e instanceof Error ? e.message : "Failed to load state outline");
       });
   }, []);
+
+  const togglePeDots = useCallback(() => {
+    setShowPeDots((wasShown) => {
+      const next = !wasShown;
+      if (next && !peLocations && !peLocationsLoading) {
+        setPeLocationsLoading(true);
+        setPeLocationsError(null);
+        fetch("/api/vet-deserts/pe-locations", { cache: "force-cache" })
+          .then((res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
+          .then((data: PeLocationsResponse) => setPeLocations(data.points))
+          .catch((e) => {
+            setPeLocationsError(e instanceof Error ? e.message : "Failed to load PE-backed locations");
+          })
+          .finally(() => setPeLocationsLoading(false));
+      }
+      return next;
+    });
+  }, [peLocations, peLocationsLoading]);
 
   const fetchData = useCallback(async (force = false) => {
     setLoading(true);
@@ -979,6 +1041,21 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                   State outline overlay failed to load
                 </span>
               )}
+              <button
+                onClick={togglePeDots}
+                className="print:hidden flex items-center gap-1.5 rounded-md -mx-1.5 px-1.5 py-0.5 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+                title="Individual PE/corporate-backed practice locations — see src/lib/peOwnership.ts sourcing note below"
+              >
+                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: showPeDots ? "#7c3aed" : "#d1d5db" }} />
+                <span className="text-xs text-gray-500 dark:text-dark-muted">
+                  {peLocationsLoading ? "Loading PE locations…" : showPeDots ? "PE-backed locations ✓" : "Show PE-backed locations"}
+                </span>
+              </button>
+              {peLocationsError && (
+                <span className="print:hidden text-xs text-amber-600 dark:text-amber-400" title={peLocationsError}>
+                  PE locations failed to load
+                </span>
+              )}
               <div className="ml-auto flex items-center gap-3">
                 {fetchedAtStr && (
                   <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block print:hidden">
@@ -1021,7 +1098,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
 
             {/* Map */}
             <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: isPrinting ? 620 : 560 }}>
-              <MapContainer ref={usMapRef} center={US_CENTER} zoom={US_ZOOM} zoomDelta={0.5} zoomSnap={0.5} style={{ height: "100%", width: "100%" }}>
+              <MapContainer ref={usMapRef} center={US_CENTER} zoom={US_ZOOM} zoomDelta={0.5} zoomSnap={0.5} preferCanvas style={{ height: "100%", width: "100%" }}>
                 {!isPrinting && (
                   <TileLayer key={darkMode ? "dark" : "light"} url={darkMode ? TILE_DARK : TILE_LIGHT} attribution={TILE_ATTR} />
                 )}
@@ -1040,6 +1117,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                     style={stateOutlineStyle as never}
                   />
                 )}
+                {showPeDots && peLocations && <PeLocationDots points={peLocations} />}
               </MapContainer>
             </div>
 
@@ -1156,7 +1234,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
             )}
 
             <p className="text-xs text-gray-400 dark:text-dark-muted px-1">
-              <span className="font-medium text-violet-500 dark:text-violet-400">PE/corporate ownership</span> (shown on hover): sourced from privateequityvet.org&apos;s crowdsourced practice list, matched to county by ZIP. Since ~85% of acquired practices keep their original name and don&apos;t disclose new ownership, this is a floor — actual PE/corporate penetration in any county is at least this high, likely higher. Nationally, PE/corporate consolidators now own an estimated 25–30% of general practices and 75%+ of emergency/specialty care.
+              <span className="font-medium text-violet-500 dark:text-violet-400">PE/corporate ownership</span> (shown on hover, or as individual dots via "Show PE-backed locations" above): sourced from privateequityvet.org&apos;s crowdsourced practice list, matched by ZIP. Since ~85% of acquired practices keep their original name and don&apos;t disclose new ownership, this is a floor — actual PE/corporate penetration in any county is at least this high, likely higher. Nationally, PE/corporate consolidators now own an estimated 25–30% of general practices and 75%+ of emergency/specialty care.
             </p>
 
             {/* Print-only footer */}

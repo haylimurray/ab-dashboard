@@ -11,6 +11,11 @@
 # env — never commit secrets
 .env*.local
 
+# test/scratch files dropped in the project root — not source
+/*.csv
+/*.pdf
+/*.xlsx
+
 # misc
 .DS_Store
 *.pem
