@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVetDesertCounties } from "@/lib/census";
 import { getZipCrosswalk } from "@/lib/zipCrosswalk";
-import { estimateCostOfCare, estimateEmergencyCost } from "@/lib/vetCosts";
+import { estimateCostOfCare, estimateEmergencyCost, type EmployeeCostInput } from "@/lib/vetCosts";
 import type { VetDesertTier, ZipLookupResponse, ZipLookupResult } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -60,24 +60,30 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // peBacked: does this result's county have at least one confirmed
+    // PE/corporate-backed practice (src/lib/peOwnership.ts, merged onto
+    // each county in getVetDesertCounties())? Feeds the illustrative price
+    // premium in vetCosts.ts — see that file for why it's a placeholder,
+    // not a sourced figure.
+    const peBackedFor = (r: ZipLookupResult): boolean =>
+      !!r.fips && (countyByFips.get(r.fips)?.peBackedCount ?? 0) > 0;
+
     // Cost-of-care narrative: for employees whose county is well-served or
     // adequate (i.e. NOT an access problem), estimate what they're likely
     // still paying for routine in-person care, weighted by the states they
     // actually live in. See src/lib/vetCosts.ts for sourcing.
-    const wellCoveredStates = results
-      .filter((r) => r.tier === "wellServed" || r.tier === "adequate")
-      .map((r) => r.state)
-      .filter((s): s is string => !!s);
-    const costOfCare = estimateCostOfCare(wellCoveredStates);
+    const wellCoveredInputs: EmployeeCostInput[] = results
+      .filter((r) => (r.tier === "wellServed" || r.tier === "adequate") && !!r.state)
+      .map((r) => ({ state: r.state, peBacked: peBackedFor(r) }));
+    const costOfCare = estimateCostOfCare(wellCoveredInputs);
 
     // Emergency/urgent cost exposure, across every matched employee
     // regardless of tier — see src/lib/vetCosts.ts for why this is a
     // separate, broader segment than the routine-care estimate above.
-    const allMatchedStates = results
-      .filter((r) => r.tier !== "unmatched")
-      .map((r) => r.state)
-      .filter((s): s is string => !!s);
-    const emergencyCost = estimateEmergencyCost(allMatchedStates);
+    const allMatchedInputs: EmployeeCostInput[] = results
+      .filter((r) => r.tier !== "unmatched" && !!r.state)
+      .map((r) => ({ state: r.state, peBacked: peBackedFor(r) }));
+    const emergencyCost = estimateEmergencyCost(allMatchedInputs);
 
     const response: ZipLookupResponse = {
       results,

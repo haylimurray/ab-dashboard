@@ -129,6 +129,8 @@ export interface VetDesertCounty {
   households: number;
   vetsPer1000Households: number;
   tier: VetDesertTier;
+  peBackedCount: number;      // known PE/corporate-backed locations in this county — see src/lib/peOwnership.ts
+  peConsolidators: string[];  // top consolidator brands present, most-common first
 }
 
 export interface VetDesertData {
@@ -182,6 +184,7 @@ export interface CostOfCareEstimate {
   estimatedAnnualSpend: number;
   petOwnershipRatePct: number;
   dataYear: number;
+  peBackedEmployeeCount: number;
 }
 
 // Urgent/emergent cost exposure across ALL matched employees (any tier) —
@@ -194,6 +197,7 @@ export interface EmergencyCostEstimate {
   avgEmergencyVisitCost: number;
   petOwnershipRatePct: number;
   dataYear: number;
+  peBackedEmployeeCount: number;
 }
 
 export interface ZipLookupResponse {

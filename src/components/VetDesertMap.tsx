@@ -11,6 +11,8 @@ import type {
   ZipLookupResult,
 } from "@/types";
 
+import { PE_PRICE_PREMIUM } from "@/lib/vetCosts";
+
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import L from "leaflet";
@@ -619,8 +621,15 @@ export default function VetDesertMap({ darkMode = false }: Props) {
       const stateLine = stateInfo
         ? `<hr style="margin:5px 0;border-color:#e5e7eb"/><span style="color:#6b7280">${stateInfo.state} overall: ${stateInfo.pctCountiesAtRisk}% of counties underserved or worse (${stateInfo.householdsAtRisk.toLocaleString()} households)</span>`
         : "";
+      // PE/corporate ownership overlay — see src/lib/peOwnership.ts. Only
+      // shown when at least one known location was matched to this county;
+      // absence doesn't mean "no PE-backed vets here," just "none found in
+      // this crowdsourced list," so it's worded as a floor, not a fact.
+      const peLine = county && county.peBackedCount > 0
+        ? `<br/><span style="color:#7c3aed">${county.peBackedCount} known PE/corporate-backed location${county.peBackedCount === 1 ? "" : "s"}</span> (${county.peConsolidators.join(", ")})`
+        : "";
       const html = county
-        ? `<div style="font-size:12px"><strong>${county.name}, ${county.state}</strong><br/>${TIER_LABEL[county.tier]}<br/>${county.vetsPer1000Households.toFixed(2)} vet employees / 1,000 households${matchedNote}${stateLine}</div>`
+        ? `<div style="font-size:12px"><strong>${county.name}, ${county.state}</strong><br/>${TIER_LABEL[county.tier]}<br/>${county.vetsPer1000Households.toFixed(2)} vet employees / 1,000 households${peLine}${matchedNote}${stateLine}</div>`
         : `<div style="font-size:12px">No data</div>`;
       layer.bindTooltip(html, { sticky: true });
     },
@@ -893,6 +902,9 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                             </p>
                             <p className="text-[11px] text-gray-500 dark:text-dark-muted mt-1">
                               The {pct(cost.segmentEmployeeCount)}% with ready access still pay a state-adjusted ~${cost.avgRoutineExamCost}/visit (~${cost.avgAnnualRoutineCarePerPet}/yr per pet) for hands-on care Airvet doesn&apos;t replace, like vaccines. Airvet&apos;s fit: unlimited virtual visits between those trips, so questions that don&apos;t need a vet in the room don&apos;t turn into one.
+                              {cost.peBackedEmployeeCount > 0 && (
+                                <> {cost.peBackedEmployeeCount.toLocaleString()} of them are near a <span className="text-violet-600 dark:text-violet-400 font-medium">confirmed PE-backed practice</span>, priced in above with an illustrative +{Math.round(PE_PRICE_PREMIUM * 100)}% — reported PE pricing effects vary widely by market and service, so treat this as a conservative placeholder, not a sourced figure.</>
+                              )}
                             </p>
                           </div>
                         )}
@@ -903,6 +915,9 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                             </p>
                             <p className="text-[11px] text-gray-500 dark:text-dark-muted mt-1">
                               A state-adjusted average full ER visit runs ~${emergency.avgEmergencyVisitCost.toLocaleString()} (exam fee alone ~${emergency.avgEmergencyExamCost}), across all {emergency.employeeCount.toLocaleString()} matched employees. Airvet&apos;s 24/7 vets triage first — telling a pet parent whether that trip is actually necessary, or what to do until they get there.
+                              {emergency.peBackedEmployeeCount > 0 && (
+                                <> {emergency.peBackedEmployeeCount.toLocaleString()} of them are near a <span className="text-violet-600 dark:text-violet-400 font-medium">confirmed PE-backed practice</span> — priced in above with an illustrative +{Math.round(PE_PRICE_PREMIUM * 100)}%, since PE/corporate consolidators are reported to own 75%+ of US emergency/specialty care. Treat this as a conservative placeholder, not a sourced figure.</>
+                              )}
                             </p>
                           </div>
                         )}
@@ -911,7 +926,7 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                   })()}
 
                   <p className="text-[11px] text-gray-400 dark:text-dark-muted mt-3">
-                    Matched counties are outlined in blue on the map below. Cost estimates use state-indexed veterinary pricing (AVMA, PetPlanWise/AAHA/CareCredit/BLS, Synchrony ER cost study) and APPA pet-ownership rates — directional, not a quote.
+                    Matched counties are outlined in blue on the map below. Cost estimates use state-indexed veterinary pricing (AVMA, PetPlanWise/AAHA/CareCredit/BLS, Synchrony ER cost study) and APPA pet-ownership rates — directional, not a quote. Employees near a confirmed PE-backed practice (privateequityvet.org list) get an illustrative +{Math.round(PE_PRICE_PREMIUM * 100)}% applied on top; reported PE pricing effects range from ~20% to well over 100% depending on service and market and aren&apos;t precisely attributable, so this is a conservative placeholder rather than a sourced average.
                   </p>
                 </div>
               )}
@@ -1139,6 +1154,10 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                 {desertData.total} counties · Census {desertData.dataYear} County Business Patterns (NAICS 541940, Veterinary Services) + ACS5 household estimates. Counties with no reported vet establishments are scored as deserts. Note: Census suppresses exact employee counts for some small clinics, which can undercount capacity in a handful of counties. This is a directional estimate, not the official Veterinary Care Accessibility Project index.
               </p>
             )}
+
+            <p className="text-xs text-gray-400 dark:text-dark-muted px-1">
+              <span className="font-medium text-violet-500 dark:text-violet-400">PE/corporate ownership</span> (shown on hover): sourced from privateequityvet.org&apos;s crowdsourced practice list, matched to county by ZIP. Since ~85% of acquired practices keep their original name and don&apos;t disclose new ownership, this is a floor — actual PE/corporate penetration in any county is at least this high, likely higher. Nationally, PE/corporate consolidators now own an estimated 25–30% of general practices and 75%+ of emergency/specialty care.
+            </p>
 
             {/* Print-only footer */}
             <div className="hidden print:flex items-center justify-between border-t pt-2 mt-1 text-[11px] text-gray-400" style={{ borderColor: "#e5e7eb" }}>

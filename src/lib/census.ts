@@ -1,4 +1,5 @@
 import type { VetDesertCounty, VetDesertTier } from "@/types";
+import { getPeOwnershipByFips } from "./peOwnership";
 
 // ── Census API ────────────────────────────────────────────────────────────────
 // Two free federal datasets, joined by 5-digit county FIPS:
@@ -154,6 +155,10 @@ export async function fetchVetDesertCounties(): Promise<VetDesertCounty[]> {
         households,
         vetsPer1000Households: Math.round(vetsPer1000 * 100) / 100,
         tier: tierFor(vetsPer1000, households),
+        // Filled in by getVetDesertCounties() below — Census has no
+        // ownership data, so this always starts empty here.
+        peBackedCount: 0,
+        peConsolidators: [],
       });
     }
   }
@@ -183,6 +188,24 @@ export async function getVetDesertCounties(
 
   const counties = await fetchVetDesertCounties();
   if (counties.length > 0) {
+    // Merge in the PE/corporate ownership overlay here (rather than in
+    // fetchVetDesertCounties above) so both /api/vet-deserts and
+    // /api/vet-deserts/lookup get it from this one shared cache, same as
+    // the tier data itself. The ownership data is static/bundled, so this
+    // merge is cheap even on every cache refresh.
+    try {
+      const peByFips = await getPeOwnershipByFips();
+      for (const county of counties) {
+        const pe = peByFips.get(county.fips);
+        if (pe) {
+          county.peBackedCount = pe.count;
+          county.peConsolidators = pe.consolidators;
+        }
+      }
+    } catch (e) {
+      console.error("[census] PE ownership merge failed — continuing without it:", e);
+    }
+
     cachedCounties = counties;
     cachedFetchedAt = new Date().toISOString();
     cacheExpiresAt = now + CACHE_TTL_MS;

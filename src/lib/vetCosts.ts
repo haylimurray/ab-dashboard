@@ -30,6 +30,22 @@
 //
 // These are directional planning estimates for sales collateral, not
 // individualized quotes — actual costs vary by clinic, pet, and procedure.
+//
+// PE_PRICE_PREMIUM is a different kind of number than the rest of this
+// file — deliberately illustrative, not sourced the way the baselines
+// above are. Reported price effects of PE/corporate consolidation on
+// veterinary pricing are real but inconsistent: one specific ER hospital
+// raised prices 20% post-acquisition; other reporting cites "up to 100%"
+// for select routine services; the oft-repeated "60% industry-wide over a
+// decade" figure isn't isolated to PE at all (it includes inflation and
+// non-PE consolidation). An economist studying the space (Matt Salois) is
+// on record saying it's hard to precisely quantify PE's specific share of
+// the increase. Given that, 20% — the low end of the cited range — is
+// used as a conservative placeholder wherever a county has a confirmed
+// PE-backed practice (see src/lib/peOwnership.ts), applied only to that
+// segment and always labeled in the UI as illustrative, not a sourced
+// average like everything else in this file.
+export const PE_PRICE_PREMIUM = 0.20;
 
 export const NATIONAL_AVG_ROUTINE_EXAM = 150; // $, national benchmark
 export const NATIONAL_AVG_ANNUAL_ROUTINE_DOG = 300; // $/yr, national benchmark
@@ -54,46 +70,65 @@ export function costIndexForState(stateCode: string | null | undefined): number 
   return STATE_COST_INDEX[stateCode] ?? 100; // fall back to national average for territories/unknowns
 }
 
+// One entry per matched employee — their county's 2-letter state (for the
+// state cost index) and whether that county has a confirmed PE-backed
+// practice (see src/lib/peOwnership.ts), so the illustrative premium above
+// applies only to that subset rather than the whole segment.
+export interface EmployeeCostInput {
+  state: string | null | undefined;
+  peBacked: boolean;
+}
+
 export interface CostOfCareEstimate {
   segmentEmployeeCount: number; // matched employees in wellServed/adequate counties
   estimatedPetOwningEmployees: number; // segmentEmployeeCount * pet ownership rate
-  avgRoutineExamCost: number; // state-weighted, $
-  avgAnnualRoutineCarePerPet: number; // state-weighted, $/yr per pet
+  avgRoutineExamCost: number; // state-weighted, $ (blended in any PE premium)
+  avgAnnualRoutineCarePerPet: number; // state-weighted, $/yr per pet (blended in any PE premium)
   estimatedAnnualSpend: number; // estimatedPetOwningEmployees * avgAnnualRoutineCarePerPet
   petOwnershipRatePct: number; // e.g. 71.6
   dataYear: number;
+  peBackedEmployeeCount: number; // of segmentEmployeeCount, how many got the illustrative premium
 }
 
-// stateCodes: one entry per matched employee in a well-served/adequate county
-// (their county's 2-letter state), used to weight the cost estimate to where
-// this specific prospect's workforce actually lives.
-export function estimateCostOfCare(stateCodes: string[]): CostOfCareEstimate | null {
-  if (stateCodes.length === 0) return null;
+export function estimateCostOfCare(inputs: EmployeeCostInput[]): CostOfCareEstimate | null {
+  if (inputs.length === 0) return null;
 
-  const avgIndex = stateCodes.reduce((sum, s) => sum + costIndexForState(s), 0) / stateCodes.length;
-  const avgRoutineExamCost = Math.round((avgIndex / 100) * NATIONAL_AVG_ROUTINE_EXAM);
-  const avgAnnualRoutineCarePerPet = Math.round((avgIndex / 100) * NATIONAL_AVG_ANNUAL_ROUTINE_DOG);
-  const estimatedPetOwningEmployees = Math.round(stateCodes.length * PET_OWNERSHIP_RATE);
+  let examSum = 0;
+  let annualSum = 0;
+  let peBackedEmployeeCount = 0;
+  for (const { state, peBacked } of inputs) {
+    const idx = costIndexForState(state) / 100;
+    const mult = peBacked ? 1 + PE_PRICE_PREMIUM : 1;
+    examSum += idx * NATIONAL_AVG_ROUTINE_EXAM * mult;
+    annualSum += idx * NATIONAL_AVG_ANNUAL_ROUTINE_DOG * mult;
+    if (peBacked) peBackedEmployeeCount++;
+  }
+
+  const avgRoutineExamCost = Math.round(examSum / inputs.length);
+  const avgAnnualRoutineCarePerPet = Math.round(annualSum / inputs.length);
+  const estimatedPetOwningEmployees = Math.round(inputs.length * PET_OWNERSHIP_RATE);
   const estimatedAnnualSpend = estimatedPetOwningEmployees * avgAnnualRoutineCarePerPet;
 
   return {
-    segmentEmployeeCount: stateCodes.length,
+    segmentEmployeeCount: inputs.length,
     estimatedPetOwningEmployees,
     avgRoutineExamCost,
     avgAnnualRoutineCarePerPet,
     estimatedAnnualSpend,
     petOwnershipRatePct: Math.round(PET_OWNERSHIP_RATE * 1000) / 10,
     dataYear: COST_DATA_YEAR,
+    peBackedEmployeeCount,
   };
 }
 
 export interface EmergencyCostEstimate {
   employeeCount: number; // all matched employees, any tier (ER risk isn't limited to well-served counties)
   estimatedPetOwningEmployees: number; // employeeCount * pet ownership rate
-  avgEmergencyExamCost: number; // state-weighted, $ (exam fee only)
-  avgEmergencyVisitCost: number; // state-weighted, $ (full visit incl. diagnostics/treatment)
+  avgEmergencyExamCost: number; // state-weighted, $ (exam fee only, blended in any PE premium)
+  avgEmergencyVisitCost: number; // state-weighted, $ (full visit incl. diagnostics/treatment, blended in any PE premium)
   petOwnershipRatePct: number; // e.g. 71.6
   dataYear: number;
+  peBackedEmployeeCount: number; // of employeeCount, how many got the illustrative premium
 }
 
 // Urgent/emergent care is a different sale than routine/preventive care:
@@ -103,21 +138,35 @@ export interface EmergencyCostEstimate {
 // guidance on the way to one. Computed across every matched employee
 // (any tier), since the need for triage doesn't depend on how well-served
 // their county is — if anything it matters most in deserts, where the
-// nearest ER may be hours away.
-export function estimateEmergencyCost(stateCodes: string[]): EmergencyCostEstimate | null {
-  if (stateCodes.length === 0) return null;
+// nearest ER may be hours away. The PE premium arguably matters more here
+// than for routine care, too — PE/corporate consolidators are reported to
+// own 75%+ of US emergency/specialty veterinary care, well above the
+// 25–30% figure for general practice.
+export function estimateEmergencyCost(inputs: EmployeeCostInput[]): EmergencyCostEstimate | null {
+  if (inputs.length === 0) return null;
 
-  const avgIndex = stateCodes.reduce((sum, s) => sum + costIndexForState(s), 0) / stateCodes.length;
-  const avgEmergencyExamCost = Math.round((avgIndex / 100) * NATIONAL_AVG_EMERGENCY_EXAM);
-  const avgEmergencyVisitCost = Math.round((avgIndex / 100) * NATIONAL_AVG_EMERGENCY_VISIT);
-  const estimatedPetOwningEmployees = Math.round(stateCodes.length * PET_OWNERSHIP_RATE);
+  let examSum = 0;
+  let visitSum = 0;
+  let peBackedEmployeeCount = 0;
+  for (const { state, peBacked } of inputs) {
+    const idx = costIndexForState(state) / 100;
+    const mult = peBacked ? 1 + PE_PRICE_PREMIUM : 1;
+    examSum += idx * NATIONAL_AVG_EMERGENCY_EXAM * mult;
+    visitSum += idx * NATIONAL_AVG_EMERGENCY_VISIT * mult;
+    if (peBacked) peBackedEmployeeCount++;
+  }
+
+  const avgEmergencyExamCost = Math.round(examSum / inputs.length);
+  const avgEmergencyVisitCost = Math.round(visitSum / inputs.length);
+  const estimatedPetOwningEmployees = Math.round(inputs.length * PET_OWNERSHIP_RATE);
 
   return {
-    employeeCount: stateCodes.length,
+    employeeCount: inputs.length,
     estimatedPetOwningEmployees,
     avgEmergencyExamCost,
     avgEmergencyVisitCost,
     petOwnershipRatePct: Math.round(PET_OWNERSHIP_RATE * 1000) / 10,
     dataYear: COST_DATA_YEAR,
+    peBackedEmployeeCount,
   };
 }
