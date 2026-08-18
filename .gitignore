@@ -11,10 +11,13 @@
 # env — never commit secrets
 .env*.local
 
-# test/scratch files dropped in the project root — not source
+# test/scratch files dropped in the project root or AB Dashboard/ dir — not source
 /*.csv
 /*.pdf
 /*.xlsx
+/AB Dashboard/*.csv
+/AB Dashboard/*.pdf
+/AB Dashboard/*.xlsx
 
 # misc
 .DS_Store
