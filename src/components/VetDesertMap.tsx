@@ -222,13 +222,17 @@ function PeLocationDots({ points }: { points: PeLocationPoint[] }) {
   useEffect(() => {
     const layerGroup = L.layerGroup();
     for (const p of points) {
-      const radius = Math.min(3 + p.count * 1.2, 14);
+      // White halo + saturated amber fill so the dot stays visible sitting
+      // on top of any of the five choropleth tier colors underneath it
+      // (including the "underserved" tier, which is also amber-family —
+      // the white stroke is what keeps these from blending together).
+      const radius = Math.min(4 + p.count * 1.2, 15);
       const marker = L.circleMarker([p.lat, p.lng], {
         radius,
-        color: "#5b21b6",
-        weight: 1,
-        fillColor: "#7c3aed",
-        fillOpacity: 0.55,
+        color: "#ffffff",
+        weight: 1.5,
+        fillColor: "#d97706",
+        fillOpacity: 0.9,
       });
       marker.bindTooltip(
         `<div style="font-size:12px"><strong>${p.count}</strong> PE/corporate-backed location${p.count === 1 ? "" : "s"} near ${p.zip}<br/>${p.consolidators.join(", ")}</div>`,
@@ -1041,21 +1045,6 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                   State outline overlay failed to load
                 </span>
               )}
-              <button
-                onClick={togglePeDots}
-                className="print:hidden flex items-center gap-1.5 rounded-md -mx-1.5 px-1.5 py-0.5 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
-                title="Individual PE/corporate-backed practice locations — see src/lib/peOwnership.ts sourcing note below"
-              >
-                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: showPeDots ? "#7c3aed" : "#d1d5db" }} />
-                <span className="text-xs text-gray-500 dark:text-dark-muted">
-                  {peLocationsLoading ? "Loading PE locations…" : showPeDots ? "PE-backed locations ✓" : "Show PE-backed locations"}
-                </span>
-              </button>
-              {peLocationsError && (
-                <span className="print:hidden text-xs text-amber-600 dark:text-amber-400" title={peLocationsError}>
-                  PE locations failed to load
-                </span>
-              )}
               <div className="ml-auto flex items-center gap-3">
                 {fetchedAtStr && (
                   <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block print:hidden">
@@ -1083,6 +1072,33 @@ export default function VetDesertMap({ darkMode = false }: Props) {
                   Refresh
                 </button>
               </div>
+            </div>
+
+            {/* PE-backed location dots — its own row, separate from the tier
+                legend above, so the toggle doesn't get crowded/mistaken for
+                another tier swatch (it isn't part of the choropleth key). */}
+            <div className="print:hidden flex items-center gap-3 px-1 flex-wrap">
+              <button
+                onClick={togglePeDots}
+                className="flex items-center gap-1.5 rounded-md -mx-1.5 px-1.5 py-0.5 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+                title="Individual PE/corporate-backed practice locations — see src/lib/peOwnership.ts sourcing note below"
+              >
+                <span
+                  className="inline-block w-3 h-3 rounded-full border"
+                  style={{
+                    backgroundColor: showPeDots ? "#d97706" : "#f3f4f6",
+                    borderColor: showPeDots ? "#ffffff" : "#d1d5db",
+                  }}
+                />
+                <span className="text-xs text-gray-500 dark:text-dark-muted">
+                  {peLocationsLoading ? "Loading PE locations…" : showPeDots ? "PE-backed locations ✓" : "Show PE-backed locations"}
+                </span>
+              </button>
+              {peLocationsError && (
+                <span className="text-xs text-amber-600 dark:text-amber-400" title={peLocationsError}>
+                  PE locations failed to load
+                </span>
+              )}
             </div>
 
             {/* Key — spells out what each tier is actually measuring, not
