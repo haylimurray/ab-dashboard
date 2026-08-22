@@ -154,10 +154,13 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
       </div>
 
       {/* BW Circle */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
-        <div className="px-5 py-3 border-b border-gray-100 dark:border-dark-border">
-          <p className="text-sm font-bold text-gray-900 dark:text-dark-text">BW Circle</p>
-          <p className="text-xs text-gray-400 dark:text-dark-muted">Advisors Brandon knows best and stays closest to</p>
+      <div className="bg-white dark:bg-dark-card rounded-xl border-2 border-airvet-blue/30 dark:border-airvet-blue/40 shadow-md overflow-hidden">
+        <div className="px-5 py-4 bg-gradient-to-r from-airvet-blue to-blue-600 flex items-center gap-2.5">
+          <span className="text-xl leading-none">⭐</span>
+          <div>
+            <p className="text-base font-extrabold text-white tracking-wide">BW Circle</p>
+            <p className="text-xs text-blue-100">Advisors Brandon knows best and stays closest to</p>
+          </div>
         </div>
         <div className="divide-y divide-gray-100 dark:divide-dark-border">
           {bwCircle.map((p) => (
