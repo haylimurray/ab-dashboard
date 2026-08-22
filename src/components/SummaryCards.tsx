@@ -31,15 +31,14 @@ export default function SummaryCards({ advisors }: Props) {
   );
 
   const healthy    = loaded.filter((a) => computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === "healthy").length;
+  // Caution now spans 15-59 days (was split into Caution 30-59 + Cooldown 15-29) — merged into one tier.
   const caution    = loaded.filter((a) => computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === "caution").length;
-  const atRisk     = loaded.filter((a) => computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === "atRisk").length;
   const inCooldown = loaded.filter((a) => computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability) === "inCooldown").length;
 
   const cards: Card[] = [
     { label: "Total Advisors", value: total,       bg: "bg-white dark:bg-dark-card",     text: "text-gray-900",   darkText: "dark:text-dark-text",    accent: "#1B3A6B" },
     { label: "Available",      value: healthy,     bg: "bg-green-50 dark:bg-dark-card",  text: "text-green-700", darkText: "dark:text-green-400",    accent: "#16a34a" },
     { label: "Caution",        value: caution,     bg: "bg-amber-50 dark:bg-dark-card",  text: "text-amber-700", darkText: "dark:text-amber-400",    accent: "#d97706" },
-    { label: "Cooldown",       value: atRisk,      bg: "bg-orange-50 dark:bg-dark-card", text: "text-orange-700", darkText: "dark:text-orange-400",  accent: "#ea580c" },
     { label: "Pause Outreach", value: inCooldown,  bg: "bg-red-50 dark:bg-dark-card",    text: "text-red-700",   darkText: "dark:text-red-400",      accent: "#991b1b" },
     { label: "Client",         value: client,      bg: "bg-violet-50 dark:bg-dark-card", text: "text-violet-700", darkText: "dark:text-violet-400",  accent: "#7c3aed" },
     { label: "Paused",         value: paused,      bg: "bg-gray-50 dark:bg-dark-card",   text: "text-gray-600",  darkText: "dark:text-dark-muted",   accent: "#9ca3af" },

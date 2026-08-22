@@ -33,13 +33,7 @@ export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
     {
       color: "yellow",
       label: "Caution",
-      desc: "Last contacted 30–60 days ago",
-      note: null,
-    },
-    {
-      color: "orange",
-      label: "Cooldown",
-      desc: "Last contacted 15–30 days ago",
+      desc: `Last contacted ${cooldownDays}–60 days ago`,
       note: null,
     },
     {

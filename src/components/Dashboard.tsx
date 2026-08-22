@@ -18,6 +18,8 @@ import AdvisorDrawer from "./AdvisorDrawer";
 // import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
 import RequestsView from "./RequestsView";
 import RecruitingView from "./RecruitingView";
+import AbDealsView from "./AbDealsView";
+import ExecutiveSummaryView from "./ExecutiveSummaryView";
 import { normalizeState } from "@/lib/geocode";
 
 const MapView = dynamic(() => import("./MapView"), {
@@ -38,7 +40,7 @@ const VetDesertMap = dynamic(() => import("./VetDesertMap"), {
   ),
 });
 
-type Tab = "advisors" | "map" | "vetDeserts" | "requests" | "recruiting"; // "news" temporarily disabled
+type Tab = "advisors" | "map" | "vetDeserts" | "requests" | "recruiting" | "abDeals" | "execSummary"; // "news" temporarily disabled
 const HEALTH_BATCH = 20;
 
 const HEALTH_DEFAULTS: ContactHealth = {
@@ -87,11 +89,13 @@ function sortAdvisors(
 }
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: "execSummary", label: "Executive Summary" },
   { id: "advisors",   label: "Advisors" },
   { id: "map",        label: "Map" },
   { id: "vetDeserts", label: "Veterinary Deserts" },
   { id: "requests",   label: "Requests" },
   { id: "recruiting", label: "Recruiting" },
+  { id: "abDeals",    label: "AB Influenced Deals" },
   // { id: "news", label: "News Intelligence" }, // temporarily disabled
 ];
 
@@ -449,6 +453,8 @@ export default function Dashboard() {
             {activeTab === "vetDeserts" && <VetDesertMap darkMode={darkMode} />}
             {activeTab === "requests"   && <RequestsView />}
             {activeTab === "recruiting" && <RecruitingView />}
+            {activeTab === "abDeals"    && <AbDealsView />}
+            {activeTab === "execSummary" && <ExecutiveSummaryView advisors={advisors} />}
             {/* {activeTab === "news" && <NewsIntelligence />} temporarily disabled */}
           </>
         ) : null}

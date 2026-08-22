@@ -178,12 +178,11 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                             client:     "bg-violet-100 text-violet-700",
                             healthy:    "bg-green-100 text-green-700",
                             caution:    "bg-amber-100 text-amber-700",
-                            atRisk:     "bg-orange-100 text-orange-700",
                             inCooldown: "bg-red-100 text-red-600",
                           };
                           const LABEL: Record<OutreachStatus, string> = {
                             paused: "Paused", client: "Client", healthy: "Available", caution: "Caution",
-                            atRisk: "Cooldown", inCooldown: "Pause Outreach",
+                            inCooldown: "Pause Outreach",
                           };
                           return (
                             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${PILL[status]}`}>

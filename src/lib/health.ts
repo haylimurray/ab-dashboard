@@ -56,7 +56,7 @@ export function isDoNotContact(outboundTimestamps: string[]): boolean {
 
 // ── Composite outreach status ─────────────────────────────────────────────────
 
-export type OutreachStatus = "paused" | "client" | "healthy" | "caution" | "atRisk" | "inCooldown";
+export type OutreachStatus = "paused" | "client" | "healthy" | "caution" | "inCooldown";
 
 // Factors in timing (daysSinceContact), availability field, and whether the
 // advisor is also an active Airvet client (HubSpot lifecyclestage = "customer").
@@ -65,6 +65,11 @@ export type OutreachStatus = "paused" | "client" | "healthy" | "caution" | "atRi
 // unrelated to AB outreach), so they're pulled out of the timing tiers entirely.
 // Availability "Possibility of Requests" → timing applies but capped at caution.
 // Otherwise → pure timing tiers.
+//
+// Caution used to split into two tiers at the 30-day mark (a broader
+// "Caution" from 30-59 days, and a narrower "Cooldown" from cooldownDays-29)
+// — merged into one Caution band spanning cooldownDays-59 days, since the
+// two read almost identically to reps and didn't change what to do.
 export function computeOutreachStatus(
   daysSinceContact: number | null,
   healthLoaded: boolean,
@@ -83,10 +88,8 @@ export function computeOutreachStatus(
   let timing: OutreachStatus;
   if (daysSinceContact === null || daysSinceContact >= 60) {
     timing = "healthy";
-  } else if (daysSinceContact >= 30) {
-    timing = "caution";
   } else if (daysSinceContact >= cooldownDays) {
-    timing = "atRisk";
+    timing = "caution";
   } else {
     timing = "inCooldown";
   }

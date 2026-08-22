@@ -225,6 +225,42 @@ export interface ZipLookupResponse {
   emergencyCost: EmergencyCostEstimate | null;
 }
 
+// ── AB-influenced deals (from GET /api/deals/ab-influenced) ─────────────────
+// A deal counts as "AB influenced" when HubSpot's deal_source_category =
+// "AB / Community" — that bucket is the broadest, most inclusive signal
+// (it fully contains the narrower deal_source values like "Intro From
+// Advisory Board Member"), but it can also catch general community-sourced
+// deals that weren't a specific advisor intro. Only a fraction of these also
+// have advisoryBoardMember set (a named advisor credited) — most are
+// AB-flagged without a specific name attached yet, which is the whole reason
+// this tab exists: to see the count today, before that attribution gap is closed.
+export interface AbInfluencedDeal {
+  id: string;
+  name: string;
+  amount: number | null;
+  stageLabel: "Open" | "Closed Won" | "Closed Lost";
+  isClosedWon: boolean;
+  isClosed: boolean;
+  dealSource: string | null;
+  advisoryBoardMember: string | null; // specific advisor credited, if set
+  createdDate: string | null;
+  closeDate: string | null;
+}
+
+export interface AbInfluencedDealsData {
+  deals: AbInfluencedDeal[];
+  total: number;
+  totalAmount: number;
+  openCount: number;
+  openAmount: number;
+  closedWonCount: number;
+  closedWonAmount: number;
+  closedLostCount: number;
+  closedLostAmount: number;
+  namedAdvisorCount: number; // deals with advisoryBoardMember set
+  fetchedAt: string;
+}
+
 // ── News intelligence ─────────────────────────────────────────────────────────
 
 export type SignalLevel = "HIGH" | "MEDIUM" | "LOW";

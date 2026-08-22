@@ -372,6 +372,59 @@ export async function fetchTicketPipeline(name: string): Promise<TicketPipeline 
   return pipelines.find((p) => p.label === name) ?? null;
 }
 
+// ── AB-influenced deals ───────────────────────────────────────────────────────
+
+const DEAL_PROPERTIES = [
+  "dealname",
+  "amount",
+  "dealstage",
+  "deal_source",
+  "deal_source_category",
+  "advisory_board_member",
+  "hs_is_closed_won",
+  "hs_is_closed",
+  "createdate",
+  "closedate",
+];
+
+// deal_source_category = "AB / Community" is the broadest signal HubSpot has
+// for advisor/community-influenced deals — see the comment on
+// AbInfluencedDeal in src/types/index.ts for why this (and not the narrower
+// deal_source enum) is the right filter.
+export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
+  const token = process.env.HUBSPOT_TOKEN;
+  if (!token) throw new Error("HUBSPOT_TOKEN is not set");
+
+  const all: HubSpotResult[] = [];
+  let after: string | undefined;
+
+  do {
+    const body: Record<string, unknown> = {
+      filterGroups: [
+        { filters: [{ propertyName: "deal_source_category", operator: "EQ", value: "AB / Community" }] },
+      ],
+      properties: DEAL_PROPERTIES,
+      sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
+      limit: 100,
+    };
+    if (after) body.after = after;
+
+    const res = await fetch(`${BASE}/crm/v3/objects/deals/search`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`HubSpot deals ${res.status}: ${await res.text()}`);
+
+    const page: HubSpotPage = await res.json();
+    all.push(...page.results);
+    after = page.paging?.next?.after;
+  } while (after);
+
+  return all;
+}
+
 export async function fetchAllTickets(pipelineId: string): Promise<HubSpotResult[]> {
   const token = process.env.HUBSPOT_TOKEN;
   if (!token) throw new Error("HUBSPOT_TOKEN is not set");
