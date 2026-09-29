@@ -46,9 +46,13 @@ const PROVINCE_GEOJSON_URL =
 const STATE_GEOJSON_URL =
   "https://cdn.jsdelivr.net/gh/python-visualization/folium@master/examples/data/us-states.json";
 
-const TILE_DARK  = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
-const TILE_LIGHT = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
-const TILE_ATTR  = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// CARTO's free basemap tiles now require an API key (as of their 2026 policy
+// change), so this uses Esri's free-without-a-key light/dark gray canvas
+// tiles instead — closest visual match to the old CARTO Positron/dark_all
+// style, no signup or env var required.
+const TILE_DARK  = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+const TILE_LIGHT = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+const TILE_ATTR  = '&copy; <a href="https://www.esri.com">Esri</a> &mdash; Esri, HERE, Garmin, FAO, NOAA, USGS';
 
 const TIER_COLOR: Record<VetDesertTier, string> = {
   wellServed:  "#16a34a",
