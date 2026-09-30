@@ -9,6 +9,8 @@ import type {
   SortDir,
   SortField,
 } from "@/types";
+import type { Tab } from "@/lib/navigation";
+import { getBreadcrumb } from "@/lib/navigation";
 import dynamic from "next/dynamic";
 import SummaryCards from "./SummaryCards";
 import HealthScoreKey from "./HealthScoreKey";
@@ -20,6 +22,8 @@ import RequestsView from "./RequestsView";
 import RecruitingView from "./RecruitingView";
 import AbDealsView from "./AbDealsView";
 import ExecutiveSummaryView from "./ExecutiveSummaryView";
+import BwCircleView from "./BwCircleView";
+import Sidebar from "./Sidebar";
 import { normalizeState } from "@/lib/geocode";
 
 const MapView = dynamic(() => import("./MapView"), {
@@ -40,7 +44,6 @@ const VetDesertMap = dynamic(() => import("./VetDesertMap"), {
   ),
 });
 
-type Tab = "advisors" | "map" | "vetDeserts" | "requests" | "recruiting" | "abDeals" | "execSummary"; // "news" temporarily disabled
 const HEALTH_BATCH = 20;
 
 const HEALTH_DEFAULTS: ContactHealth = {
@@ -69,12 +72,10 @@ function sortAdvisors(
       case "tier":        av = a.advisorTier?.toLowerCase() ?? "";  bv = b.advisorTier?.toLowerCase() ?? ""; break;
       case "lastContacted":
       case "daysSinceContact":
-        // Unloaded contacts sort to end regardless of direction
         av = a.healthLoaded ? (a.daysSinceContact ?? Infinity) : Infinity;
         bv = b.healthLoaded ? (b.daysSinceContact ?? Infinity) : Infinity;
         break;
       case "healthScore":
-        // Unloaded contacts sort to end regardless of direction
         av = a.healthLoaded ? a.healthScore : (dir === "asc" ? Infinity : -Infinity);
         bv = b.healthLoaded ? b.healthScore : (dir === "asc" ? Infinity : -Infinity);
         break;
@@ -87,17 +88,6 @@ function sortAdvisors(
     return dir === "asc" ? cmp : -cmp;
   });
 }
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "execSummary", label: "Executive Summary" },
-  { id: "advisors",   label: "Advisors" },
-  { id: "map",        label: "Map" },
-  { id: "vetDeserts", label: "Veterinary Deserts" },
-  { id: "requests",   label: "Requests" },
-  { id: "recruiting", label: "Recruiting" },
-  { id: "abDeals",    label: "AB Influenced Deals" },
-  // { id: "news", label: "News Intelligence" }, // temporarily disabled
-];
 
 export default function Dashboard() {
   const [contacts, setContacts]       = useState<ContactListItem[]>([]);
@@ -317,14 +307,13 @@ export default function Dashboard() {
 
   const healthPending = healthTotal > 0 && healthDone < healthTotal;
 
+  const breadcrumbParts = getBreadcrumb(activeTab).split(" / ");
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col transition-colors">
       {/* Header — hidden when printing (e.g. the Vet Deserts PDF export),
-          since that export has its own branded report header. Light
-          background with the logo in its natural blue, rather than the old
-          navy bar with a white-inverted logo — matches the masthead style
-          used on the PDF export. */}
-      <header className="print:hidden bg-white dark:bg-dark-card shadow-md border-b border-gray-100 dark:border-dark-border">
+          since that export has its own branded report header. */}
+      <header className="print:hidden flex-shrink-0 bg-white dark:bg-dark-card shadow-md border-b border-gray-100 dark:border-dark-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src="/airvet-logo.png" alt="Airvet" className="h-6 w-auto" />
@@ -385,80 +374,88 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-
-        {/* Tab bar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex gap-1">
-            {TABS.map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === id
-                    ? "border-airvet-blue text-airvet-blue"
-                    : "border-transparent text-gray-500 dark:text-dark-muted hover:text-airvet-blue hover:border-airvet-blue/40"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-        </div>
       </header>
 
-      {/* Main */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {error && (
-          <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-            <strong>Error:</strong> {error}
-          </div>
-        )}
+      {/* Body: sidebar + content */}
+      <div className="flex flex-1">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {contactsLoading && contacts.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <div
-                className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3"
-                style={{ borderColor: "#0062F5", borderTopColor: "transparent" }}
-              />
-              <p className="text-gray-500 dark:text-dark-muted text-sm">Loading advisors…</p>
+        <div className="flex-1 min-w-0">
+          <main className="px-6 py-6">
+            {/* Breadcrumb */}
+            <div className="mb-5 flex items-center gap-1.5 print:hidden">
+              {breadcrumbParts.map((part, i) => (
+                <span key={i} className="flex items-center gap-1.5">
+                  {i > 0 && (
+                    <span className="text-gray-300 dark:text-dark-border select-none">/</span>
+                  )}
+                  <span
+                    className={`text-sm font-medium ${
+                      i === breadcrumbParts.length - 1
+                        ? "text-gray-900 dark:text-dark-text"
+                        : "text-gray-400 dark:text-dark-muted"
+                    }`}
+                  >
+                    {part}
+                  </span>
+                </span>
+              ))}
             </div>
-          </div>
-        ) : contacts.length > 0 ? (
-          <>
-            {activeTab === "advisors" && (
+
+            {error && (
+              <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
+
+            {contactsLoading && contacts.length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div
+                    className="inline-block w-8 h-8 border-4 rounded-full animate-spin mb-3"
+                    style={{ borderColor: "#0062F5", borderTopColor: "transparent" }}
+                  />
+                  <p className="text-gray-500 dark:text-dark-muted text-sm">Loading advisors…</p>
+                </div>
+              </div>
+            ) : contacts.length > 0 ? (
               <>
-                <SummaryCards advisors={advisors} />
-                <HealthScoreKey cooldownDays={15} />
-                <AdvisorTable
-                  advisors={filtered}
-                  onSelectAdvisor={(a) => setSelectedId(a.id)}
-                  sort={sort}
-                  onSort={handleSort}
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  uniqueTiers={uniqueTiers}
-                  uniqueTypes={uniqueTypes}
-                  uniqueMarkets={uniqueMarkets}
-                />
+                {activeTab === "advisors" && (
+                  <>
+                    <SummaryCards advisors={advisors} />
+                    <HealthScoreKey cooldownDays={15} />
+                    <AdvisorTable
+                      advisors={filtered}
+                      onSelectAdvisor={(a) => setSelectedId(a.id)}
+                      sort={sort}
+                      onSort={handleSort}
+                      filters={filters}
+                      onFilterChange={handleFilterChange}
+                      uniqueTiers={uniqueTiers}
+                      uniqueTypes={uniqueTypes}
+                      uniqueMarkets={uniqueMarkets}
+                    />
+                  </>
+                )}
+                {activeTab === "map" && (
+                  <MapView
+                    advisors={advisors}
+                    onSelectAdvisor={(a) => setSelectedId(a.id)}
+                    darkMode={darkMode}
+                  />
+                )}
+                {activeTab === "bwCircle"   && <BwCircleView advisors={advisors} />}
+                {activeTab === "vetDeserts" && <VetDesertMap darkMode={darkMode} />}
+                {activeTab === "requests"   && <RequestsView />}
+                {activeTab === "recruiting" && <RecruitingView />}
+                {activeTab === "abDeals"    && <AbDealsView />}
+                {activeTab === "execSummary" && <ExecutiveSummaryView advisors={advisors} />}
+                {/* {activeTab === "news" && <NewsIntelligence />} temporarily disabled */}
               </>
-            )}
-            {activeTab === "map" && (
-              <MapView
-                advisors={advisors}
-                onSelectAdvisor={(a) => setSelectedId(a.id)}
-                darkMode={darkMode}
-              />
-            )}
-            {activeTab === "vetDeserts" && <VetDesertMap darkMode={darkMode} />}
-            {activeTab === "requests"   && <RequestsView />}
-            {activeTab === "recruiting" && <RecruitingView />}
-            {activeTab === "abDeals"    && <AbDealsView />}
-            {activeTab === "execSummary" && <ExecutiveSummaryView advisors={advisors} />}
-            {/* {activeTab === "news" && <NewsIntelligence />} temporarily disabled */}
-          </>
-        ) : null}
-      </main>
+            ) : null}
+          </main>
+        </div>
+      </div>
 
       <AdvisorDrawer
         advisor={selectedAdvisor}
