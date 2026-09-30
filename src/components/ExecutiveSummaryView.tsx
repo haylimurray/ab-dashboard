@@ -8,6 +8,9 @@ interface Props {
   advisors: AdvisorContact[];
 }
 
+// Flip back to true to bring the BW Circle card back on the dashboard.
+const SHOW_BW_CIRCLE = false;
+
 // ── BW Circle ─────────────────────────────────────────────────────────────────
 // Advisors Brandon knows well and spends the most time with (well-known
 // enough that he's drafted them into his fantasy football league). Matched
@@ -153,33 +156,37 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
         </div>
       </div>
 
-      {/* BW Circle */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border-2 border-airvet-blue/30 dark:border-airvet-blue/40 shadow-md overflow-hidden">
-        <div className="px-5 py-4 bg-gradient-to-r from-airvet-blue to-blue-600 flex items-center gap-2.5">
-          <span className="text-xl leading-none">⭐</span>
-          <div>
-            <p className="text-base font-extrabold text-white tracking-wide">BW Circle</p>
-            <p className="text-xs text-blue-100">Advisors Brandon knows best and stays closest to</p>
+      {/* BW Circle — temporarily hidden from the dashboard per request (9/30/26).
+          Data/logic above (bwCircle, BW_CIRCLE) left intact so this can be
+          switched back on by just restoring this block. */}
+      {SHOW_BW_CIRCLE && (
+        <div className="bg-white dark:bg-dark-card rounded-xl border-2 border-airvet-blue/30 dark:border-airvet-blue/40 shadow-md overflow-hidden">
+          <div className="px-5 py-4 bg-gradient-to-r from-airvet-blue to-blue-600 flex items-center gap-2.5">
+            <span className="text-xl leading-none">⭐</span>
+            <div>
+              <p className="text-base font-extrabold text-white tracking-wide">BW Circle</p>
+              <p className="text-xs text-blue-100">Advisors Brandon knows best and stays closest to</p>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-100 dark:divide-dark-border">
+            {bwCircle.map((p) => (
+              <div key={p.email} className="flex items-center gap-3 px-5 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">{p.name}</p>
+                  <p className="text-xs text-gray-400 dark:text-dark-muted truncate">{p.title} · {p.company}</p>
+                </div>
+                {p.status ? (
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_PILL[p.status]}`}>
+                    {STATUS_LABEL[p.status]}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-300 dark:text-dark-border">Not found</span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-        <div className="divide-y divide-gray-100 dark:divide-dark-border">
-          {bwCircle.map((p) => (
-            <div key={p.email} className="flex items-center gap-3 px-5 py-2.5">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">{p.name}</p>
-                <p className="text-xs text-gray-400 dark:text-dark-muted truncate">{p.title} · {p.company}</p>
-              </div>
-              {p.status ? (
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_PILL[p.status]}`}>
-                  {STATUS_LABEL[p.status]}
-                </span>
-              ) : (
-                <span className="text-xs text-gray-300 dark:text-dark-border">Not found</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -14,6 +14,7 @@
     "@types/leaflet": "^1.9.21",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
+    "lucide-react": "^1.49.0",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",
