@@ -23,7 +23,9 @@ export const SIDEBAR_MODULES: SidebarModule[] = [
     items: [
       { tabId: "advisors", label: "Advisor Table" },
       { tabId: "map",      label: "Map" },
-      { tabId: "bwCircle", label: "BW Circle" },
+      // "BW Circle" tab temporarily hidden from the sidebar (9/30/26) per
+      // request — tabId/type/route left intact so it can be restored by
+      // just adding this item back in.
     ],
   },
   {
