@@ -45,6 +45,7 @@ export default function AbDealsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
   const [stageFilter, setStageFilter] = useState<"" | AbInfluencedDeal["stageLabel"]>("");
+  const [yearFilter, setYearFilter]   = useState<string>(""); // "" = all time
   const [sort, setSort]       = useState<{ field: string; dir: SortDir }>({ field: "createdDate", dir: "desc" });
 
   const fetchData = useCallback(async (force = false) => {
@@ -72,9 +73,31 @@ export default function AbDealsView() {
     );
   }
 
-  const sorted = useMemo(() => {
+  function dealYear(raw: string | null): string | null {
+    if (!raw) return null;
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : String(d.getFullYear());
+  }
+
+  // Available years present in the data, newest first.
+  const availableYears = useMemo(() => {
     if (!data) return [];
-    let rows = stageFilter ? data.deals.filter((d) => d.stageLabel === stageFilter) : [...data.deals];
+    const years = new Set<string>();
+    for (const d of data.deals) {
+      const y = dealYear(d.createdDate);
+      if (y) years.add(y);
+    }
+    return Array.from(years).sort((a, b) => Number(b) - Number(a));
+  }, [data]);
+
+  // Year-filtered first (summary cards reflect this), then stage-filtered on top.
+  const yearFiltered = useMemo(() => {
+    if (!data) return [];
+    return yearFilter ? data.deals.filter((d) => dealYear(d.createdDate) === yearFilter) : data.deals;
+  }, [data, yearFilter]);
+
+  const sorted = useMemo(() => {
+    let rows = stageFilter ? yearFiltered.filter((d) => d.stageLabel === stageFilter) : [...yearFiltered];
     rows.sort((a, b) => {
       let av: string | number = "", bv: string | number = "";
       switch (sort.field) {
@@ -92,7 +115,7 @@ export default function AbDealsView() {
       return 0;
     });
     return rows;
-  }, [data, stageFilter, sort]);
+  }, [yearFiltered, stageFilter, sort]);
 
   if (loading && !data) {
     return (
@@ -116,11 +139,26 @@ export default function AbDealsView() {
 
   if (!data) return null;
 
+  // Summary-card stats recomputed from the year-filtered set (not the raw
+  // server totals) so the cards reflect whichever year is selected.
+  const yearStats = yearFilter
+    ? yearFiltered.reduce(
+        (acc, d) => {
+          acc.total++; acc.totalAmount += d.amount ?? 0;
+          if (d.stageLabel === "Open")        { acc.openCount++;       acc.openAmount += d.amount ?? 0; }
+          if (d.stageLabel === "Closed Won")  { acc.closedWonCount++;  acc.closedWonAmount += d.amount ?? 0; }
+          if (d.stageLabel === "Closed Lost") { acc.closedLostCount++; acc.closedLostAmount += d.amount ?? 0; }
+          return acc;
+        },
+        { total: 0, totalAmount: 0, openCount: 0, openAmount: 0, closedWonCount: 0, closedWonAmount: 0, closedLostCount: 0, closedLostAmount: 0 }
+      )
+    : data;
+
   const cards: { label: string; count: number; amount: number; filterKey: "" | AbInfluencedDeal["stageLabel"]; accent: string; bg: string; text: string }[] = [
-    { label: "Total",       count: data.total,          amount: data.totalAmount,     filterKey: "",            accent: "#1B3A6B", bg: "bg-white dark:bg-dark-card",   text: "text-gray-900 dark:text-dark-text" },
-    { label: "Open",        count: data.openCount,       amount: data.openAmount,      filterKey: "Open",        accent: "#0062F5", bg: "bg-blue-50 dark:bg-dark-card", text: "text-blue-700 dark:text-blue-400" },
-    { label: "Closed Won",  count: data.closedWonCount,  amount: data.closedWonAmount, filterKey: "Closed Won",  accent: "#16a34a", bg: "bg-green-50 dark:bg-dark-card", text: "text-green-700 dark:text-green-400" },
-    { label: "Closed Lost", count: data.closedLostCount, amount: data.closedLostAmount, filterKey: "Closed Lost", accent: "#6b7280", bg: "bg-gray-50 dark:bg-dark-card", text: "text-gray-600 dark:text-dark-muted" },
+    { label: "Total",       count: yearStats.total,          amount: yearStats.totalAmount,     filterKey: "",            accent: "#1B3A6B", bg: "bg-white dark:bg-dark-card",   text: "text-gray-900 dark:text-dark-text" },
+    { label: "Open",        count: yearStats.openCount,       amount: yearStats.openAmount,      filterKey: "Open",        accent: "#0062F5", bg: "bg-blue-50 dark:bg-dark-card", text: "text-blue-700 dark:text-blue-400" },
+    { label: "Closed Won",  count: yearStats.closedWonCount,  amount: yearStats.closedWonAmount, filterKey: "Closed Won",  accent: "#16a34a", bg: "bg-green-50 dark:bg-dark-card", text: "text-green-700 dark:text-green-400" },
+    { label: "Closed Lost", count: yearStats.closedLostCount, amount: yearStats.closedLostAmount, filterKey: "Closed Lost", accent: "#6b7280", bg: "bg-gray-50 dark:bg-dark-card", text: "text-gray-600 dark:text-dark-muted" },
   ];
 
   return (
@@ -159,6 +197,16 @@ export default function AbDealsView() {
       {/* Table card */}
       <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg">
+          <select
+            value={yearFilter}
+            onChange={(e) => setYearFilter(e.target.value)}
+            className="text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-airvet-blue"
+          >
+            <option value="">All time</option>
+            {availableYears.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
           {stageFilter && (
             <div className="flex items-center gap-2">
               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stagePill(stageFilter)}`}>

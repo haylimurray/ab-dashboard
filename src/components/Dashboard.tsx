@@ -314,11 +314,11 @@ export default function Dashboard() {
       {/* Header — hidden when printing (e.g. the Vet Deserts PDF export),
           since that export has its own branded report header. */}
       <header className="print:hidden flex-shrink-0 bg-white dark:bg-dark-card shadow-md border-b border-gray-100 dark:border-dark-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src="/airvet-logo.png" alt="Airvet" className="h-6 w-auto" />
+        <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/airvet-logo.png" alt="Airvet" className="h-8 w-auto" />
             <div>
-              <h1 className="text-gray-900 dark:text-airvet-blue text-sm font-semibold leading-tight">AB &amp; GTM Dashboard</h1>
+              <h1 className="text-gray-900 dark:text-airvet-blue text-lg font-semibold leading-tight">AB &amp; GTM Dashboard</h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
