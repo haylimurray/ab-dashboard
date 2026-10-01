@@ -422,6 +422,7 @@ const MANUALLY_CONFIRMED_AB_DEAL_IDS = new Set([
   "11164079773", // B. Riley Financial - CS — "Bob on both boards and put us in touch"
   "11164080530", // Heska — drill-down: Bob Antin (moderate confidence, no separate note)
   "14380676001", // Sage Valley Golf — drill-down: "Brandon intro from Bob Antin" (moderate confidence)
+  "63327762865", // Starkey - GH — advisor Ryan Seman confirmed active in AB community (fantasy football, "airvet advisors" email); re-found via company-name matching audit (10/1/26)
 ]);
 
 export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
