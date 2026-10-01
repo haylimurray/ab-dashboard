@@ -387,10 +387,15 @@ const DEAL_PROPERTIES = [
   "closedate",
 ];
 
-// deal_source_category = "AB / Community" is the broadest signal HubSpot has
-// for advisor/community-influenced deals — see the comment on
-// AbInfluencedDeal in src/types/index.ts for why this (and not the narrower
-// deal_source enum) is the right filter.
+// deal_source_category = "AB / Community" is the broad bucket, but it also
+// catches deals whose more specific deal_source is "BW" or "Personal
+// Connection" — confirmed via deal_source_drill_down ("Brandon intro") that
+// these are Brandon's own network, not an actual advisor, and
+// "Intro (non AB Member) / Referral" is explicitly a non-AB-member referral
+// by name. Excluding those three so this tab only counts deals genuinely
+// tied to an advisor (9/30/26 — see conversation with Hayli for rationale).
+const NON_AB_DEAL_SOURCES = ["BW", "Personal Connection", "Intro (non AB Member) / Referral"];
+
 export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
   const token = process.env.HUBSPOT_TOKEN;
   if (!token) throw new Error("HUBSPOT_TOKEN is not set");
@@ -401,7 +406,12 @@ export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
   do {
     const body: Record<string, unknown> = {
       filterGroups: [
-        { filters: [{ propertyName: "deal_source_category", operator: "EQ", value: "AB / Community" }] },
+        {
+          filters: [
+            { propertyName: "deal_source_category", operator: "EQ", value: "AB / Community" },
+            { propertyName: "deal_source", operator: "NOT_IN", values: NON_AB_DEAL_SOURCES },
+          ],
+        },
       ],
       properties: DEAL_PROPERTIES,
       sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
