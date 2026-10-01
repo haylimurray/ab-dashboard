@@ -190,8 +190,9 @@ export default function AbDealsView() {
       <p className="text-xs text-gray-400 dark:text-dark-muted px-1 mb-4">
         Counts deals where HubSpot&apos;s Deal Source Category is <strong className="font-medium text-gray-500 dark:text-dark-muted">&quot;AB / Community&quot;</strong>,
         excluding deals sourced as <strong className="font-medium text-gray-500 dark:text-dark-muted">&quot;BW,&quot; &quot;Personal Connection,&quot;</strong> or{" "}
-        <strong className="font-medium text-gray-500 dark:text-dark-muted">&quot;Intro (non AB Member) / Referral&quot;</strong> — those are Brandon&apos;s own
-        network or a non-advisor referral, not an actual advisory board connection. Only{" "}
+        <strong className="font-medium text-gray-500 dark:text-dark-muted">&quot;Intro (non AB Member) / Referral&quot;</strong> — those are generally Brandon&apos;s own
+        network or a non-advisor referral, not an actual advisory board connection. A handful of deals in those excluded sources were manually
+        confirmed via Notes/Email review to have genuine AB involvement and are included anyway (10/1/26 audit). Only{" "}
         <strong className="font-medium text-gray-500 dark:text-dark-muted">{data.namedAdvisorCount} of {data.total}</strong> have
         a specific advisor credited (the &quot;Advisor&quot; column below) — most are flagged as AB-influenced without a name attached yet.
       </p>

@@ -388,13 +388,41 @@ const DEAL_PROPERTIES = [
 ];
 
 // deal_source_category = "AB / Community" is the broad bucket, but it also
-// catches deals whose more specific deal_source is "BW" or "Personal
-// Connection" — confirmed via deal_source_drill_down ("Brandon intro") that
-// these are Brandon's own network, not an actual advisor, and
-// "Intro (non AB Member) / Referral" is explicitly a non-AB-member referral
-// by name. Excluding those three so this tab only counts deals genuinely
-// tied to an advisor (9/30/26 — see conversation with Hayli for rationale).
+// catches deals whose more specific deal_source is "BW", "Personal
+// Connection", or "Intro (non AB Member) / Referral" — generally NOT
+// advisor-driven (deal_source_drill_down on most of these says things like
+// "Brandon intro"). So those three sources are excluded by default.
+//
+// BUT: a manual notes/email audit (10/1/26, with Hayli, cross-checked
+// against an internal HubSpot report she received) found specific deals in
+// those "excluded" sources that DO have genuine, explicit Advisory Board
+// involvement documented in their Notes/Emails even though the structured
+// deal_source field doesn't show it (e.g. a named advisor is quoted making
+// the intro, or an "Advisory Board" email thread directly tied to the
+// deal). Those are allow-listed back in by ID below so the tab doesn't
+// silently drop real AB-influenced deals just because of a vague source tag.
 const NON_AB_DEAL_SOURCES = ["BW", "Personal Connection", "Intro (non AB Member) / Referral"];
+
+// Deal IDs manually confirmed (via Notes/Email review, 10/1/26) to have
+// genuine Airvet Advisory Board involvement despite their deal_source being
+// one of the NON_AB_DEAL_SOURCES above. See conversation history for the
+// quoted evidence behind each one.
+const MANUALLY_CONFIRMED_AB_DEAL_IDS = new Set([
+  "17695519334", // Congruex - CS — joined the AB, received an Advisory Agreement
+  "32681271661", // Medtronic - CC — advisor Duncan Micallef made the intro
+  "17906057234", // Shaw Industries Group - JR — co-hosted with AB member Jae Kullar
+  "55623978780", // RTX — note explicitly says "discussed AB"
+  "9837610930",  // Hewlett Packard Enterprise — contact is herself an advisor
+  "60348407408", // Indeed - SK — "Sarah Sloan advisor discount" applied
+  "34356334447", // Philip Morris International - JR — invited to join the AB (matches internal HS report)
+  "41514257163", // Pixar - AB — referenced a Client Advisory Board contact
+  "12973141120", // Nasdaq — Brandon invited contact to the advisory council
+  "11950232999", // Fi — Brandon's father, an advisor to Fi, drove deal terms
+  "21003484815", // Self Esteem Clothing - CS — "Bob [Antin] on our Board" intro
+  "11164079773", // B. Riley Financial - CS — "Bob on both boards and put us in touch"
+  "11164080530", // Heska — drill-down: Bob Antin (moderate confidence, no separate note)
+  "14380676001", // Sage Valley Golf — drill-down: "Brandon intro from Bob Antin" (moderate confidence)
+]);
 
 export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
   const token = process.env.HUBSPOT_TOKEN;
@@ -406,12 +434,7 @@ export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
   do {
     const body: Record<string, unknown> = {
       filterGroups: [
-        {
-          filters: [
-            { propertyName: "deal_source_category", operator: "EQ", value: "AB / Community" },
-            { propertyName: "deal_source", operator: "NOT_IN", values: NON_AB_DEAL_SOURCES },
-          ],
-        },
+        { filters: [{ propertyName: "deal_source_category", operator: "EQ", value: "AB / Community" }] },
       ],
       properties: DEAL_PROPERTIES,
       sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
@@ -432,7 +455,13 @@ export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
     after = page.paging?.next?.after;
   } while (after);
 
-  return all;
+  // Exclude the generally-not-advisor-driven sources, except for the
+  // specific deals manually confirmed otherwise above.
+  return all.filter((d) => {
+    const source = d.properties.deal_source;
+    if (!source || !NON_AB_DEAL_SOURCES.includes(source)) return true;
+    return MANUALLY_CONFIRMED_AB_DEAL_IDS.has(d.id);
+  });
 }
 
 export async function fetchAllTickets(pipelineId: string): Promise<HubSpotResult[]> {
