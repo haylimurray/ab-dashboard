@@ -179,6 +179,16 @@ const COORDS: Record<string, [number, number]> = {
   "honolulu, hi": [21.3069, -157.8583], "hilo, hi": [19.7297, -155.09],
 };
 
+// International city lookup — keyed by lowercase city name only.
+// geocodeLocation checks this before the US COORDS table.
+const INTL_COORDS: Record<string, [number, number]> = {
+  "toronto":   [43.6532, -79.3832],  // Canada
+  "munich":    [48.1351, 11.5820],   // Germany
+  "walldorf":  [49.3045, 8.6425],    // Germany
+  "tokyo":     [35.6762, 139.6503],  // Japan
+  "hyderabad": [17.3850, 78.4867],   // India
+};
+
 // Maps full US state names to two-letter abbreviations
 const STATE_NAMES: Record<string, string> = {
   alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
@@ -206,11 +216,25 @@ export function geocodeLocation(
   city: string | null | undefined,
   state: string | null | undefined
 ): [number, number] | null {
-  if (!city) return null;
-  const c = city.trim().toLowerCase();
+  const c = city?.trim().toLowerCase() ?? "";
+  // HubSpot sometimes puts "City, Region" in the state field with no city value.
+  // Use the first comma-token of state as a fallback city key.
+  const intlKey = c || (state?.split(",")[0].trim().toLowerCase() ?? "");
+  if (intlKey && intlKey in INTL_COORDS) return INTL_COORDS[intlKey];
+
+  if (!c) return null;
   const st = normalizeState(state);
   const key = st ? `${c}, ${st.toLowerCase()}` : c;
   return COORDS[key] ?? null;
+}
+
+export function isInternational(
+  city: string | null | undefined,
+  state: string | null | undefined
+): boolean {
+  const c = city?.trim().toLowerCase() ?? "";
+  const intlKey = c || (state?.split(",")[0].trim().toLowerCase() ?? "");
+  return Boolean(intlKey && intlKey in INTL_COORDS);
 }
 
 // Small deterministic jitter so multiple advisors in the same city

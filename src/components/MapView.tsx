@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { AdvisorContact } from "@/types";
-import { geocodeLocation, getJitter, normalizeState } from "@/lib/geocode";
+import { geocodeLocation, getJitter, isInternational, normalizeState } from "@/lib/geocode";
 
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from "react-leaflet";
@@ -233,6 +233,15 @@ const TILE_DARK    = "https://services.arcgisonline.com/ArcGIS/rest/services/Can
 const TILE_LIGHT   = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}";
 const TILE_ATTR    = '&copy; <a href="https://www.esri.com">Esri</a> &mdash; Esri, HERE, Garmin, FAO, NOAA, USGS';
 
+// Country label for international advisors, keyed by lowercase city name
+const INTL_COUNTRY: Record<string, string> = {
+  "toronto":   "Canada",
+  "munich":    "Germany",
+  "walldorf":  "Germany",
+  "tokyo":     "Japan",
+  "hyderabad": "India",
+};
+
 interface Props {
   advisors: AdvisorContact[];
   onSelectAdvisor: (advisor: AdvisorContact) => void;
@@ -245,7 +254,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
 
   const plotted = useMemo<PlottedAdvisor[]>(() =>
     advisors
-      .filter((a) => a.city)
+      .filter((a) => a.city || a.state)
       .reduce<PlottedAdvisor[]>((acc, a) => {
         const coords = geocodeLocation(a.city, a.state);
         if (!coords) return acc;
@@ -262,16 +271,27 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
     [advisors]
   );
 
-  // For every plotted advisor: find nearest market + distance
+  // Split plotted into domestic (US) and international
+  const { domesticPlotted, intlPlotted } = useMemo(() => {
+    const domestic: PlottedAdvisor[] = [];
+    const intl: PlottedAdvisor[] = [];
+    for (const p of plotted) {
+      if (isInternational(p.advisor.city, p.advisor.state)) intl.push(p);
+      else domestic.push(p);
+    }
+    return { domesticPlotted: domestic, intlPlotted: intl };
+  }, [plotted]);
+
+  // For every domestic plotted advisor: find nearest market + distance
   const advisorMarketDists = useMemo(() =>
-    plotted.map(({ advisor, rawLat, rawLng }) => {
+    domesticPlotted.map(({ advisor, rawLat, rawLng }) => {
       const dists = MARKETS.map((m) => ({
         name: m.name,
         distance: haversine(rawLat, rawLng, m.lat, m.lng),
       })).sort((a, b) => a.distance - b.distance);
       return { advisor, nearest: dists[0], top2: dists.slice(0, 2) };
     }),
-    [plotted]
+    [domesticPlotted]
   );
 
   // Core: within 100 miles of nearest hub
@@ -294,7 +314,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
       .sort((a, b) => a.advisor.name.localeCompare(b.advisor.name));
   }, [advisorMarketDists]);
 
-  const unplotted = advisors.filter((a) => a.city).length - plotted.length;
+  const unplotted = advisors.filter((a) => a.city || a.state).length - plotted.length;
 
   if (!mounted) {
     return (
@@ -335,14 +355,15 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
           </div>
         ))}
         <span className="ml-auto text-xs text-gray-400 dark:text-dark-muted">
-          {plotted.length} of {advisors.filter((a) => a.city).length} plotted
+          {plotted.length} of {advisors.filter((a) => a.city || a.state).length} plotted
+          {intlPlotted.length > 0 && ` · ${intlPlotted.length} international`}
           {unplotted > 0 && ` · ${unplotted} city not in lookup`}
         </span>
       </div>
 
       {/* Map */}
       <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
-        <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: "100%", width: "100%" }}>
+        <MapContainer center={[39.5, -98.35]} zoom={4} minZoom={2} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             key={darkMode ? "dark" : "light"}
             url={darkMode ? TILE_DARK : TILE_LIGHT}
@@ -353,8 +374,12 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
             const color = advisor.healthLoaded
               ? (advisor.doNotContact ? "#991b1b" : HEALTH_COLOR[advisor.healthColor])
               : UNLOADED_COLOR;
-            const st = normalizeState(advisor.state);
-            const location = advisor.city && st ? `${advisor.city}, ${st}` : (advisor.city ?? "");
+            const intl = isInternational(advisor.city, advisor.state);
+            const cityKey = (advisor.city?.trim().toLowerCase() ?? "") || (advisor.state?.split(",")[0].trim().toLowerCase() ?? "");
+            const displayCity = advisor.city?.trim() || advisor.state?.split(",")[0].trim();
+            const location = intl
+              ? `${displayCity ?? ""}${INTL_COUNTRY[cityKey] ? `, ${INTL_COUNTRY[cityKey]}` : ""}`
+              : (advisor.city && normalizeState(advisor.state) ? `${advisor.city}, ${normalizeState(advisor.state)}` : (advisor.city ?? ""));
             return (
               <CircleMarker
                 key={advisor.id}
@@ -397,6 +422,46 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
         </div>
 
         <ExtendedPanel entries={extendedEntries} onSelectAdvisor={onSelectAdvisor} />
+
+        {intlPlotted.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-dark-text">International</h3>
+              <span className="text-xs text-gray-400 dark:text-dark-muted bg-gray-100 dark:bg-dark-hover rounded-full px-2 py-0.5">
+                {intlPlotted.length}
+              </span>
+            </div>
+            <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card shadow-sm overflow-hidden">
+              <ul className="divide-y divide-gray-100 dark:divide-dark-border">
+                {intlPlotted.map(({ advisor }) => {
+                  const cityKey = (advisor.city?.trim().toLowerCase() ?? "") || (advisor.state?.split(",")[0].trim().toLowerCase() ?? "");
+                  const displayCity = advisor.city?.trim() || advisor.state?.split(",")[0].trim();
+                  const country = INTL_COUNTRY[cityKey] ?? "";
+                  return (
+                    <li key={advisor.id}>
+                      <button
+                        className="w-full text-left px-5 py-3 flex items-center justify-between gap-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+                        onClick={() => onSelectAdvisor(advisor)}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm font-medium text-gray-900 dark:text-dark-text hover:text-airvet-blue">
+                            {advisor.name}
+                          </span>
+                          {advisor.company && (
+                            <span className="text-sm text-gray-400 dark:text-dark-muted"> · {advisor.company}</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400 dark:text-dark-muted flex-shrink-0">
+                          {displayCity}{country ? `, ${country}` : ""}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
