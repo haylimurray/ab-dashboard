@@ -67,6 +67,7 @@ const COORDS: Record<string, [number, number]> = {
   "franklin, tn": [35.9251, -86.8689],
   "bloomington, il": [40.4842, -88.9937],
   "northbrook, il": [42.1275, -87.8290],
+  "geneva, il": [41.8875, -88.3054],
   "renton, wa": [47.4829, -122.2171],
   "broomfield, co": [39.9205, -105.0867],
   "littleton, co": [39.6133, -105.0166],
