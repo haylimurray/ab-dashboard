@@ -425,6 +425,43 @@ const MANUALLY_CONFIRMED_AB_DEAL_IDS = new Set([
   "63327762865", // Starkey - GH — advisor Ryan Seman confirmed active in AB community (fantasy football, "airvet advisors" email); re-found via company-name matching audit (10/1/26)
 ]);
 
+// Advisor attributions confirmed via company-name matching + verified against
+// deal_source_drill_down / Notes text (10/1/26), for deals whose
+// advisory_board_member field in HubSpot is still empty. Hayli doesn't have
+// admin access to add new options to that HubSpot picklist, so these are
+// applied here in the dashboard directly rather than written back to
+// HubSpot. Only deals with EXPLICIT textual evidence (not just "an advisor
+// happens to work there") are included — see conversation history for the
+// quoted drill-down/notes text behind each one. A larger set of
+// company-matched candidates were checked and excluded here because the
+// notes pointed to a different contact entirely (e.g. Home Depot's "JR"
+// deal names "Lesley," not Tim Hourigan; Rackspace's notes name "Summer,"
+// not Kelly Butler; the three SAP deals all credit "Chetna"/BW, not Jason
+// Russell) — those are deliberately left unattributed rather than guessed.
+export const MANUAL_ADVISOR_OVERRIDES: Record<string, string> = {
+  "64248528820": "Timothy Hourigan", // Home Depot US — drill-down: "Tim Hourigan intro to Casey Richter"
+  "60715071303": "Timothy Hourigan", // Home Depot Mexico 2027 — drill-down: "Tim Hourigan introduction"
+  "63835113498": "Jaime Stack",      // Sevita — drill-down is literally "Jaime Stack"
+  "62121596766": "Betsy Harrison",   // Tenet Health — "Betsy Harrison is the key contact there and is an AB member"
+  "60348407408": "Sarah Sloan",      // Indeed - SK — "Also AB Sarah Sloan"
+  "35074702395": "Sarah Sloan",      // Indeed, Inc.- CS — "Amy Green recommended Sarah for AB"
+  "57980169827": "Nicole Fitz",      // Ally (Partnership) - SK — "Nicole Fitz helped to dream up this partnership"
+  "56611692637": "Mark Griffin",     // BJ's Wholesale - KC — "Candace Jodice Intro to Mark Griffin"
+  "52474226801": "Sabrina Becker",   // Jacobs Global (All) - SK — drill-down: "Sabrina Becker AB"
+  "47098128423": "Shari Eaton",      // Chobani - GH — "Shari is a current ABM. Shari has since left Chobani"
+  "38264011779": "Tonyia Purdy",     // MasterBrand - SK — note: "more excited about Advisory board than for MasterBrand"
+  "37728955505": "Derek Butts",      // Phillips 66 — "AB - Derek considering joining"
+  "34563779729": "Jerrold Hill",     // Fiserv - SK — "Lauren met Jerrold at the ATL dinner"
+  "33352192370": "Niko Triantafillou", // Citi - KC — "Lauren then reached out to Niko for ABM"
+  "33118476214": "Daniela Gaudio",   // Fugro USA Holdings - CS — "Had call w/ Dani as part of AB onboarding"
+  "32085393288": "Andy Valenzuela",  // Salesforce - CC — drill-down: "Andy- AB"
+  "23254606960": "Bruce Monte",      // Yale University - JR — "Lauren brought Bruce on as an ABM"
+  "23252299776": "Michelle Haggard", // Cummins Inc - SK — "Lauren connected with Michelle and was brought on as ABM"
+  "22863752052": "Jordan Backman",   // AMC Networks - JR — "Lauren introduced me to Jordan"
+  "31662311050": "Martin Robatti",   // BNY Mellon - JR — "David Landman intro'ed us to Martin"
+  "38774299817": "Marissa Andrada",  // Krispy Kreme - JR — "Got introduced by Marisa to Jim" (jobtitle also says Board Member, Krispy Kreme)
+};
+
 export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
   const token = process.env.HUBSPOT_TOKEN;
   if (!token) throw new Error("HUBSPOT_TOKEN is not set");

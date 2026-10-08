@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAbInfluencedDeals } from "@/lib/hubspot";
+import { fetchAbInfluencedDeals, MANUAL_ADVISOR_OVERRIDES } from "@/lib/hubspot";
 import type { AbInfluencedDeal, AbInfluencedDealsData } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         isClosedWon,
         isClosed,
         dealSource: p.deal_source ?? null,
-        advisoryBoardMember: p.advisory_board_member ?? null,
+        advisoryBoardMember: p.advisory_board_member ?? MANUAL_ADVISOR_OVERRIDES[d.id] ?? null,
         createdDate: p.createdate ?? null,
         closeDate: p.closedate ?? null,
       };
