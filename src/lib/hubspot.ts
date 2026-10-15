@@ -462,6 +462,65 @@ export const MANUAL_ADVISOR_OVERRIDES: Record<string, string> = {
   "38774299817": "Marissa Andrada",  // Krispy Kreme - JR — "Got introduced by Marisa to Jim" (jobtitle also says Board Member, Krispy Kreme)
 };
 
+// Deal stage ID → label across every deal pipeline (2023-2027 + Renewals).
+// Fallback only: fetchDealStageLabels() below refreshes this from HubSpot so
+// new pipelines (e.g. a 2028 pipeline) are picked up automatically.
+const STATIC_DEAL_STAGE_LABELS: Record<string, string> = {
+  // 2023 Sales Pipeline
+  "28787293": "ISQL/BDR (First Meeting Scheduled)", qualifiedtobuy: "SQL (First Meeting Held)",
+  presentationscheduled: "Actively Evaluating / Proposal Delivered",
+  "47052819": "Seeking Executive Review & Confirmation of Proposal",
+  "94731549": "Executive Review & Confirmation of Proposal Terms / Term Sheet Sent",
+  contractsent: "Contracting", closedwon: "Closed won", closedlost: "Closed lost",
+  // 2024 Sales Pipeline
+  "215240789": "Consultant Opportunity", "94731383": "First Meeting Scheduled", "94731384": "Identified",
+  "94731385": "Active Pursuit", "94731387": "Executive Review", "95145797": "Contracting",
+  "94731388": "Closed won", "94731389": "Closed lost", "155157071": "Future Follow Up",
+  // 2025 Sales Pipeline
+  "219255588": "Consultant Opportunity", "1003848800": "Expressed Interest", "219257479": "First Meeting Scheduled",
+  "219235964": "Identified", "219238464": "Active Pursuit", "219257482": "Executive Review",
+  "219257483": "Contracting", "219235931": "Closed Won", "219235932": "Closed Lost",
+  // 2026 Sales Pipeline
+  "1066455477": "Consultant Opportunity", "1066455478": "Employer Opportunity", "1066455479": "Identified",
+  "1066455481": "Active Pursuit", "1066519921": "Executive Review", "1066462011": "Contracting",
+  "1066455552": "Closed Won", "1066455553": "Closed Lost",
+  // 2027 Sales Pipeline
+  "1281726631": "Consultant Opportunity", "1281726632": "Employer Opportunity", "1281726633": "Identified",
+  "1281726634": "Active Pursuit", "1281726635": "Executive Review", "1281726636": "Contracting",
+  "1281726637": "Closed Won", "1281726638": "Closed Lost",
+  // Renewals
+  "1314055476": "Identified", "1314055477": "Planning", "1314055478": "Presented",
+  "1314049660": "Verbal Commitment", "1314055479": "Contracting", "1314055481": "Closed Won", "1314055482": "Closed Lost",
+};
+
+let dealStageLabelCache: { map: Record<string, string>; expiresAt: number } | null = null;
+
+export async function fetchDealStageLabels(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (dealStageLabelCache && now < dealStageLabelCache.expiresAt) return dealStageLabelCache.map;
+
+  const map: Record<string, string> = { ...STATIC_DEAL_STAGE_LABELS };
+  try {
+    const token = process.env.HUBSPOT_TOKEN;
+    if (token) {
+      const res = await fetch(`${BASE}/crm/v3/pipelines/deals`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        for (const p of (data.results ?? []) as { stages?: { id: string; label: string }[] }[]) {
+          for (const s of p.stages ?? []) map[s.id] = s.label;
+        }
+      }
+    }
+  } catch {
+    // keep the static fallback
+  }
+  dealStageLabelCache = { map, expiresAt: now + 60 * 60 * 1000 };
+  return map;
+}
+
 export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
   const token = process.env.HUBSPOT_TOKEN;
   if (!token) throw new Error("HUBSPOT_TOKEN is not set");

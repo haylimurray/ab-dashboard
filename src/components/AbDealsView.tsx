@@ -29,6 +29,34 @@ function stagePill(stage: AbInfluencedDeal["stageLabel"]): string {
   return "bg-gray-100 text-gray-500 dark:bg-dark-hover dark:text-dark-muted";
 }
 
+// Pipeline order for sorting the detailed stage column (earliest → latest).
+function stageRank(label: string | null): number {
+  if (!label) return 99;
+  const l = label.toLowerCase();
+  if (l.includes("closed won")) return 90;
+  if (l.includes("closed lost")) return 91;
+  if (l.includes("contract")) return 6;
+  if (l.includes("executive review")) return 5;
+  if (l.includes("active pursuit") || l.includes("actively evaluating")) return 4;
+  if (l.includes("identified")) return 3;
+  if (l.includes("first meeting") || l.includes("sql")) return 2;
+  return 1;
+}
+
+// Colors for the detailed stage pill. Executive Review / Contracting are
+// highlighted (matches the "Late Stage" summary tile).
+function stageDetailPill(label: string | null, isLate: boolean): string {
+  if (isLate) return "bg-amber-100 text-amber-800 font-semibold dark:bg-amber-900/40 dark:text-amber-300";
+  if (!label) return "bg-gray-100 text-gray-400 dark:bg-dark-hover dark:text-dark-muted";
+  const l = label.toLowerCase();
+  if (l.includes("closed won")) return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400";
+  if (l.includes("closed lost")) return "bg-gray-100 text-gray-500 dark:bg-dark-hover dark:text-dark-muted";
+  if (l.includes("active pursuit") || l.includes("actively evaluating")) return "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300";
+  return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
+}
+
+type StageFilter = "" | AbInfluencedDeal["stageLabel"] | "Late Stage";
+
 type SortDir = "asc" | "desc";
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
@@ -44,7 +72,7 @@ export default function AbDealsView() {
   const [data, setData]       = useState<AbInfluencedDealsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
-  const [stageFilter, setStageFilter] = useState<"" | AbInfluencedDeal["stageLabel"]>("");
+  const [stageFilter, setStageFilter] = useState<StageFilter>("");
   const [yearFilter, setYearFilter]   = useState<string>(""); // "" = all time
   const [sort, setSort]       = useState<{ field: string; dir: SortDir }>({ field: "createdDate", dir: "desc" });
 
@@ -97,13 +125,18 @@ export default function AbDealsView() {
   }, [data, yearFilter]);
 
   const sorted = useMemo(() => {
-    let rows = stageFilter ? yearFiltered.filter((d) => d.stageLabel === stageFilter) : [...yearFiltered];
+    let rows = !stageFilter
+      ? [...yearFiltered]
+      : stageFilter === "Late Stage"
+        ? yearFiltered.filter((d) => d.isLateStage)
+        : yearFiltered.filter((d) => d.stageLabel === stageFilter);
     rows.sort((a, b) => {
       let av: string | number = "", bv: string | number = "";
       switch (sort.field) {
         case "name":       av = a.name.toLowerCase();      bv = b.name.toLowerCase();      break;
         case "amount":     av = a.amount ?? -1;             bv = b.amount ?? -1;             break;
         case "stageLabel": av = a.stageLabel;               bv = b.stageLabel;               break;
+        case "dealStage":  av = stageRank(a.dealStage);     bv = stageRank(b.dealStage);     break;
         case "advisoryBoardMember": av = (a.advisoryBoardMember ?? "").toLowerCase(); bv = (b.advisoryBoardMember ?? "").toLowerCase(); break;
         case "createdDate":
         default:
@@ -154,9 +187,19 @@ export default function AbDealsView() {
       )
     : data;
 
-  const cards: { label: string; count: number; amount: number; filterKey: "" | AbInfluencedDeal["stageLabel"]; accent: string; bg: string; text: string }[] = [
+  // Late stage = open deals in Executive Review or Contracting (any pipeline).
+  const lateDeals = yearFiltered.filter((d) => d.isLateStage);
+  const lateStats = {
+    count: lateDeals.length,
+    amount: lateDeals.reduce((s, d) => s + (d.amount ?? 0), 0),
+    exec: lateDeals.filter((d) => /executive review/i.test(d.dealStage ?? "")).length,
+    contracting: lateDeals.filter((d) => /contracting/i.test(d.dealStage ?? "")).length,
+  };
+
+  const cards: { label: string; sub?: string; count: number; amount: number; filterKey: StageFilter; accent: string; bg: string; text: string }[] = [
     { label: "Total",       count: yearStats.total,          amount: yearStats.totalAmount,     filterKey: "",            accent: "#1B3A6B", bg: "bg-white dark:bg-dark-card",   text: "text-gray-900 dark:text-dark-text" },
     { label: "Open",        count: yearStats.openCount,       amount: yearStats.openAmount,      filterKey: "Open",        accent: "#0062F5", bg: "bg-blue-50 dark:bg-dark-card", text: "text-blue-700 dark:text-blue-400" },
+    { label: "Late Stage",  sub: `${lateStats.exec} Exec Review · ${lateStats.contracting} Contracting`, count: lateStats.count, amount: lateStats.amount, filterKey: "Late Stage", accent: "#D97706", bg: "bg-amber-50 dark:bg-dark-card", text: "text-amber-700 dark:text-amber-400" },
     { label: "Closed Won",  count: yearStats.closedWonCount,  amount: yearStats.closedWonAmount, filterKey: "Closed Won",  accent: "#16a34a", bg: "bg-green-50 dark:bg-dark-card", text: "text-green-700 dark:text-green-400" },
     { label: "Closed Lost", count: yearStats.closedLostCount, amount: yearStats.closedLostAmount, filterKey: "Closed Lost", accent: "#6b7280", bg: "bg-gray-50 dark:bg-dark-card", text: "text-gray-600 dark:text-dark-muted" },
   ];
@@ -164,7 +207,7 @@ export default function AbDealsView() {
   return (
     <>
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
         {cards.map((card) => {
           const active = stageFilter === card.filterKey;
           return (
@@ -181,6 +224,7 @@ export default function AbDealsView() {
               </p>
               <p className={`mt-1.5 text-4xl font-extrabold ${card.text}`}>{card.count}</p>
               <p className="mt-0.5 text-xs text-gray-400 dark:text-dark-muted">{formatCompact(card.amount)}</p>
+              {card.sub && <p className="mt-0.5 text-[11px] font-medium text-amber-700/80 dark:text-amber-400/80">{card.sub}</p>}
             </button>
           );
         })}
@@ -212,7 +256,9 @@ export default function AbDealsView() {
           </select>
           {stageFilter && (
             <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stagePill(stageFilter)}`}>
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                stageFilter === "Late Stage" ? stageDetailPill("Executive Review", true) : stagePill(stageFilter)
+              }`}>
                 {stageFilter}
               </span>
               <button onClick={() => setStageFilter("")} className="text-gray-400 dark:text-dark-muted hover:text-gray-600 text-xs">
@@ -241,7 +287,8 @@ export default function AbDealsView() {
               <tr>
                 {[
                   { label: "Deal",     field: "name" },
-                  { label: "Stage",    field: "stageLabel" },
+                  { label: "Status",   field: "stageLabel" },
+                  { label: "Stage",    field: "dealStage" },
                   { label: "Amount",   field: "amount" },
                   { label: "Advisor",  field: "advisoryBoardMember" },
                   { label: "Source",   field: "" },
@@ -267,6 +314,14 @@ export default function AbDealsView() {
                       {d.stageLabel}
                     </span>
                   </td>
+                  <td className="px-3 py-2.5">
+                    <span
+                      title={d.dealStage ?? undefined}
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${stageDetailPill(d.dealStage, d.isLateStage)}`}
+                    >
+                      {d.dealStage ?? "—"}
+                    </span>
+                  </td>
                   <td className="px-3 py-2.5 text-sm text-gray-600 dark:text-dark-muted whitespace-nowrap">{formatMoney(d.amount)}</td>
                   <td className="px-3 py-2.5 text-sm text-gray-600 dark:text-dark-muted whitespace-nowrap">
                     {d.advisoryBoardMember ?? <span className="text-gray-300 dark:text-dark-border">Unattributed</span>}
@@ -277,7 +332,7 @@ export default function AbDealsView() {
               ))}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-sm text-gray-400 dark:text-dark-muted">
+                  <td colSpan={7} className="px-3 py-8 text-center text-sm text-gray-400 dark:text-dark-muted">
                     No AB-influenced deals match this filter.
                   </td>
                 </tr>

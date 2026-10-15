@@ -239,6 +239,8 @@ export interface AbInfluencedDeal {
   name: string;
   amount: number | null;
   stageLabel: "Open" | "Closed Won" | "Closed Lost";
+  dealStage: string | null;   // detailed HubSpot pipeline stage (Identified, Active Pursuit, Executive Review, Contracting, ...)
+  isLateStage: boolean;       // open deal in Executive Review or Contracting
   isClosedWon: boolean;
   isClosed: boolean;
   dealSource: string | null;

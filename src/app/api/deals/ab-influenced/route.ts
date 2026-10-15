@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAbInfluencedDeals, MANUAL_ADVISOR_OVERRIDES } from "@/lib/hubspot";
+import { fetchAbInfluencedDeals, fetchDealStageLabels, MANUAL_ADVISOR_OVERRIDES } from "@/lib/hubspot";
 import type { AbInfluencedDeal, AbInfluencedDealsData } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -29,17 +29,21 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("[/api/deals/ab-influenced] Cache MISS — fetching from HubSpot");
-    const raw = await fetchAbInfluencedDeals();
+    const [raw, stageLabels] = await Promise.all([fetchAbInfluencedDeals(), fetchDealStageLabels()]);
 
     const deals: AbInfluencedDeal[] = raw.map((d) => {
       const p = d.properties;
       const isClosedWon = (p.hs_is_closed_won ?? "false") === "true";
       const isClosed = (p.hs_is_closed ?? "false") === "true";
+      const dealStage = p.dealstage ? (stageLabels[p.dealstage] ?? null) : null;
+      const isLateStage = !isClosed && !!dealStage && /executive review|contracting/i.test(dealStage);
       return {
         id: d.id,
         name: p.dealname ?? "Unnamed deal",
         amount: p.amount ? Number(p.amount) : null,
         stageLabel: stageLabel(isClosedWon, isClosed),
+        dealStage,
+        isLateStage,
         isClosedWon,
         isClosed,
         dealSource: p.deal_source ?? null,
