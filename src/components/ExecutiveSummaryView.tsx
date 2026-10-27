@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AbInfluencedDealsData, AdvisorContact, RequestsData } from "@/types";
 import { computeOutreachStatus } from "@/lib/health";
+import {
+  ASK_HEAVY_FLAG,
+  RELATIONSHIP_BAR,
+  RELATIONSHIP_LABEL,
+  RELATIONSHIP_ORDER,
+  RELATIONSHIP_PILL,
+  computeRelationship,
+  type RelationshipStatus,
+} from "@/lib/relationship";
 
 interface Props {
   advisors: AdvisorContact[];
@@ -45,12 +54,12 @@ const BW_CIRCLE: { name: string; email: string; title: string; company: string }
 const STATUS_PILL: Record<string, string> = {
   paused:     "bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted",
   client:     "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400",
-  healthy:    "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
-  caution:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
-  inCooldown: "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
+  active:     "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
+  due:        "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
+  overdue:    "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
 };
 const STATUS_LABEL: Record<string, string> = {
-  paused: "Paused", client: "Client", healthy: "Available", caution: "Caution", inCooldown: "Pause Outreach",
+  paused: "Paused", client: "Client", active: "Recently Contacted", due: "Due for a Touch", overdue: "Overdue",
 };
 
 function formatCompact(n: number): string {
@@ -81,17 +90,23 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
     fetch("/api/requests", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then(setRequests).catch(() => setRequests(null));
   }, []);
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { healthy: 0, caution: 0, inCooldown: 0, client: 0, paused: 0 };
+  const { relCounts, askHeavyCount } = useMemo(() => {
+    const counts: Record<RelationshipStatus, number> = {
+      highlyEngaged: 0, responsive: 0, slow: 0, notResponding: 0, new: 0, client: 0, paused: 0,
+    };
+    let askHeavy = 0;
+    const now = Date.now();
     for (const a of advisors) {
-      const status = computeOutreachStatus(a.daysSinceContact, a.healthLoaded, a.requestAvailability, 15, a.isClientAdvisor);
-      counts[status] = (counts[status] ?? 0) + 1;
+      const r = computeRelationship(a, now);
+      if (r.askHeavy) askHeavy++;
+      if (r.status) counts[r.status]++;
     }
-    return counts;
+    return { relCounts: counts, askHeavyCount: askHeavy };
   }, [advisors]);
 
   const total = advisors.length;
-  const availablePct = total > 0 ? Math.round((statusCounts.healthy / total) * 100) : 0;
+  const respondingCount = relCounts.highlyEngaged + relCounts.responsive;
+  const respondingPct = total > 0 ? Math.round((respondingCount / total) * 100) : 0;
 
   const bwCircle = useMemo(() => {
     const byEmail = new Map(advisors.map((a) => [a.email.toLowerCase(), a]));
@@ -121,7 +136,7 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
       {/* Top-line stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="Total Advisors" value={String(total)} accent="#1B3A6B" />
-        <StatCard label="Available Now" value={`${availablePct}%`} sub={`${statusCounts.healthy} of ${total}`} accent="#16a34a" />
+        <StatCard label="Responding" value={`${respondingPct}%`} sub={`${respondingCount} of ${total} replied in 90 days`} accent="#0062F5" />
         <StatCard
           label="AB-Influenced Deals"
           value={deals ? String(deals.total) : "…"}
@@ -138,21 +153,24 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
 
       {/* Engagement breakdown — condensed, not the full 6-card ladder */}
       <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm px-5 py-4 mb-6">
-        <p className="text-xs font-semibold text-gray-500 dark:text-dark-muted uppercase tracking-wider mb-3">Engagement Status</p>
-        <div className="flex h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-dark-hover mb-3">
-          {(["healthy", "caution", "inCooldown", "client", "paused"] as const).map((s) => {
-            const pct = total > 0 ? (statusCounts[s] / total) * 100 : 0;
-            const bar: Record<string, string> = { healthy: "#16a34a", caution: "#d97706", inCooldown: "#991b1b", client: "#7c3aed", paused: "#9ca3af" };
-            return pct > 0 ? <div key={s} style={{ width: `${pct}%`, backgroundColor: bar[s] }} title={`${STATUS_LABEL[s]}: ${statusCounts[s]}`} /> : null;
+        <p className="text-xs font-semibold text-gray-500 dark:text-dark-muted uppercase tracking-wider mb-3">Advisor Relationships</p>
+        <div className="flex h-3 rounded-full overflow-hidden bg-[#EEF2FB] dark:bg-dark-hover mb-3">
+          {RELATIONSHIP_ORDER.map((s) => {
+            const pct = total > 0 ? (relCounts[s] / total) * 100 : 0;
+            return pct > 0 ? <div key={s} style={{ width: `${pct}%`, backgroundColor: RELATIONSHIP_BAR[s] }} title={`${RELATIONSHIP_LABEL[s]}: ${relCounts[s]}`} /> : null;
           })}
         </div>
-        <div className="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-dark-muted">
-          {(["healthy", "caution", "inCooldown", "client", "paused"] as const).map((s) => (
+        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-dark-muted">
+          {RELATIONSHIP_ORDER.map((s) => (
             <span key={s} className="flex items-center gap-1.5">
-              <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${STATUS_PILL[s]}`}>{STATUS_LABEL[s]}</span>
-              {statusCounts[s]}
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${RELATIONSHIP_PILL[s]}`}>{RELATIONSHIP_LABEL[s]}</span>
+              {relCounts[s]}
             </span>
           ))}
+          <span className="ml-auto flex items-center gap-1.5">
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${ASK_HEAVY_FLAG}`}>Ask-heavy</span>
+            {askHeavyCount}
+          </span>
         </div>
       </div>
 

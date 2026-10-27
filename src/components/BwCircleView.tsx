@@ -34,13 +34,13 @@ const BW_CIRCLE: { name: string; email: string; title: string; company: string }
 const STATUS_PILL: Record<string, string> = {
   paused:     "bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted",
   client:     "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400",
-  healthy:    "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
-  caution:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
-  inCooldown: "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
+  active:     "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
+  due:        "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
+  overdue:    "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  paused: "Paused", client: "Client", healthy: "Available", caution: "Caution", inCooldown: "Pause Outreach",
+  paused: "Paused", client: "Client", active: "Recently Contacted", due: "Due for a Touch", overdue: "Overdue",
 };
 
 export default function BwCircleView({ advisors }: Props) {

@@ -64,6 +64,8 @@ export async function GET(request: NextRequest) {
         state: p.state ?? null,
         company: p.company ?? null,
         jobTitle: p.jobtitle ?? null,
+        lastRepliedDate: p.hs_sales_email_last_replied ?? null,
+        lastMeetingBooked: p.engagements_last_meeting_booked ?? null,
       };
     });
 

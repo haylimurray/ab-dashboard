@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchOutboundEmailTimestamps, type OutboundEmail } from "@/lib/hubspot";
+import { fetchEmailActivity, type OutboundEmail } from "@/lib/hubspot";
 import { getHealthScoreFromEmails, isDoNotContact } from "@/lib/health";
 import type { ContactHealth, EmailTouch, TeamLabel } from "@/types";
 
@@ -51,11 +51,14 @@ export async function GET(request: NextRequest) {
   console.log(`[/api/health] Cache MISS — fetching emails for contact ${id}`);
 
   let outboundEmails: OutboundEmail[] = [];
+  let inboundTimestamps: string[] = [];
   let usingFallback = false;
 
   try {
-    const emailMap = await fetchOutboundEmailTimestamps([id]);
-    outboundEmails = emailMap.get(id) ?? [];
+    const emailMap = await fetchEmailActivity([id]);
+    const activity = emailMap.get(id);
+    outboundEmails = activity?.outbound ?? [];
+    inboundTimestamps = activity?.inbound ?? [];
 
     if (outboundEmails.length === 0) {
       if (fallback) {
@@ -106,10 +109,18 @@ export async function GET(request: NextRequest) {
       })
     : [];
 
+  // Replies FROM the advisor (any Airvet sender's thread counts)
+  const inboundSorted = [...inboundTimestamps].sort((a, b) => parseTs(b) - parseTs(a));
+  const cutoff90 = now - 90 * 86_400_000;
+  const inboundEmailCount90d = inboundSorted.filter((t) => parseTs(t) >= cutoff90).length;
+  const lastReplyDate = inboundSorted[0] ?? null;
+
   const health: ContactHealth = {
     lastContacted: latestTimestamp,
     daysSinceContact: daysSinceLatest,
     outboundEmailCount90d: usingFallback ? 0 : outboundCount90d,
+    inboundEmailCount90d,
+    lastReplyDate,
     healthScore: score,
     healthColor: color,
     doNotContact: isDoNotContact(timestamps),

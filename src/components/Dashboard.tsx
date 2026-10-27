@@ -6,16 +6,18 @@ import type {
   ContactHealth,
   ContactListItem,
   ContactListResponse,
+  RequestsData,
   SortDir,
   SortField,
 } from "@/types";
 import type { Tab } from "@/lib/navigation";
 import { getBreadcrumb } from "@/lib/navigation";
 import dynamic from "next/dynamic";
-import SummaryCards from "./SummaryCards";
-import HealthScoreKey from "./HealthScoreKey";
+import RelationshipSummary from "./RelationshipSummary";
+import RelationshipKey from "./RelationshipKey";
 import AdvisorTable from "./AdvisorTable";
 import { computeOutreachStatus } from "@/lib/health";
+import { computeRelationship, countRecentAsks, relationshipRank } from "@/lib/relationship";
 import AdvisorDrawer from "./AdvisorDrawer";
 // import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
 import RequestsView from "./RequestsView";
@@ -50,6 +52,8 @@ const HEALTH_DEFAULTS: ContactHealth = {
   lastContacted: null,
   daysSinceContact: null,
   outboundEmailCount90d: 0,
+  inboundEmailCount90d: 0,
+  lastReplyDate: null,
   healthScore: 0,
   healthColor: "green",
   doNotContact: false,
@@ -80,6 +84,18 @@ function sortAdvisors(
         bv = b.healthLoaded ? b.healthScore : (dir === "asc" ? Infinity : -Infinity);
         break;
       case "salesStatus":  av = a.salesStatus?.toLowerCase() ?? ""; bv = b.salesStatus?.toLowerCase() ?? ""; break;
+      case "relationship":
+        av = relationshipRank(computeRelationship(a).status);
+        bv = relationshipRank(computeRelationship(b).status);
+        break;
+      case "lastReply": {
+        // Most recent reply first when ascending; advisors with no reply sort last
+        const ad = computeRelationship(a).daysSinceReply;
+        const bd = computeRelationship(b).daysSinceReply;
+        av = ad ?? Infinity;
+        bv = bd ?? Infinity;
+        break;
+      }
       default: return 0;
     }
 
@@ -97,6 +113,7 @@ export default function Dashboard() {
   const [healthTotal, setHealthTotal] = useState(0);
   const [error, setError]             = useState<string | null>(null);
   const [fetchedAt, setFetchedAt]     = useState<string | null>(null);
+  const [requests, setRequests]       = useState<RequestsData | null>(null);
   const [activeTab, setActiveTab]     = useState<Tab>("advisors");
   const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [darkMode, setDarkMode]       = useState(false);
@@ -120,6 +137,7 @@ export default function Dashboard() {
     advisorType: "",
     tier: "",
     outreachStatus: "",
+    relationship: "",
     search: "",
     market: "",
     connector: "",
@@ -206,6 +224,15 @@ export default function Dashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // AB requests (tickets) — used to flag advisors we've asked 3+ times in 60 days.
+  // Non-blocking: if this fails, advisors simply show 0 asks.
+  useEffect(() => {
+    fetch("/api/requests", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<RequestsData>) : null))
+      .then(setRequests)
+      .catch(() => setRequests(null));
+  }, []);
+
   const handleSort = useCallback((field: SortField) => {
     setSort((prev) =>
       prev.field === field
@@ -219,14 +246,20 @@ export default function Dashboard() {
   }, []);
 
   // Compose full AdvisorContact objects from contacts + lazily-loaded health
+  const askCounts = useMemo(
+    () => (requests ? countRecentAsks(requests.tickets, contacts.map((c) => ({ id: c.id, name: c.name }))) : {}),
+    [requests, contacts]
+  );
+
   const advisors: AdvisorContact[] = useMemo(
     () =>
       contacts.map((c) => ({
         ...c,
         healthLoaded: c.id in health,
         ...(health[c.id] ?? HEALTH_DEFAULTS),
+        asksLast60d: askCounts[c.id] ?? 0,
       })),
-    [contacts, health]
+    [contacts, health, askCounts]
   );
 
   // Derive the selected advisor from live state so the drawer updates as
@@ -274,6 +307,13 @@ export default function Dashboard() {
         const st = normalizeState(a.state);
         const loc = st ? `${a.city}, ${st}` : a.city;
         return loc === filters.market;
+      });
+    }
+    if (filters.relationship) {
+      result = result.filter((a) => {
+        const r = computeRelationship(a);
+        if (filters.relationship === "askHeavy") return r.askHeavy;
+        return r.status === filters.relationship;
       });
     }
     if (filters.outreachStatus) {
@@ -422,19 +462,28 @@ export default function Dashboard() {
               <>
                 {activeTab === "advisors" && (
                   <>
-                    <SummaryCards advisors={advisors} />
-                    <HealthScoreKey cooldownDays={15} />
-                    <AdvisorTable
-                      advisors={filtered}
-                      onSelectAdvisor={(a) => setSelectedId(a.id)}
-                      sort={sort}
-                      onSort={handleSort}
-                      filters={filters}
-                      onFilterChange={handleFilterChange}
-                      uniqueTiers={uniqueTiers}
-                      uniqueTypes={uniqueTypes}
-                      uniqueMarkets={uniqueMarkets}
+                    <RelationshipSummary
+                      advisors={advisors}
+                      onSelectStatus={(s) => handleFilterChange("relationship", filters.relationship === s ? "" : s)}
                     />
+                    <div className="flex flex-col xl:flex-row gap-4 items-start">
+                      <div className="flex-1 min-w-0 w-full">
+                        <AdvisorTable
+                          advisors={filtered}
+                          onSelectAdvisor={(a) => setSelectedId(a.id)}
+                          sort={sort}
+                          onSort={handleSort}
+                          filters={filters}
+                          onFilterChange={handleFilterChange}
+                          uniqueTiers={uniqueTiers}
+                          uniqueTypes={uniqueTypes}
+                          uniqueMarkets={uniqueMarkets}
+                        />
+                      </div>
+                      <div className="w-full xl:w-60 xl:flex-shrink-0 xl:sticky xl:top-4 print:hidden">
+                        <RelationshipKey />
+                      </div>
+                    </div>
                   </>
                 )}
                 {activeTab === "map" && (

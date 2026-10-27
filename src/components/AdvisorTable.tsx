@@ -4,12 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AdvisorContact, SortDir, SortField } from "@/types";
 import { computeOutreachStatus } from "@/lib/health";
 import { normalizeState } from "@/lib/geocode";
+import RelationshipBadge from "./RelationshipBadge";
+import {
+  RELATIONSHIP_LABEL,
+  RELATIONSHIP_ORDER,
+  computeRelationship,
+} from "@/lib/relationship";
 
 // ── Column definitions ────────────────────────────────────────────────────────
 
 type ColId =
   | "name" | "title" | "advisorType" | "tier" | "location" | "lastContacted"
-  | "daysSinceContact" | "healthScore" | "availability" | "connector"
+  | "daysSinceContact" | "healthScore" | "lastReply" | "outreachDetail"
+  | "availability" | "connector"
   | "contract" | "priority" | "salesStatus" | "status";
 
 interface ColDef {
@@ -27,16 +34,19 @@ const COLS: ColDef[] = [
   { id: "location",         label: "Location" },
   { id: "lastContacted",    label: "Last Contacted",  field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
-  { id: "healthScore",      label: "Outreach Status", field: "healthScore",     alwaysVisible: true },
+  { id: "healthScore",      label: "Relationship",    field: "relationship",    alwaysVisible: true },
+  { id: "lastReply",        label: "Last Heard From", field: "lastReply" },
+  { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
   { id: "availability",     label: "Availability" },
   { id: "contract",         label: "Contract" },
   { id: "priority",         label: "Priority" },
   { id: "salesStatus",      label: "Sales Status",    field: "salesStatus" },
-  { id: "status",           label: "Status" },
 ];
 
+// Outreach detail is hidden by default — the Relationship column is the headline
+// status; turn on "Outreach Detail" under Columns for the us-to-them timing view.
 const DEFAULT_VIS: Record<ColId, boolean> = Object.fromEntries(
-  COLS.map((c) => [c.id, true])
+  COLS.map((c) => [c.id, c.id !== "outreachDetail"])
 ) as Record<ColId, boolean>;
 
 // ── Font size ─────────────────────────────────────────────────────────────────
@@ -52,7 +62,7 @@ interface Props {
   onSelectAdvisor: (advisor: AdvisorContact) => void;
   sort: { field: SortField; dir: SortDir };
   onSort: (field: SortField) => void;
-  filters: { advisorType: string; tier: string; outreachStatus: string; search: string; market: string; connector: string; availability: string };
+  filters: { advisorType: string; tier: string; outreachStatus: string; relationship: string; search: string; market: string; connector: string; availability: string };
   onFilterChange: (key: string, value: string) => void;
   uniqueTiers: string[];
   uniqueTypes: string[];
@@ -83,26 +93,20 @@ function LastTouchedPill({ name, team }: { name: string; team: string }) {
 const STATUS_PILL: Record<string, string> = {
   paused:     "bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted",
   client:     "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400",
-  healthy:    "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
-  caution:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
-  inCooldown: "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
+  active:     "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400",
+  due:        "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400",
+  overdue:    "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400",
 };
 
-// Display labels are action-oriented ("what should I do"), not
-// status-mood-oriented — these tiers are purely a days-since-contact
-// cadence gate, not a relationship-health score. Available → Caution →
-// Pause Outreach reads as escalating "ease off the closer we are to a
-// recent touch," ending in Client, which sits outside the ladder entirely
-// (timing isn't tracked once someone's a paying customer).
-// Caution used to be split into two tiers (30-59 days, then a narrower
-// 15-29 day "Cooldown") — merged into one 15-59 day "Caution" band since
-// the distinction wasn't actionable enough to justify a separate status.
+// Outreach is positive: recently contacted is green. Active (<30 days) →
+// Due for a Touch (30-59) → Overdue (60+ or never). Client sits outside the
+// ladder (timing isn't tracked once someone's a paying customer).
 const STATUS_LABEL: Record<string, string> = {
   paused:     "Paused",
   client:     "Client",
-  healthy:    "Available",
-  caution:    "Caution",
-  inCooldown: "Pause Outreach",
+  active:     "Recently Contacted",
+  due:        "Due for a Touch",
+  overdue:    "Overdue",
 };
 
 interface OutreachProps {
@@ -161,10 +165,6 @@ function OutreachStatusBadge({
     const dayStr = daysSinceContact === 1 ? "1 day ago" : `${daysSinceContact} days ago`;
     reason = `Contacted ${dayStr}`;
     if (outboundEmailCount90d > 1) reason += ` · ${outboundEmailCount90d} in 90d`;
-  }
-  // Note when availability is capping the status
-  if (avail.startsWith("possib") && (daysSinceContact === null || daysSinceContact >= 60)) {
-    reason += " · Availability caps at Caution";
   }
 
   return (
@@ -261,6 +261,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
     "Name", "Email", "Company", "Title", "Location",
     "Advisor Type", "Tier", "Availability", "Connector", "Contract", "Priority",
     "Last Contacted", "Days Since Contact", "Outreach Status", "Last Touched By",
+    "Relationship", "Last Heard From", "Replies (90d)", "Asks (60d)", "Ask-heavy",
   ];
 
   const rows = advisors.map((a) => {
@@ -274,6 +275,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       : "";
     const lastContacted = a.lastContacted ? formatDate(a.lastContacted) : "";
     const daysSince = a.daysSinceContact !== null ? String(a.daysSinceContact) : "";
+    const rel = computeRelationship(a);
 
     return [
       escapeCSV(a.name),
@@ -291,6 +293,11 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(daysSince),
       escapeCSV(healthStatus),
       escapeCSV(lastTouchedBy),
+      escapeCSV(rel.status ? RELATIONSHIP_LABEL[rel.status] : ""),
+      escapeCSV(rel.lastReplyDate ? formatDate(rel.lastReplyDate) : ""),
+      escapeCSV(a.healthLoaded ? String(a.inboundEmailCount90d) : ""),
+      escapeCSV(String(a.asksLast60d ?? 0)),
+      escapeCSV(rel.askHeavy ? "Yes" : ""),
     ].join(",");
   });
 
@@ -439,14 +446,25 @@ export default function AdvisorTable({
           {uniqueTiers.map((t) => <option key={t}>{t}</option>)}
         </select>
         <select
+          value={filters.relationship}
+          onChange={(e) => onFilterChange("relationship", e.target.value)}
+          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">All Relationships</option>
+          {RELATIONSHIP_ORDER.map((s) => (
+            <option key={s} value={s}>{RELATIONSHIP_LABEL[s]}</option>
+          ))}
+          <option value="askHeavy">Ask-heavy</option>
+        </select>
+        <select
           value={filters.outreachStatus}
           onChange={(e) => onFilterChange("outreachStatus", e.target.value)}
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
         >
-          <option value="">All Outreach Statuses</option>
-          <option value="healthy">Available</option>
-          <option value="caution">Caution</option>
-          <option value="inCooldown">Pause Outreach</option>
+          <option value="">All Outreach Timing</option>
+          <option value="active">Recently Contacted</option>
+          <option value="due">Due for a Touch</option>
+          <option value="overdue">Overdue</option>
           <option value="client">Client</option>
           <option value="paused">Paused</option>
         </select>
@@ -638,6 +656,28 @@ export default function AdvisorTable({
                   )}
                   {visibility.healthScore && (
                     <td className="px-3 py-2 whitespace-nowrap">
+                      <RelationshipBadge result={computeRelationship(a)} />
+                    </td>
+                  )}
+                  {visibility.lastReply && (
+                    <td className="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-dark-text">
+                      {(() => {
+                        const r = computeRelationship(a);
+                        if (!a.healthLoaded && !a.lastRepliedDate) return <span className="text-gray-300">…</span>;
+                        if (!r.lastReplyDate) return <span className="text-gray-400 dark:text-dark-muted">Never</span>;
+                        return (
+                          <>
+                            {formatDate(r.lastReplyDate)}
+                            <span className="block text-[11px] text-gray-400 dark:text-dark-muted leading-tight">
+                              {r.daysSinceReply === 0 ? "Today" : `${r.daysSinceReply}d ago`}
+                            </span>
+                          </>
+                        );
+                      })()}
+                    </td>
+                  )}
+                  {visibility.outreachDetail && (
+                    <td className="px-3 py-2 whitespace-nowrap">
                       <div className="flex flex-col gap-1.5">
                         <OutreachStatusBadge
                           daysSinceContact={a.daysSinceContact}
@@ -670,16 +710,6 @@ export default function AdvisorTable({
                   {visibility.salesStatus && (
                     <td className="px-3 py-2 whitespace-nowrap text-gray-600">
                       {a.salesStatus ?? <span className="text-gray-300">—</span>}
-                    </td>
-                  )}
-                  {visibility.status && (
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {a.healthLoaded && a.doNotContact && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-red-100 text-red-600">
-                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
-                          Do Not Contact
-                        </span>
-                      )}
                     </td>
                   )}
                 </tr>

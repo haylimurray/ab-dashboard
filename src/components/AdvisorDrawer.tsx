@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import type { AdvisorContact } from "@/types";
 import { computeOutreachStatus, OutreachStatus } from "@/lib/health";
+import { computeRelationship } from "@/lib/relationship";
+import RelationshipBadge from "./RelationshipBadge";
 
 const HUBSPOT_BASE = "https://app.hubspot.com/contacts/21696780/record/0-1";
 
@@ -144,6 +146,30 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
 
                 {advisor.healthLoaded ? (
                   <>
+                    <Field label="Relationship">
+                      <div className="mt-1">
+                        <RelationshipBadge result={computeRelationship(advisor)} />
+                      </div>
+                    </Field>
+
+                    <Field label="Last Heard From">
+                      {(() => {
+                        const r = computeRelationship(advisor);
+                        if (!r.lastReplyDate) return <span className="text-gray-400 dark:text-dark-muted">No reply on record</span>;
+                        return `${formatDate(r.lastReplyDate)} (${r.daysSinceReply === 0 ? "today" : `${r.daysSinceReply} days ago`})`;
+                      })()}
+                    </Field>
+
+                    <Field label="Replies From Advisor (last 90 days)">
+                      {advisor.inboundEmailCount90d} {advisor.inboundEmailCount90d === 1 ? "email" : "emails"}
+                    </Field>
+
+                    <Field label="AB Requests (last 60 days)">
+                      {advisor.asksLast60d} {advisor.asksLast60d === 1 ? "request" : "requests"}
+                    </Field>
+
+                    <hr className="border-gray-100 dark:border-dark-border" />
+
                     <Field label="Last Contacted">
                       {formatDate(advisor.lastContacted)}
                     </Field>
@@ -176,13 +202,13 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                           const PILL: Record<OutreachStatus, string> = {
                             paused:     "bg-gray-100 text-gray-500",
                             client:     "bg-violet-100 text-violet-700",
-                            healthy:    "bg-green-100 text-green-700",
-                            caution:    "bg-amber-100 text-amber-700",
-                            inCooldown: "bg-red-100 text-red-600",
+                            active:     "bg-green-100 text-green-700",
+                            due:        "bg-amber-100 text-amber-700",
+                            overdue:    "bg-red-100 text-red-600",
                           };
                           const LABEL: Record<OutreachStatus, string> = {
-                            paused: "Paused", client: "Client", healthy: "Available", caution: "Caution",
-                            inCooldown: "Pause Outreach",
+                            paused: "Paused", client: "Client", active: "Recently Contacted", due: "Due for a Touch",
+                            overdue: "Overdue",
                           };
                           return (
                             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${PILL[status]}`}>
@@ -193,9 +219,9 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                       </div>
                     </Field>
 
-                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "inCooldown" && (
+                    {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "overdue" && (
                       <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700">
-                        <strong>Pause Outreach</strong> — contacted within the last 15 days. Do not request.
+                        <strong>Overdue</strong> — no outreach in 60+ days (or never contacted). Time to reach out.
                       </div>
                     )}
                     {computeOutreachStatus(advisor.daysSinceContact, advisor.healthLoaded, advisor.requestAvailability, 15, advisor.isClientAdvisor) === "paused" && (

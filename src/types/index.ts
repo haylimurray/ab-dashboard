@@ -25,6 +25,8 @@ export interface ContactListItem {
   state: string | null;
   company: string | null;
   jobTitle: string | null;
+  lastRepliedDate: string | null;   // HubSpot hs_sales_email_last_replied — last email received from the advisor (any Airvet sender)
+  lastMeetingBooked: string | null; // HubSpot engagements_last_meeting_booked
 }
 
 export interface ContactListResponse {
@@ -50,6 +52,8 @@ export interface ContactHealth {
   lastContacted: string | null;
   daysSinceContact: number | null;
   outboundEmailCount90d: number;
+  inboundEmailCount90d: number;   // emails received FROM the advisor in the last 90 days
+  lastReplyDate: string | null;   // most recent email received from the advisor
   healthScore: number;
   healthColor: "green" | "yellow" | "red";
   doNotContact: boolean;
@@ -65,11 +69,15 @@ export interface AdvisorContact extends ContactListItem {
   lastContacted: string | null;
   daysSinceContact: number | null;
   outboundEmailCount90d: number;
+  inboundEmailCount90d: number;
+  lastReplyDate: string | null;
   healthScore: number;
   healthColor: "green" | "yellow" | "red";
   doNotContact: boolean;
   lastTouchedBy: { name: string; team: TeamLabel } | null;
   recentEmails: EmailTouch[];
+  // AB requests (tickets) targeting this advisor in the last 60 days — filled in client-side
+  asksLast60d: number;
 }
 
 // ── Requests / ticket pipeline ───────────────────────────────────────────────
@@ -112,7 +120,9 @@ export type SortField =
   | "lastContacted"
   | "daysSinceContact"
   | "healthScore"
-  | "salesStatus";
+  | "salesStatus"
+  | "relationship"
+  | "lastReply";
 
 export type SortDir = "asc" | "desc";
 

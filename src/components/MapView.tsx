@@ -340,11 +340,10 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
       {/* Legend */}
       <div className="flex items-center gap-5 px-1">
         {[
-          { color: "#16a34a", label: "Available",      pulse: false },
-          { color: "#d97706", label: "Caution",         pulse: false },
-          { color: "#dc2626", label: "Cooldown",        pulse: false },
-          { color: "#991b1b", label: "Do Not Contact",  pulse: true  },
-          { color: "#9ca3af", label: "Loading…",        pulse: false },
+          { color: "#16a34a", label: "Recently Contacted", pulse: false },
+          { color: "#d97706", label: "Due for a Touch",    pulse: false },
+          { color: "#dc2626", label: "Overdue",            pulse: false },
+          { color: "#9ca3af", label: "Loading…",           pulse: false },
         ].map(({ color, label, pulse }) => (
           <div key={label} className="flex items-center gap-1.5">
             <span
@@ -370,10 +369,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
             attribution={TILE_ATTR}
           />
           {plotted.map(({ advisor, lat, lng }) => {
-            const isDNC = advisor.healthLoaded && advisor.doNotContact;
-            const color = advisor.healthLoaded
-              ? (advisor.doNotContact ? "#991b1b" : HEALTH_COLOR[advisor.healthColor])
-              : UNLOADED_COLOR;
+            const color = advisor.healthLoaded ? HEALTH_COLOR[advisor.healthColor] : UNLOADED_COLOR;
             const intl = isInternational(advisor.city, advisor.state);
             const cityKey = (advisor.city?.trim().toLowerCase() ?? "") || (advisor.state?.split(",")[0].trim().toLowerCase() ?? "");
             const displayCity = advisor.city?.trim() || advisor.state?.split(",")[0].trim();
@@ -390,7 +386,6 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
                   fillOpacity: 0.9,
                   color: "white",
                   weight: 2,
-                  className: isDNC ? "leaflet-pulse-dot" : undefined,
                 }}
                 eventHandlers={{ click: () => onSelectAdvisor(advisor) }}
               >

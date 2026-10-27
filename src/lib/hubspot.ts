@@ -23,6 +23,8 @@ const PROPERTIES = [
   "advisor_comp",
   "advisor_contract_link",
   "ab_start_date",
+  "hs_sales_email_last_replied",
+  "engagements_last_meeting_booked",
 ];
 
 interface HubSpotResult {
@@ -243,11 +245,18 @@ async function batchFetchEmailDetails(
   return map;
 }
 
-// Returns contactId -> outbound emails (direction="EMAIL") with timestamp + sender.
-// Direction check is case-insensitive to guard against API value variations.
-export async function fetchOutboundEmailTimestamps(
+// Email activity for a contact: what we sent them, and what they sent us.
+export interface EmailActivity {
+  outbound: OutboundEmail[];
+  inbound: string[]; // timestamps of replies/emails FROM the advisor
+}
+
+// Returns contactId -> outbound emails (direction="EMAIL") with timestamp + sender,
+// plus inbound timestamps (direction contains "INCOMING"). Direction check is
+// case-insensitive to guard against API value variations.
+export async function fetchEmailActivity(
   contactIds: string[]
-): Promise<Map<string, OutboundEmail[]>> {
+): Promise<Map<string, EmailActivity>> {
   const token = process.env.HUBSPOT_TOKEN;
   if (!token) throw new Error("HUBSPOT_TOKEN is not set");
   if (contactIds.length === 0) return new Map();
@@ -259,12 +268,21 @@ export async function fetchOutboundEmailTimestamps(
 
   const emailMap = await batchFetchEmailDetails(allEmailIds, token);
 
-  const result = new Map<string, OutboundEmail[]>();
+  const result = new Map<string, EmailActivity>();
   for (const [contactId, emailIds] of Array.from(assocMap.entries())) {
     const outbound: OutboundEmail[] = [];
+    const inbound: string[] = [];
     for (const emailId of emailIds) {
       const email = emailMap.get(emailId);
-      if (!email || email.direction.toUpperCase() !== "EMAIL" || !email.timestamp) continue;
+      if (!email || !email.timestamp) continue;
+
+      const direction = email.direction.toUpperCase();
+
+      if (direction.includes("INCOMING")) {
+        inbound.push(email.timestamp);
+        continue;
+      }
+      if (direction !== "EMAIL") continue;
 
       const type = (email.emailType ?? "").toUpperCase();
       if (BULK_EMAIL_TYPES.has(type)) {
@@ -275,7 +293,19 @@ export async function fetchOutboundEmailTimestamps(
 
       outbound.push({ timestamp: email.timestamp, fromEmail: email.fromEmail });
     }
-    result.set(contactId, outbound);
+    result.set(contactId, { outbound, inbound });
+  }
+  return result;
+}
+
+// Kept for callers that only need outbound emails.
+export async function fetchOutboundEmailTimestamps(
+  contactIds: string[]
+): Promise<Map<string, OutboundEmail[]>> {
+  const activity = await fetchEmailActivity(contactIds);
+  const result = new Map<string, OutboundEmail[]>();
+  for (const [contactId, a] of Array.from(activity.entries())) {
+    result.set(contactId, a.outbound);
   }
   return result;
 }

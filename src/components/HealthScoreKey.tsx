@@ -22,25 +22,25 @@ const LABEL_CLASS: Record<string, string> = {
   violet: "text-violet-700 dark:text-violet-400",
 };
 
-export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
+export default function HealthScoreKey(_props: Props) {
   const tiers = [
     {
       color: "green",
-      label: "Available",
-      desc: "Last contacted 60+ days ago, or never contacted",
+      label: "Recently Contacted",
+      desc: "Last contacted within 30 days",
       note: null,
     },
     {
       color: "yellow",
-      label: "Caution",
-      desc: `Last contacted ${cooldownDays}–60 days ago`,
+      label: "Due for a Touch",
+      desc: "Last contacted 30–59 days ago",
       note: null,
     },
     {
       color: "red",
-      label: "Pause Outreach",
-      desc: `Last contacted within ${cooldownDays} days`,
-      note: "Do not request",
+      label: "Overdue",
+      desc: "Last contacted 60+ days ago, or never",
+      note: "Time to reach out",
     },
     {
       color: "violet",
@@ -80,7 +80,7 @@ export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
         {tiers.map((tier) => (
           <div key={tier.label} className="flex items-center gap-2.5">
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${DOT_CLASS[tier.color]}`} />
-            <span className={`text-xs font-semibold w-[76px] flex-shrink-0 ${LABEL_CLASS[tier.color]}`}>
+            <span className={`text-xs font-semibold w-[120px] flex-shrink-0 ${LABEL_CLASS[tier.color]}`}>
               {tier.label}
             </span>
             <span className="text-xs text-gray-500 dark:text-dark-muted">
@@ -96,10 +96,6 @@ export default function HealthScoreKey({ cooldownDays = 15 }: Props) {
         ))}
       </div>
 
-      {/* Availability note */}
-      <p className="mt-2.5 text-[11px] text-gray-400 dark:text-dark-muted border-t border-gray-200 dark:border-dark-border pt-2">
-        If availability is <span className="font-medium text-gray-500">"Possibility of Requests"</span>, status is capped at Caution even when timing would be Available.
-      </p>
     </div>
   );
 }
