@@ -432,13 +432,13 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
       {/* Legend */}
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-1 pt-3 pb-1 text-xs text-[#0B3D91] dark:text-dark-text">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          {RELATIONSHIP_ORDER.filter((s) => s !== "client" && s !== "paused" && s !== "new").map((s) => (
+          {RELATIONSHIP_ORDER.filter((s) => s !== "client" && s !== "paused").map((s) => (
             <span key={s} className="inline-flex items-center gap-1.5">
               <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RELATIONSHIP_BAR[s] }} />
               {RELATIONSHIP_LABEL[s]}
             </span>
           ))}
-          {(["new", "client", "paused"] as const).map((s) => (
+          {(["client", "paused"] as const).map((s) => (
             <span key={s} className="inline-flex items-center gap-1.5">
               <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RELATIONSHIP_BAR[s] }} />
               {RELATIONSHIP_LABEL[s]}

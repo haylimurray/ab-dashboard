@@ -20,7 +20,7 @@ interface Props {
 // One bar showing where every advisor sits, plus the Ask-heavy count.
 export default function RelationshipSummary({ advisors, onSelectStatus }: Props) {
   const counts: Record<RelationshipStatus, number> = {
-    highlyEngaged: 0, responsive: 0, slow: 0, notResponding: 0, new: 0, client: 0, paused: 0,
+    highlyEngaged: 0, responsive: 0, slow: 0, notResponding: 0, client: 0, paused: 0,
   };
   let loading = 0;
   let askHeavy = 0;

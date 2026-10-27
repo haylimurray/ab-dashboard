@@ -92,7 +92,7 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
 
   const { relCounts, askHeavyCount } = useMemo(() => {
     const counts: Record<RelationshipStatus, number> = {
-      highlyEngaged: 0, responsive: 0, slow: 0, notResponding: 0, new: 0, client: 0, paused: 0,
+      highlyEngaged: 0, responsive: 0, slow: 0, notResponding: 0, client: 0, paused: 0,
     };
     let askHeavy = 0;
     const now = Date.now();

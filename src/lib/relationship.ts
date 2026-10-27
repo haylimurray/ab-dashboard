@@ -10,8 +10,6 @@ import type { AdvisorContact, TicketItem } from "@/types";
 //   Responsive      replied within the last 90 days
 //   Slow to Respond last reply 91-365 days ago
 //   Not Responding  we've reached out, but no reply in over a year (or ever)
-//   New             joined within 45 days, never contacted and never replied, or
-//                   emailed within the last 30 days with no reply yet (grace period)
 //   Client / Paused unchanged from the old model
 //
 // "Ask-heavy" is a separate flag: 3+ AB requests (tickets) targeting the advisor
@@ -22,17 +20,14 @@ export type RelationshipStatus =
   | "responsive"
   | "slow"
   | "notResponding"
-  | "new"
   | "client"
   | "paused";
 
 export const ASK_HEAVY_THRESHOLD = 3;
 export const ASK_WINDOW_DAYS = 60;
-export const NEW_ADVISOR_DAYS = 45;
-export const NO_REPLY_GRACE_DAYS = 30;
 
 export const RELATIONSHIP_ORDER: RelationshipStatus[] = [
-  "highlyEngaged", "responsive", "slow", "notResponding", "new", "client", "paused",
+  "highlyEngaged", "responsive", "slow", "notResponding", "client", "paused",
 ];
 
 export const RELATIONSHIP_LABEL: Record<RelationshipStatus, string> = {
@@ -40,7 +35,6 @@ export const RELATIONSHIP_LABEL: Record<RelationshipStatus, string> = {
   responsive:    "Responsive",
   slow:          "Slow to Respond",
   notResponding: "Not Responding",
-  new:           "New",
   client:        "Client",
   paused:        "Paused",
 };
@@ -50,7 +44,6 @@ export const RELATIONSHIP_DESC: Record<RelationshipStatus, string> = {
   responsive:    "Replied within the last 90 days.",
   slow:          "Last reply was 3 to 12 months ago.",
   notResponding: "We've reached out, but no reply in a year or more.",
-  new:           "Joined in the last 45 days, or we emailed within 30 days and they haven't replied yet.",
   client:        "Active Airvet customer. Response timing isn't tracked.",
   paused:        'Availability is set to "No Requests".',
 };
@@ -61,7 +54,6 @@ export const RELATIONSHIP_PILL: Record<RelationshipStatus, string> = {
   responsive:    "bg-[#E1ECFF] text-[#0B3D91] dark:bg-[#0062F5]/25 dark:text-[#BFD5FF]",
   slow:          "bg-[#EEF0F4] text-[#4A5568] dark:bg-white/10 dark:text-gray-300",
   notResponding: "bg-[#FFE3EA] text-[#A3213C] dark:bg-[#FB7A93]/20 dark:text-[#FFB3C2]",
-  new:           "bg-[#F4F6FA] text-[#4A5568] ring-1 ring-inset ring-[#D5DBE8] dark:bg-white/5 dark:text-gray-300 dark:ring-white/15",
   client:        "bg-[#ECE6FF] text-[#43299A] dark:bg-violet-900/40 dark:text-violet-300",
   paused:        "bg-gray-100 text-gray-500 dark:bg-dark-border/40 dark:text-dark-muted",
 };
@@ -71,7 +63,6 @@ export const RELATIONSHIP_BAR: Record<RelationshipStatus, string> = {
   responsive:    "#5B9BFF",
   slow:          "#9AA7C0",
   notResponding: "#FB7A93",
-  new:           "#D5DBE8",
   client:        "#7c3aed",
   paused:        "#9ca3af",
 };
@@ -144,28 +135,12 @@ export function computeRelationship(a: AdvisorContact, now = Date.now()): Relati
     return { ...base, status: "responsive", reason };
   }
 
-  const startTs = parseTs(a.startDate);
-  const startDays = daysAgo(startTs, now);
-  const joinedRecently = startDays !== null && startDays >= 0 && startDays <= NEW_ADVISOR_DAYS;
-  const neverContactedNeverReplied = a.daysSinceContact === null && replyTs === null;
-
-  if (joinedRecently || neverContactedNeverReplied) {
-    const reason = joinedRecently ? `Joined ${plural(startDays!, "day")} ago` : "Not yet contacted";
-    return { ...base, status: "new", reason };
-  }
-
-  // Grace period: we emailed them recently and they've never replied — too early to
-  // call it "Not Responding".
-  if (replyTs === null && a.daysSinceContact !== null && a.daysSinceContact <= NO_REPLY_GRACE_DAYS) {
-    return { ...base, status: "new", reason: `Emailed ${plural(a.daysSinceContact, "day")} ago, no reply yet` };
-  }
-
   if (daysSinceReply !== null && daysSinceReply <= 365) {
     return { ...base, status: "slow", reason: `Last reply ${plural(daysSinceReply, "day")} ago` };
   }
 
   const reason = daysSinceReply === null
-    ? (a.outboundEmailCount90d > 0 ? `${plural(a.outboundEmailCount90d, "email")} in 90 days, no reply` : "No reply on record")
+    ? (a.outboundEmailCount90d > 0 ? `${plural(a.outboundEmailCount90d, "email")} in 90 days, no reply` : (a.daysSinceContact === null ? "Not yet contacted" : "No reply on record"))
     : `Last reply ${Math.round(daysSinceReply / 30)} months ago`;
   return { ...base, status: "notResponding", reason };
 }
