@@ -395,7 +395,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
                   {location && <div className="text-gray-500">{location}</div>}
                   {rel.status && <div style={{ color }}>{RELATIONSHIP_LABEL[rel.status]}</div>}
                   <div style={{ color: isBenefits ? BENEFITS_TEAL : "#5B6B8C" }}>
-                    {isBenefits ? "CR advisor" : "Employer advisor"}
+                    {isBenefits ? "Consultant advisor" : "Employer advisor"}
                   </div>
                 </div>
               </Tooltip>
@@ -455,7 +455,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
               className="inline-block w-2 h-2 bg-white rotate-45"
               style={{ border: `2px solid ${BENEFITS_TEAL}`, boxSizing: "content-box" }}
             />
-            CR advisor
+            Consultant advisor
           </span>
         </div>
       </div>

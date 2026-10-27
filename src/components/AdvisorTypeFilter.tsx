@@ -14,7 +14,7 @@ interface Props {
 const OPTIONS: Array<{ id: AdvisorGroupFilter; label: string }> = [
   { id: "all", label: "All" },
   { id: "employer", label: "Employer" },
-  { id: "benefits", label: "CR Advisors" },
+  { id: "benefits", label: "Consultant Advisors" },
 ];
 
 // Airvet-styled pill selector: All / Employer / Benefits advisors.

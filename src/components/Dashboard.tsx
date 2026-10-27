@@ -504,7 +504,7 @@ export default function Dashboard() {
                         <AdvisorTypeFilter value={advisorGroup} onChange={setAdvisorGroup} counts={groupCounts} />
                         <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-[#5B6B8C] dark:text-dark-muted">
                           <span className="inline-block w-2.5 h-2.5 rounded-[3px] bg-[#E6F6F5] border border-[#0E9AA7]" />
-                          Tinted rows are CR advisors
+                          Tinted rows are consultant advisors
                         </span>
                       </div>
                       <div className="px-5 pb-4">
