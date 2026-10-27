@@ -1,5 +1,7 @@
 // ── Contact list (from GET /api/contacts) ────────────────────────────────────
 
+export type AdvisorGroup = "employer" | "benefits";
+
 export interface ContactListItem {
   id: string;
   firstName: string;
@@ -7,6 +9,7 @@ export interface ContactListItem {
   name: string;
   email: string;
   advisorType: string | null;
+  advisorGroup: AdvisorGroup; // "benefits" = HubSpot airvet_advisory_board "BC Advisor"; otherwise standard employer advisor
   isClientAdvisor: boolean; // true when HubSpot lifecyclestage = "customer" — also an active Airvet client
   tier: string | null;
   salesStatus: string | null;

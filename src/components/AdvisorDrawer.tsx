@@ -98,9 +98,15 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
               <dl className="flex flex-col gap-5">
                 <Field label="Advisor Type">
                   {advisor.advisorType ? (
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">
-                      {advisor.advisorType}
-                    </span>
+                    advisor.advisorGroup === "benefits" ? (
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-[#0E9AA7] text-white">
+                        Benefits advisor
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">
+                        {advisor.advisorType}
+                      </span>
+                    )
                   ) : (
                     <span className="text-gray-300 dark:text-dark-border">—</span>
                   )}

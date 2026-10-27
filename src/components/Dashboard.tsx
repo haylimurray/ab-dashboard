@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AdvisorContact,
+  AdvisorGroup,
   ContactHealth,
   ContactListItem,
   ContactListResponse,
@@ -14,6 +15,7 @@ import type { Tab } from "@/lib/navigation";
 import { getBreadcrumb } from "@/lib/navigation";
 import dynamic from "next/dynamic";
 import RelationshipSummary from "./RelationshipSummary";
+import AdvisorTypeFilter from "./AdvisorTypeFilter";
 import RelationshipKey from "./RelationshipKey";
 import AdvisorTable from "./AdvisorTable";
 import { computeOutreachStatus } from "@/lib/health";
@@ -115,6 +117,7 @@ export default function Dashboard() {
   const [fetchedAt, setFetchedAt]     = useState<string | null>(null);
   const [requests, setRequests]       = useState<RequestsData | null>(null);
   const [showKey, setShowKey]         = useState(true);
+  const [advisorGroup, setAdvisorGroup] = useState<"all" | AdvisorGroup>("all");
   const [activeTab, setActiveTab]     = useState<Tab>("advisors");
   const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [darkMode, setDarkMode]       = useState(false);
@@ -263,6 +266,25 @@ export default function Dashboard() {
     [contacts, health, askCounts]
   );
 
+  // Employer vs benefits advisors — the type filter applies to the table, summary bar and map
+  const groupCounts = useMemo(() => {
+    let employer = 0;
+    let benefits = 0;
+    for (const a of advisors) (a.advisorGroup === "benefits" ? benefits++ : employer++);
+    return { all: advisors.length, employer, benefits };
+  }, [advisors]);
+
+  const groupAdvisors = useMemo(
+    () => (advisorGroup === "all" ? advisors : advisors.filter((a) => a.advisorGroup === advisorGroup)),
+    [advisors, advisorGroup]
+  );
+
+  // Executive Summary keeps its original scope (standard employer advisors)
+  const employerAdvisors = useMemo(
+    () => advisors.filter((a) => a.advisorGroup !== "benefits"),
+    [advisors]
+  );
+
   // Derive the selected advisor from live state so the drawer updates as
   // health scores stream in
   const selectedAdvisor = useMemo(
@@ -271,16 +293,16 @@ export default function Dashboard() {
   );
 
   const { filtered, uniqueTypes, uniqueTiers, uniqueMarkets } = useMemo(() => {
-    if (!advisors.length) return { filtered: [], uniqueTypes: [], uniqueTiers: [], uniqueMarkets: [] };
+    if (!groupAdvisors.length) return { filtered: [], uniqueTypes: [], uniqueTiers: [], uniqueMarkets: [] };
     const uniqueTypes = Array.from(
-      new Set(advisors.map((a) => a.advisorType).filter(Boolean) as string[])
+      new Set(groupAdvisors.map((a) => a.advisorType).filter(Boolean) as string[])
     ).sort();
     const uniqueTiers = Array.from(
-      new Set(advisors.map((a) => a.advisorTier).filter(Boolean) as string[])
+      new Set(groupAdvisors.map((a) => a.advisorTier).filter(Boolean) as string[])
     ).sort();
     const uniqueMarkets = Array.from(
       new Set(
-        advisors
+        groupAdvisors
           .filter((a) => a.city)
           .map((a) => {
             const st = normalizeState(a.state);
@@ -289,7 +311,7 @@ export default function Dashboard() {
       )
     ).sort();
 
-    let result = advisors;
+    let result = groupAdvisors;
     if (filters.search) {
       const q = filters.search.toLowerCase();
       result = result.filter(
@@ -340,7 +362,7 @@ export default function Dashboard() {
     if (filters.availability) result = result.filter((a) => a.requestAvailability === filters.availability);
     result = sortAdvisors(result, sort.field, sort.dir);
     return { filtered: result, uniqueTypes, uniqueTiers, uniqueMarkets };
-  }, [advisors, filters, sort]);
+  }, [groupAdvisors, filters, sort]);
 
   const fetchedAtStr = fetchedAt
     ? new Date(fetchedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
@@ -478,9 +500,16 @@ export default function Dashboard() {
                           {showKey ? "Hide key" : "Show key"}
                         </button>
                       </div>
+                      <div className="px-5 pb-3 flex flex-wrap items-center gap-3">
+                        <AdvisorTypeFilter value={advisorGroup} onChange={setAdvisorGroup} counts={groupCounts} />
+                        <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-[#5B6B8C] dark:text-dark-muted">
+                          <span className="inline-block w-2.5 h-2.5 rounded-[3px] bg-[#E6F6F5] border border-[#0E9AA7]" />
+                          Tinted rows are benefits advisors
+                        </span>
+                      </div>
                       <div className="px-5 pb-4">
                         <RelationshipSummary
-                          advisors={advisors}
+                          advisors={groupAdvisors}
                           onSelectStatus={(s) => handleFilterChange("relationship", filters.relationship === s ? "" : s)}
                         />
                         <div className="flex flex-col xl:flex-row gap-4 items-start">
@@ -509,9 +538,10 @@ export default function Dashboard() {
                 )}
                 {activeTab === "map" && (
                   <MapView
-                    advisors={advisors}
+                    advisors={groupAdvisors}
                     onSelectAdvisor={(a) => setSelectedId(a.id)}
                     darkMode={darkMode}
+                    typeFilter={<AdvisorTypeFilter value={advisorGroup} onChange={setAdvisorGroup} counts={groupCounts} />}
                   />
                 )}
                 {activeTab === "bwCircle"   && <BwCircleView advisors={advisors} />}
@@ -519,7 +549,7 @@ export default function Dashboard() {
                 {activeTab === "requests"   && <RequestsView />}
                 {activeTab === "recruiting" && <RecruitingView />}
                 {activeTab === "abDeals"    && <AbDealsView />}
-                {activeTab === "execSummary" && <ExecutiveSummaryView advisors={advisors} />}
+                {activeTab === "execSummary" && <ExecutiveSummaryView advisors={employerAdvisors} />}
                 {/* {activeTab === "news" && <NewsIntelligence />} temporarily disabled */}
               </>
             ) : null}

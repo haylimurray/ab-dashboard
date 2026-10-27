@@ -49,7 +49,9 @@ export async function fetchAllAdvisors(): Promise<HubSpotResult[]> {
       filterGroups: [
         {
           filters: [
-            { propertyName: "airvet_advisory_board", operator: "EQ", value: "AB Member" },
+            // "AB Member" = standard employer advisors; "BC Advisor" = benefits advisors
+            // (HubSpot label: "BC Benefits Advisor") — both tracked in the dashboard.
+            { propertyName: "airvet_advisory_board", operator: "IN", values: ["AB Member", "BC Advisor"] },
           ],
         },
       ],

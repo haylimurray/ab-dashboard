@@ -1,11 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AdvisorContact } from "@/types";
 import { geocodeLocation, getJitter, isInternational, normalizeState } from "@/lib/geocode";
+import {
+  RELATIONSHIP_BAR,
+  RELATIONSHIP_LABEL,
+  RELATIONSHIP_ORDER,
+  computeRelationship,
+} from "@/lib/relationship";
 
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, CircleMarker, Tooltip } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Marker, Tooltip } from "react-leaflet";
+
+const BENEFITS_TEAL = "#0E9AA7";
+const LOADING_COLOR = "#D5DBE8";
+
+// Benefits advisors are drawn as diamonds (rotated squares) with a teal outline,
+// filled with their Relationship status color. Employer advisors stay circles.
+function diamondIcon(fill: string): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    html: `<div style="width:15px;height:15px;margin:3.5px;background:${fill};border:3px solid ${BENEFITS_TEAL};transform:rotate(45deg);box-sizing:content-box;border-radius:2px;"></div>`,
+  });
+}
 
 // ── Primary markets ───────────────────────────────────────────────────────────
 
@@ -246,9 +267,10 @@ interface Props {
   advisors: AdvisorContact[];
   onSelectAdvisor: (advisor: AdvisorContact) => void;
   darkMode?: boolean;
+  typeFilter?: ReactNode; // Employer / Benefits selector, rendered in the header
 }
 
-export default function MapView({ advisors, onSelectAdvisor, darkMode = false }: Props) {
+export default function MapView({ advisors, onSelectAdvisor, darkMode = false, typeFilter }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -336,32 +358,20 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Legend */}
-      <div className="flex items-center gap-5 px-1">
-        {[
-          { color: "#16a34a", label: "Recently Contacted", pulse: false },
-          { color: "#d97706", label: "Due for a Touch",    pulse: false },
-          { color: "#dc2626", label: "Overdue",            pulse: false },
-          { color: "#9ca3af", label: "Loading…",           pulse: false },
-        ].map(({ color, label, pulse }) => (
-          <div key={label} className="flex items-center gap-1.5">
-            <span
-              className={`inline-block w-3 h-3 rounded-full${pulse ? " leaflet-pulse-dot" : ""}`}
-              style={{ backgroundColor: color }}
-            />
-            <span className="text-xs text-gray-500 dark:text-dark-muted">{label}</span>
-          </div>
-        ))}
-        <span className="ml-auto text-xs text-gray-400 dark:text-dark-muted">
-          {plotted.length} of {advisors.filter((a) => a.city || a.state).length} plotted
-          {intlPlotted.length > 0 && ` · ${intlPlotted.length} international`}
-          {unplotted > 0 && ` · ${unplotted} city not in lookup`}
+    // Airvet-branded frame: lavender surface, white cards, navy + blue stripe
+    <div className="rounded-2xl overflow-hidden bg-[#EEF2FB] dark:bg-dark-bg/60 border border-transparent dark:border-dark-border">
+      <div className="flex flex-wrap items-center gap-3 px-5 pt-4 pb-3">
+        <span className="rounded-full bg-white dark:bg-dark-card px-3.5 py-1 text-[13px] font-medium text-[#0B3D91] dark:text-dark-text">
+          Advisory Board
         </span>
+        <h2 className="text-xl font-medium text-[#0B3D91] dark:text-dark-text">Advisor map</h2>
+        <div className="ml-auto">{typeFilter}</div>
       </div>
 
+      <div className="px-5 pb-5 flex flex-col gap-4">
+      <div className="rounded-2xl bg-white dark:bg-dark-card shadow-sm p-3">
       {/* Map */}
-      <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-border shadow-sm" style={{ height: 560 }}>
+      <div className="rounded-xl overflow-hidden border border-[#EEF2FB] dark:border-dark-border" style={{ height: 560 }}>
         <MapContainer center={[39.5, -98.35]} zoom={4} minZoom={2} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             key={darkMode ? "dark" : "light"}
@@ -369,36 +379,91 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
             attribution={TILE_ATTR}
           />
           {plotted.map(({ advisor, lat, lng }) => {
-            const color = advisor.healthLoaded ? HEALTH_COLOR[advisor.healthColor] : UNLOADED_COLOR;
+            const rel = computeRelationship(advisor);
+            const color = rel.status ? RELATIONSHIP_BAR[rel.status] : LOADING_COLOR;
+            const isBenefits = advisor.advisorGroup === "benefits";
             const intl = isInternational(advisor.city, advisor.state);
             const cityKey = (advisor.city?.trim().toLowerCase() ?? "") || (advisor.state?.split(",")[0].trim().toLowerCase() ?? "");
             const displayCity = advisor.city?.trim() || advisor.state?.split(",")[0].trim();
             const location = intl
               ? `${displayCity ?? ""}${INTL_COUNTRY[cityKey] ? `, ${INTL_COUNTRY[cityKey]}` : ""}`
               : (advisor.city && normalizeState(advisor.state) ? `${advisor.city}, ${normalizeState(advisor.state)}` : (advisor.city ?? ""));
-            return (
+            const tooltip = (
+              <Tooltip direction="top" offset={[0, -8]}>
+                <div className="text-xs">
+                  <div className="font-semibold">{advisor.name}</div>
+                  {location && <div className="text-gray-500">{location}</div>}
+                  {rel.status && <div style={{ color }}>{RELATIONSHIP_LABEL[rel.status]}</div>}
+                  <div style={{ color: isBenefits ? BENEFITS_TEAL : "#5B6B8C" }}>
+                    {isBenefits ? "Benefits advisor" : "Employer advisor"}
+                  </div>
+                </div>
+              </Tooltip>
+            );
+            return isBenefits ? (
+              <Marker
+                key={advisor.id}
+                position={[lat, lng]}
+                icon={diamondIcon(color)}
+                eventHandlers={{ click: () => onSelectAdvisor(advisor) }}
+              >
+                {tooltip}
+              </Marker>
+            ) : (
               <CircleMarker
                 key={advisor.id}
                 center={[lat, lng]}
-                radius={12}
+                radius={9}
                 pathOptions={{
                   fillColor: color,
-                  fillOpacity: 0.9,
+                  fillOpacity: 0.95,
                   color: "white",
                   weight: 2,
                 }}
                 eventHandlers={{ click: () => onSelectAdvisor(advisor) }}
               >
-                <Tooltip direction="top" offset={[0, -8]}>
-                  <div className="text-xs">
-                    <div className="font-semibold">{advisor.name}</div>
-                    {location && <div className="text-gray-500">{location}</div>}
-                  </div>
-                </Tooltip>
+                {tooltip}
               </CircleMarker>
             );
           })}
         </MapContainer>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-1 pt-3 pb-1 text-xs text-[#0B3D91] dark:text-dark-text">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {RELATIONSHIP_ORDER.filter((s) => s !== "client" && s !== "paused" && s !== "new").map((s) => (
+            <span key={s} className="inline-flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RELATIONSHIP_BAR[s] }} />
+              {RELATIONSHIP_LABEL[s]}
+            </span>
+          ))}
+          {(["new", "client", "paused"] as const).map((s) => (
+            <span key={s} className="inline-flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RELATIONSHIP_BAR[s] }} />
+              {RELATIONSHIP_LABEL[s]}
+            </span>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#0062F5]" />
+            Employer advisor
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span
+              className="inline-block w-2 h-2 bg-white rotate-45"
+              style={{ border: `2px solid ${BENEFITS_TEAL}`, boxSizing: "content-box" }}
+            />
+            Benefits advisor
+          </span>
+        </div>
+      </div>
+      <p className="px-1 pb-1 text-[11px] text-[#6B7A99] dark:text-dark-muted">
+        Colored by Relationship status. {plotted.length} of {advisors.filter((a) => a.city || a.state).length} plotted
+        {intlPlotted.length > 0 && ` · ${intlPlotted.length} international`}
+        {unplotted > 0 && ` · ${unplotted} city not in lookup`}
+      </p>
       </div>
 
       {/* ── Market Breakdown ─────────────────────────────────────────────── */}
@@ -458,6 +523,9 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false }:
           </div>
         )}
       </section>
+      </div>
+      <div className="h-2.5 bg-[#0B3D91]" />
+      <div className="h-2.5 bg-[#0062F5]" />
     </div>
   );
 }
