@@ -38,7 +38,8 @@ const COLS: ColDef[] = [
   { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
   { id: "availability",     label: "Availability" },
   { id: "contract",         label: "Contract" },
-  { id: "priority",         label: "Priority" },
+  // Priority column removed for now — to bring it back, re-add:
+  // { id: "priority", label: "Priority" } (cell + badge are still in place below)
   { id: "salesStatus",      label: "Sales Status",    field: "salesStatus" },
 ];
 
