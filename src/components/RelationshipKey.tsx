@@ -13,7 +13,7 @@ import {
 // Sidebar key explaining every Relationship status and the Ask-heavy flag.
 export default function RelationshipKey() {
   return (
-    <aside className="rounded-2xl bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border shadow px-4 py-4">
+    <aside className="rounded-2xl bg-white dark:bg-dark-card border border-transparent dark:border-dark-border shadow-sm px-4 py-4">
       <h3 className="text-sm font-semibold text-[#0B3D91] dark:text-dark-text mb-3">Status key</h3>
 
       <div className="flex flex-col gap-3">

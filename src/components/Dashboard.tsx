@@ -462,27 +462,40 @@ export default function Dashboard() {
               <>
                 {activeTab === "advisors" && (
                   <>
-                    <RelationshipSummary
-                      advisors={advisors}
-                      onSelectStatus={(s) => handleFilterChange("relationship", filters.relationship === s ? "" : s)}
-                    />
-                    <div className="flex flex-col xl:flex-row gap-4 items-start">
-                      <div className="flex-1 min-w-0 w-full">
-                        <AdvisorTable
-                          advisors={filtered}
-                          onSelectAdvisor={(a) => setSelectedId(a.id)}
-                          sort={sort}
-                          onSort={handleSort}
-                          filters={filters}
-                          onFilterChange={handleFilterChange}
-                          uniqueTiers={uniqueTiers}
-                          uniqueTypes={uniqueTypes}
-                          uniqueMarkets={uniqueMarkets}
+                    {/* Airvet-branded frame: lavender surface, white cards, navy + blue stripe */}
+                    <div className="rounded-2xl overflow-hidden bg-[#EEF2FB] dark:bg-dark-bg/60 border border-transparent dark:border-dark-border">
+                      <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+                        <span className="rounded-full bg-white dark:bg-dark-card px-3.5 py-1 text-[13px] font-medium text-[#0B3D91] dark:text-dark-text">
+                          Advisory Board
+                        </span>
+                        <h2 className="text-xl font-medium text-[#0B3D91] dark:text-dark-text">Advisor relationships</h2>
+                      </div>
+                      <div className="px-5 pb-5">
+                        <RelationshipSummary
+                          advisors={advisors}
+                          onSelectStatus={(s) => handleFilterChange("relationship", filters.relationship === s ? "" : s)}
                         />
+                        <div className="flex flex-col xl:flex-row gap-4 items-start">
+                          <div className="flex-1 min-w-0 w-full">
+                            <AdvisorTable
+                              advisors={filtered}
+                              onSelectAdvisor={(a) => setSelectedId(a.id)}
+                              sort={sort}
+                              onSort={handleSort}
+                              filters={filters}
+                              onFilterChange={handleFilterChange}
+                              uniqueTiers={uniqueTiers}
+                              uniqueTypes={uniqueTypes}
+                              uniqueMarkets={uniqueMarkets}
+                            />
+                          </div>
+                          <div className="w-full xl:w-60 xl:flex-shrink-0 xl:sticky xl:top-4 print:hidden">
+                            <RelationshipKey />
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-full xl:w-60 xl:flex-shrink-0 xl:sticky xl:top-4 print:hidden">
-                        <RelationshipKey />
-                      </div>
+                      <div className="h-2.5 bg-[#0B3D91]" />
+                      <div className="h-2.5 bg-[#0062F5]" />
                     </div>
                   </>
                 )}

@@ -37,12 +37,10 @@ export default function RelationshipSummary({ advisors, onSelectStatus }: Props)
   const loaded = total - loading;
 
   return (
-    <div className="mb-5 rounded-2xl bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border shadow px-5 py-4">
+    <div className="mb-4 rounded-2xl bg-white dark:bg-dark-card border border-transparent dark:border-dark-border shadow-sm px-5 py-4">
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-base font-semibold text-[#0B3D91] dark:text-dark-text">
-          Who responds, and who are we asking too much of?
-        </h2>
-        <span className="text-xs text-gray-400 dark:text-dark-muted">
+        <h3 className="text-sm font-medium text-[#0B3D91] dark:text-dark-text">Relationship overview</h3>
+        <span className="text-xs text-[#6B7A99] dark:text-dark-muted">
           {total} advisors{loading > 0 ? ` · ${loaded} loaded` : ""}
         </span>
       </div>

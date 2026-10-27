@@ -332,7 +332,7 @@ function formatDate(raw: string | null): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const TH = "px-3 py-2 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider whitespace-nowrap relative";
+const TH = "px-3 py-3 text-left text-xs font-medium text-[#5B6B8C] dark:text-dark-muted whitespace-nowrap relative";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -426,10 +426,10 @@ export default function AdvisorTable({
   const visibleCols = COLS.filter((c) => visibility[c.id]);
 
   return (
-    <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
+    <div className="bg-white dark:bg-dark-card rounded-2xl border border-transparent dark:border-dark-border shadow-sm">
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#EEF2FB] dark:border-dark-border bg-white dark:bg-dark-bg rounded-t-2xl">
         <input
           type="search"
           placeholder="Search name, email, title, or company…"
@@ -576,7 +576,7 @@ export default function AdvisorTable({
             ))}
           </colgroup>
 
-          <thead className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+          <thead className="bg-white dark:bg-dark-bg border-b border-[#EEF2FB] dark:border-dark-border">
             <tr>
               {visibleCols.map((col) => (
                 <th
@@ -602,7 +602,7 @@ export default function AdvisorTable({
             </tr>
           </thead>
 
-          <tbody className={`divide-y divide-gray-100 dark:divide-dark-border ${FONT_CLASS[fontSize]}`}>
+          <tbody className={`divide-y divide-[#EEF2FB] dark:divide-dark-border text-[#0B3D91] dark:text-dark-text ${FONT_CLASS[fontSize]}`}>
             {advisors.length === 0 ? (
               <tr>
                 <td colSpan={visibleCols.length} className="px-3 py-10 text-center text-sm text-gray-400 dark:text-dark-muted">
@@ -614,7 +614,7 @@ export default function AdvisorTable({
                 <tr key={a.id} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
                   {visibility.name && (
                     <td className="px-3 py-2 max-w-[190px] cursor-pointer" onClick={() => onSelectAdvisor(a)}>
-                      <div className="font-semibold text-gray-900 dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug truncate">{a.name}</div>
+                      <div className="font-medium text-[#0B3D91] dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug truncate">{a.name}</div>
                       {a.email && <div className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight truncate" title={a.email}>{a.email}</div>}
                     </td>
                   )}
