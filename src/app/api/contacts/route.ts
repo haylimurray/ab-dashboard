@@ -39,6 +39,12 @@ export async function GET(request: NextRequest) {
       const lastName = p.lastname ?? "";
       const fullName = `${firstName} ${lastName}`.trim() || p.email || "Unknown";
 
+      // Champion / Advocate / Member tiers only apply to employer advisors. Some
+      // benefits advisors carry a leftover HubSpot "Advisor Tier" (Hot/Warm) that
+      // isn't a real tier, so it's not shown for them.
+      const isBenefits = p.airvet_advisory_board === "BC Advisor";
+      const tier = isBenefits ? null : normalizeTier(p.advisor_status ?? null);
+
       return {
         id: contact.id,
         firstName,
@@ -46,16 +52,16 @@ export async function GET(request: NextRequest) {
         name: fullName,
         email: p.email ?? "",
         advisorType: p.airvet_advisory_board ?? null,
-        advisorGroup: p.airvet_advisory_board === "BC Advisor" ? "benefits" : "employer",
+        advisorGroup: isBenefits ? "benefits" : "employer",
         isClientAdvisor: (p.lifecyclestage ?? "").toLowerCase() === "customer",
-        tier: normalizeTier(p.advisor_status ?? null),
+        tier,
         salesStatus: p.advisory_board_sales_status ?? null,
         requestAvailability: p.ab_request_availability ?? null,
         lastRequestType: p.ab_last_request_type ?? null,
         lastRequestDate: p.ab_last_request_date ?? null,
         connector: p.connector ?? null,
         advisorPriority: p.advisor_priority ?? null,
-        advisorTier: normalizeTier(p.advisor_status ?? null),
+        advisorTier: tier,
         advisorComp: p.advisor_comp ?? null,
         contractLink: p.advisor_contract_link ?? null,
         startDate: p.ab_start_date ?? null,
