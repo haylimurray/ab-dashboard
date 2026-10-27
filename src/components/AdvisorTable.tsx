@@ -31,7 +31,6 @@ const COLS: ColDef[] = [
   { id: "title",            label: "Title" },
   { id: "connector",        label: "Connector",                                 alwaysVisible: true },
   { id: "tier",             label: "Tier",            field: "tier" },
-  { id: "location",         label: "Location" },
   { id: "lastContacted",    label: "Last Contacted",  field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
   { id: "healthScore",      label: "Relationship",    field: "relationship",    alwaysVisible: true },
@@ -43,11 +42,18 @@ const COLS: ColDef[] = [
   { id: "salesStatus",      label: "Sales Status",    field: "salesStatus" },
 ];
 
-// Outreach detail is hidden by default — the Relationship column is the headline
-// status; turn on "Outreach Detail" under Columns for the us-to-them timing view.
+// Compact by default so the table fits without horizontal scrolling. Location now
+// lives under each advisor's name; the outreach-timing columns are hidden —
+// turn them on under Columns for the us-to-them timing view.
+const HIDDEN_BY_DEFAULT = new Set<ColId>(["outreachDetail", "lastContacted", "daysSinceContact"]);
 const DEFAULT_VIS: Record<ColId, boolean> = Object.fromEntries(
-  COLS.map((c) => [c.id, c.id !== "outreachDetail"])
+  COLS.map((c) => [c.id, !HIDDEN_BY_DEFAULT.has(c.id)])
 ) as Record<ColId, boolean>;
+
+// Storage keys are versioned so the compact defaults apply to people who already
+// saved a column layout.
+const VIS_KEY = "ab_col_visibility_v2";
+const WIDTH_KEY = "ab_col_widths_v2";
 
 // ── Font size ─────────────────────────────────────────────────────────────────
 
@@ -349,7 +355,7 @@ export default function AdvisorTable({
   // Hydrate from localStorage after mount (SSR-safe)
   useEffect(() => {
     try {
-      const v = localStorage.getItem("ab_col_visibility");
+      const v = localStorage.getItem(VIS_KEY);
       if (v) {
         const stored = JSON.parse(v);
         // alwaysVisible columns can never be hidden — override any stale stored value
@@ -358,7 +364,7 @@ export default function AdvisorTable({
       }
     } catch {}
     try {
-      const w = localStorage.getItem("ab_col_widths");
+      const w = localStorage.getItem(WIDTH_KEY);
       if (w) setWidths(JSON.parse(w));
     } catch {}
     try {
@@ -381,7 +387,7 @@ export default function AdvisorTable({
   function toggleColumn(id: ColId) {
     setVisibility((prev) => {
       const next = { ...prev, [id]: !prev[id] };
-      try { localStorage.setItem("ab_col_visibility", JSON.stringify(next)); } catch {}
+      try { localStorage.setItem(VIS_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
   }
@@ -412,7 +418,7 @@ export default function AdvisorTable({
       if (raf) cancelAnimationFrame(raf);
       setWidths((p) => {
         const next = { ...p, [colId]: finalWidth };
-        try { localStorage.setItem("ab_col_widths", JSON.stringify(next)); } catch {}
+        try { localStorage.setItem(WIDTH_KEY, JSON.stringify(next)); } catch {}
         return next;
       });
       document.removeEventListener("mousemove", onMove);
@@ -613,14 +619,20 @@ export default function AdvisorTable({
               advisors.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
                   {visibility.name && (
-                    <td className="px-3 py-2 max-w-[190px] cursor-pointer" onClick={() => onSelectAdvisor(a)}>
+                    <td className="px-3 py-1.5 max-w-[220px] cursor-pointer" onClick={() => onSelectAdvisor(a)} title={a.email || undefined}>
                       <div className="font-medium text-[#0B3D91] dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug truncate">{a.name}</div>
-                      {a.email && <div className="text-[11px] text-gray-400 dark:text-dark-muted leading-tight truncate" title={a.email}>{a.email}</div>}
+                      <div className="text-[11px] text-[#6B7A99] dark:text-dark-muted leading-tight truncate">
+                        {a.city
+                          ? `${a.city}${a.state && normalizeState(a.state) ? `, ${normalizeState(a.state)}` : ""}`
+                          : <span className="text-gray-300 dark:text-dark-border">No location</span>}
+                      </div>
                     </td>
                   )}
                   {visibility.title && (
-                    <td className="px-3 py-2 max-w-[200px] text-gray-600 dark:text-dark-text leading-snug">
-                      {a.jobTitle || <span className="text-gray-300 dark:text-dark-border">—</span>}
+                    <td className="px-3 py-1.5 max-w-[190px] text-gray-600 dark:text-dark-text leading-snug">
+                      <div className="truncate" title={a.jobTitle ?? undefined}>
+                        {a.jobTitle || <span className="text-gray-300 dark:text-dark-border">—</span>}
+                      </div>
                     </td>
                   )}
                   {/* Connector — alwaysVisible, no visibility guard needed */}
@@ -630,20 +642,6 @@ export default function AdvisorTable({
                   {visibility.tier && (
                     <td className="px-3 py-2 whitespace-nowrap">
                       <TierBadge value={a.advisorTier} />
-                    </td>
-                  )}
-                  {visibility.location && (
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-dark-text">
-                      {a.city ? (
-                        <>
-                          {a.city}
-                          {a.state && (
-                            <span className="text-gray-400 dark:text-dark-muted">, {normalizeState(a.state)}</span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
                     </td>
                   )}
                   {visibility.lastContacted && (
