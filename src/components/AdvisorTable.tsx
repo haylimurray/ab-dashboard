@@ -306,7 +306,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(a.healthLoaded ? String(a.inboundEmailCount90d) : ""),
       escapeCSV(String(a.asksLast60d ?? 0)),
       escapeCSV(rel.askHeavy ? "Yes" : ""),
-      escapeCSV(a.advisorGroup === "benefits" ? "Benefits" : "Employer"),
+      escapeCSV(a.advisorGroup === "benefits" ? "CR Advisor" : "Employer"),
     ].join(",");
   });
 
@@ -634,7 +634,7 @@ export default function AdvisorTable({
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="font-medium text-[#0B3D91] dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug truncate">{a.name}</span>
                         {a.advisorGroup === "benefits" && (
-                          <span className="flex-shrink-0 rounded-full bg-[#0E9AA7] px-2 py-px text-[10px] font-medium text-white">Benefits</span>
+                          <span className="flex-shrink-0 rounded-full bg-[#0E9AA7] px-2 py-px text-[10px] font-medium text-white">CR Advisor</span>
                         )}
                       </div>
                       <div className="text-[11px] text-[#6B7A99] dark:text-dark-muted leading-tight truncate">
