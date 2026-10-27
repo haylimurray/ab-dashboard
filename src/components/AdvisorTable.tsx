@@ -40,7 +40,8 @@ const COLS: ColDef[] = [
   { id: "contract",         label: "Contract" },
   // Priority column removed for now — to bring it back, re-add:
   // { id: "priority", label: "Priority" } (cell + badge are still in place below)
-  { id: "salesStatus",      label: "Sales Status",    field: "salesStatus" },
+  // Sales Status column removed for now — to bring it back, re-add:
+  // { id: "salesStatus", label: "Sales Status", field: "salesStatus" } (cell is still in place below)
 ];
 
 // Compact by default so the table fits without horizontal scrolling. Location now
@@ -268,7 +269,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
     "Name", "Email", "Company", "Title", "Location",
     "Advisor Type", "Tier", "Availability", "Connector", "Contract", "Priority",
     "Last Contacted", "Days Since Contact", "Outreach Status", "Last Touched By",
-    "Relationship", "Last Heard From", "Replies (90d)", "Asks (60d)", "Ask-heavy",
+    "Relationship", "Last Heard From", "Replies (90d)", "Asks (60d)", "Ask-heavy", "Advisor Group",
   ];
 
   const rows = advisors.map((a) => {
@@ -305,6 +306,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(a.healthLoaded ? String(a.inboundEmailCount90d) : ""),
       escapeCSV(String(a.asksLast60d ?? 0)),
       escapeCSV(rel.askHeavy ? "Yes" : ""),
+      escapeCSV(a.advisorGroup === "benefits" ? "Benefits" : "Employer"),
     ].join(",");
   });
 
@@ -618,10 +620,23 @@ export default function AdvisorTable({
               </tr>
             ) : (
               advisors.map((a) => (
-                <tr key={a.id} className="hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors">
+                <tr
+                  key={a.id}
+                  className={
+                    a.advisorGroup === "benefits"
+                      // Benefits advisors: light teal row tint + teal edge bar
+                      ? "bg-[#E6F6F5] hover:bg-[#D9F0EE] dark:bg-teal-900/20 dark:hover:bg-teal-900/30 shadow-[inset_3px_0_0_#0E9AA7] transition-colors"
+                      : "hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors"
+                  }
+                >
                   {visibility.name && (
-                    <td className="px-3 py-1.5 max-w-[220px] cursor-pointer" onClick={() => onSelectAdvisor(a)} title={a.email || undefined}>
-                      <div className="font-medium text-[#0B3D91] dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug truncate">{a.name}</div>
+                    <td className="px-3 py-1.5 max-w-[240px] cursor-pointer" onClick={() => onSelectAdvisor(a)} title={a.email || undefined}>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-medium text-[#0B3D91] dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug truncate">{a.name}</span>
+                        {a.advisorGroup === "benefits" && (
+                          <span className="flex-shrink-0 rounded-full bg-[#0E9AA7] px-2 py-px text-[10px] font-medium text-white">Benefits</span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-[#6B7A99] dark:text-dark-muted leading-tight truncate">
                         {a.city
                           ? `${a.city}${a.state && normalizeState(a.state) ? `, ${normalizeState(a.state)}` : ""}`
