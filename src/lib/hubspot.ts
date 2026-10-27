@@ -22,7 +22,7 @@ const PROPERTIES = [
   "advisor_priority",
   "advisor_comp",
   "advisor_contract_link",
-  "ab_start_date",
+  "advisor_start_date", // HubSpot label: "AB Start Date"
   "hs_sales_email_last_replied",
   "engagements_last_meeting_booked",
 ];

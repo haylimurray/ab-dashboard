@@ -395,7 +395,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
                   {location && <div className="text-gray-500">{location}</div>}
                   {rel.status && <div style={{ color }}>{RELATIONSHIP_LABEL[rel.status]}</div>}
                   <div style={{ color: isBenefits ? BENEFITS_TEAL : "#5B6B8C" }}>
-                    {isBenefits ? "Consultant advisor" : "Employer advisor"}
+                    {isBenefits ? "Consultant advisor" : "Advisor"}
                   </div>
                 </div>
               </Tooltip>
@@ -448,7 +448,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#0062F5]" />
-            Employer advisor
+            Advisor
           </span>
           <span className="inline-flex items-center gap-2">
             <span

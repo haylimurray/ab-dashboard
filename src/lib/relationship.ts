@@ -10,7 +10,8 @@ import type { AdvisorContact, TicketItem } from "@/types";
 //   Responsive      replied within the last 90 days
 //   Slow to Respond last reply 91-365 days ago
 //   Not Responding  we've reached out, but no reply in over a year (or ever)
-//   New             joined within 45 days, or never contacted and never replied
+//   New             joined within 45 days, never contacted and never replied, or
+//                   emailed within the last 30 days with no reply yet (grace period)
 //   Client / Paused unchanged from the old model
 //
 // "Ask-heavy" is a separate flag: 3+ AB requests (tickets) targeting the advisor
@@ -28,6 +29,7 @@ export type RelationshipStatus =
 export const ASK_HEAVY_THRESHOLD = 3;
 export const ASK_WINDOW_DAYS = 60;
 export const NEW_ADVISOR_DAYS = 45;
+export const NO_REPLY_GRACE_DAYS = 30;
 
 export const RELATIONSHIP_ORDER: RelationshipStatus[] = [
   "highlyEngaged", "responsive", "slow", "notResponding", "new", "client", "paused",
@@ -48,7 +50,7 @@ export const RELATIONSHIP_DESC: Record<RelationshipStatus, string> = {
   responsive:    "Replied within the last 90 days.",
   slow:          "Last reply was 3 to 12 months ago.",
   notResponding: "We've reached out, but no reply in a year or more.",
-  new:           "Joined recently, or not enough history yet.",
+  new:           "Joined in the last 45 days, or we emailed within 30 days and they haven't replied yet.",
   client:        "Active Airvet customer. Response timing isn't tracked.",
   paused:        'Availability is set to "No Requests".',
 };
@@ -150,6 +152,12 @@ export function computeRelationship(a: AdvisorContact, now = Date.now()): Relati
   if (joinedRecently || neverContactedNeverReplied) {
     const reason = joinedRecently ? `Joined ${plural(startDays!, "day")} ago` : "Not yet contacted";
     return { ...base, status: "new", reason };
+  }
+
+  // Grace period: we emailed them recently and they've never replied — too early to
+  // call it "Not Responding".
+  if (replyTs === null && a.daysSinceContact !== null && a.daysSinceContact <= NO_REPLY_GRACE_DAYS) {
+    return { ...base, status: "new", reason: `Emailed ${plural(a.daysSinceContact, "day")} ago, no reply yet` };
   }
 
   if (daysSinceReply !== null && daysSinceReply <= 365) {

@@ -306,7 +306,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(a.healthLoaded ? String(a.inboundEmailCount90d) : ""),
       escapeCSV(String(a.asksLast60d ?? 0)),
       escapeCSV(rel.askHeavy ? "Yes" : ""),
-      escapeCSV(a.advisorGroup === "benefits" ? "Consultant Advisor" : "Employer"),
+      escapeCSV(a.advisorGroup === "benefits" ? "Consultant Advisor" : "Advisor"),
     ].join(",");
   });
 

@@ -13,11 +13,11 @@ interface Props {
 
 const OPTIONS: Array<{ id: AdvisorGroupFilter; label: string }> = [
   { id: "all", label: "All" },
-  { id: "employer", label: "Employer" },
+  { id: "employer", label: "Advisors" },
   { id: "benefits", label: "Consultant Advisors" },
 ];
 
-// Airvet-styled pill selector: All / Employer / Benefits advisors.
+// Airvet-styled pill selector: All / Advisors / Consultant Advisors.
 export default function AdvisorTypeFilter({ value, onChange, counts, className = "" }: Props) {
   return (
     <div className={`inline-flex items-center gap-2 ${className}`}>

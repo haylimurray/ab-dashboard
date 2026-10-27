@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         advisorTier: tier,
         advisorComp: p.advisor_comp ?? null,
         contractLink: p.advisor_contract_link ?? null,
-        startDate: p.ab_start_date ?? null,
+        startDate: p.advisor_start_date ?? null,
         notesLastContacted: p.notes_last_contacted ?? null,
         notesLastUpdated: p.notes_last_updated ?? null,
         city: p.city ?? null,
