@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllAdvisors } from "@/lib/hubspot";
+import { isInSlack } from "@/data/slackMembers";
 import type { ContactListItem, ContactListResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
         email: p.email ?? "",
         advisorType: p.airvet_advisory_board ?? null,
         advisorGroup: isBenefits ? "benefits" : "employer",
+        inSlack: isInSlack(p.email),
         isClientAdvisor: (p.lifecyclestage ?? "").toLowerCase() === "customer",
         tier,
         salesStatus: p.advisory_board_sales_status ?? null,

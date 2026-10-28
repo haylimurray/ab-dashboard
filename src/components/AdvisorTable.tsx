@@ -16,7 +16,7 @@ import {
 type ColId =
   | "name" | "title" | "advisorType" | "tier" | "location" | "lastContacted"
   | "daysSinceContact" | "healthScore" | "lastReply" | "outreachDetail"
-  | "availability" | "connector"
+  | "availability" | "connector" | "slack"
   | "contract" | "priority" | "salesStatus" | "status";
 
 interface ColDef {
@@ -37,7 +37,8 @@ const COLS: ColDef[] = [
   { id: "lastReply",        label: "Last Heard From", field: "lastReply" },
   { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
   { id: "availability",     label: "Availability" },
-  { id: "contract",         label: "Contract" },
+  { id: "slack",            label: "In Slack" },
+  { id: "contract",        label: "Contract" },
   // Priority column removed for now — to bring it back, re-add:
   // { id: "priority", label: "Priority" } (cell + badge are still in place below)
   // Sales Status column removed for now — to bring it back, re-add:
@@ -353,6 +354,10 @@ export default function AdvisorTable({
   const [widths, setWidths]         = useState<Record<string, number>>({});
   const [fontSize, setFontSize]     = useState<FontSize>("M");
   const [colsOpen, setColsOpen]     = useState(false);
+  const [slackFilter, setSlackFilter] = useState<"" | "in" | "out">("");
+  const shown = slackFilter
+    ? advisors.filter((a) => (slackFilter === "in" ? a.inSlack : !a.inSlack))
+    : advisors;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Hydrate from localStorage after mount (SSR-safe)
@@ -506,10 +511,20 @@ export default function AdvisorTable({
           <option value="No Requests">No Requests</option>
         </select>
 
+        <select
+          value={slackFilter}
+          onChange={(e) => setSlackFilter(e.target.value as "" | "in" | "out")}
+          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">All Slack</option>
+          <option value="in">In Slack</option>
+          <option value="out">Not in Slack</option>
+        </select>
+
         {/* Right-side controls */}
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block">
-            {advisors.length} advisor{advisors.length !== 1 ? "s" : ""}
+            {shown.length} advisor{shown.length !== 1 ? "s" : ""}
           </span>
 
           {/* Font size S/M/L */}
@@ -612,14 +627,14 @@ export default function AdvisorTable({
           </thead>
 
           <tbody className={`divide-y divide-[#EEF2FB] dark:divide-dark-border text-[#0B3D91] dark:text-dark-text ${FONT_CLASS[fontSize]}`}>
-            {advisors.length === 0 ? (
+            {shown.length === 0 ? (
               <tr>
                 <td colSpan={visibleCols.length} className="px-3 py-10 text-center text-sm text-gray-400 dark:text-dark-muted">
                   No advisors match the current filters.
                 </td>
               </tr>
             ) : (
-              advisors.map((a) => (
+              shown.map((a) => (
                 <tr
                   key={a.id}
                   className={
@@ -709,6 +724,15 @@ export default function AdvisorTable({
                   {visibility.availability && (
                     <td className="px-3 py-2 whitespace-nowrap">
                       <AvailabilityBadge value={a.requestAvailability} />
+                    </td>
+                  )}
+                  {visibility.slack && (
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {a.inSlack ? (
+                        <span className="inline-flex items-center rounded-full bg-[#E1ECFF] px-2 py-0.5 text-[11px] font-medium text-[#0B3D91]">In Slack</span>
+                      ) : (
+                        <span className="text-xs text-[#9AA7C0]">Not in Slack</span>
+                      )}
                     </td>
                   )}
                   {visibility.contract && (

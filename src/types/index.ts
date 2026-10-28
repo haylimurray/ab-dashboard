@@ -9,6 +9,7 @@ export interface ContactListItem {
   name: string;
   email: string;
   advisorType: string | null;
+  inSlack: boolean; // member of #airvet-advisors (see src/data/slackMembers.ts)
   advisorGroup: AdvisorGroup; // "benefits" = HubSpot airvet_advisory_board "BC Advisor"; otherwise standard employer advisor
   isClientAdvisor: boolean; // true when HubSpot lifecyclestage = "customer" — also an active Airvet client
   tier: string | null;
