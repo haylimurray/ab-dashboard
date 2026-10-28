@@ -74,6 +74,13 @@ const COORDS: Record<string, [number, number]> = {
   "ramsey, nj": [41.0576, -74.1412],
   "st. clair shores, mi": [42.4974, -82.8888],
   "clemson, sc": [34.6834, -82.8374],
+  "mendham, nj": [40.787, -74.6],
+  "valhalla, ny": [41.0762, -73.7748],
+  "south salem, ny": [41.2548, -73.5301],
+  "burbank, ca": [34.1808, -118.309],
+  "walnut creek, ca": [37.9101, -122.0652],
+  "brentwood, tn": [36.0331, -86.7828],
+  "chesterton, in": [41.6106, -87.0642],
   // Aliases for spellings/formats HubSpot uses
   "new york city, ny": [40.7128, -74.006],
   "st paul, mn": [44.9537, -93.09],
@@ -206,9 +213,22 @@ const STATE_NAMES: Record<string, string> = {
   wisconsin: "WI", wyoming: "WY", "district of columbia": "DC",
 };
 
+// HubSpot often holds LinkedIn-style area names ("Greater Chicago Area", "Charlotte Metro",
+// "Providence County", "Ft. Lauderdale"). Reduce them to the plain city name for lookup.
+function cleanCity(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^greater\s+/, "")
+    .replace(/\s+(metropolitan area|metro area|metro|area|county)$/, "")
+    .replace(/^ft\.?\s+/, "fort ")
+    .trim();
+}
+
 export function normalizeState(raw: string | null | undefined): string {
   if (!raw) return "";
-  const s = raw.trim();
+  // "Texas Metropolitan Area" -> "Texas"
+  const s = raw.trim().replace(/\s+(metropolitan area|metro area|metro|area)$/i, "");
   if (s.length <= 2) return s.toUpperCase();
   return STATE_NAMES[s.toLowerCase()] ?? s.substring(0, 2).toUpperCase();
 }
@@ -225,8 +245,12 @@ export function geocodeLocation(
 
   if (!c) return null;
   const st = normalizeState(state);
-  const key = st ? `${c}, ${st.toLowerCase()}` : c;
-  return COORDS[key] ?? null;
+  const exact = st ? `${c}, ${st.toLowerCase()}` : c;
+  if (COORDS[exact]) return COORDS[exact];
+  // Retry with the cleaned-up city name (Greater/Metro/Area/County wording, "Ft." etc.)
+  const cc = cleanCity(c);
+  const cleaned = st ? `${cc}, ${st.toLowerCase()}` : cc;
+  return COORDS[cleaned] ?? null;
 }
 
 export function isInternational(
