@@ -34,10 +34,9 @@ const COLS: ColDef[] = [
   { id: "lastContacted",    label: "Last Contacted",  field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
   { id: "healthScore",      label: "Relationship",    field: "relationship",    alwaysVisible: true },
-  { id: "lastReply",        label: "Last Heard From", field: "lastReply" },
   { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
   { id: "availability",     label: "Availability" },
-  { id: "slack",            label: "# airvet-advisors" },
+  { id: "slack",            label: "Slack: #airvet-advisors" },
   { id: "contract",        label: "Contract" },
   // Priority column removed for now — to bring it back, re-add:
   // { id: "priority", label: "Priority" } (cell + badge are still in place below)
@@ -516,9 +515,9 @@ export default function AdvisorTable({
           onChange={(e) => setSlackFilter(e.target.value as "" | "in" | "out")}
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
         >
-          <option value="">#airvet-advisors: All</option>
-          <option value="in">#airvet-advisors: Joined</option>
-          <option value="out">#airvet-advisors: Not joined</option>
+          <option value="">Slack: All</option>
+          <option value="in">Slack: In #airvet-advisors</option>
+          <option value="out">Slack: Not in #airvet-advisors</option>
         </select>
 
         {/* Right-side controls */}
@@ -685,20 +684,18 @@ export default function AdvisorTable({
                   )}
                   {visibility.healthScore && (
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <RelationshipBadge result={computeRelationship(a)} />
-                    </td>
-                  )}
-                  {visibility.lastReply && (
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-600 dark:text-dark-text">
                       {(() => {
                         const r = computeRelationship(a);
-                        if (!a.healthLoaded && !a.lastRepliedDate) return <span className="text-gray-300">…</span>;
-                        if (!r.lastReplyDate) return <span className="text-gray-400 dark:text-dark-muted">Never</span>;
                         return (
                           <>
-                            {formatDate(r.lastReplyDate)}
-                            <span className="block text-[11px] text-gray-400 dark:text-dark-muted leading-tight">
-                              {r.daysSinceReply === 0 ? "Today" : `${r.daysSinceReply}d ago`}
+                            <RelationshipBadge result={r} />
+                            {/* Last heard from, under the pill */}
+                            <span className="mt-0.5 block text-[11px] leading-tight text-gray-400 dark:text-dark-muted">
+                              {!a.healthLoaded && !a.lastRepliedDate
+                                ? "…"
+                                : r.lastReplyDate
+                                  ? `Heard from ${formatDate(r.lastReplyDate)}`
+                                  : "Never heard from"}
                             </span>
                           </>
                         );
@@ -733,7 +730,7 @@ export default function AdvisorTable({
                           <span className="font-bold">#</span>airvet-advisors
                         </span>
                       ) : (
-                        <span className="text-xs text-[#9AA7C0]">Not joined</span>
+                        <span className="text-xs text-[#9AA7C0]">Not in Slack</span>
                       )}
                     </td>
                   )}
