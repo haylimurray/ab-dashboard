@@ -37,7 +37,7 @@ const COLS: ColDef[] = [
   { id: "lastReply",        label: "Last Heard From", field: "lastReply" },
   { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
   { id: "availability",     label: "Availability" },
-  { id: "slack",            label: "In Slack" },
+  { id: "slack",            label: "# airvet-advisors" },
   { id: "contract",        label: "Contract" },
   // Priority column removed for now — to bring it back, re-add:
   // { id: "priority", label: "Priority" } (cell + badge are still in place below)
@@ -516,9 +516,9 @@ export default function AdvisorTable({
           onChange={(e) => setSlackFilter(e.target.value as "" | "in" | "out")}
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
         >
-          <option value="">All Slack</option>
-          <option value="in">In Slack</option>
-          <option value="out">Not in Slack</option>
+          <option value="">#airvet-advisors: All</option>
+          <option value="in">#airvet-advisors: Joined</option>
+          <option value="out">#airvet-advisors: Not joined</option>
         </select>
 
         {/* Right-side controls */}
@@ -729,9 +729,11 @@ export default function AdvisorTable({
                   {visibility.slack && (
                     <td className="px-3 py-2 whitespace-nowrap">
                       {a.inSlack ? (
-                        <span className="inline-flex items-center rounded-full bg-[#E1ECFF] px-2 py-0.5 text-[11px] font-medium text-[#0B3D91]">In Slack</span>
+                        <span className="inline-flex items-center gap-0.5 rounded-md bg-[#F4EDF4] px-1.5 py-0.5 text-[11px] font-medium text-[#4A154B]">
+                          <span className="font-bold">#</span>airvet-advisors
+                        </span>
                       ) : (
-                        <span className="text-xs text-[#9AA7C0]">Not in Slack</span>
+                        <span className="text-xs text-[#9AA7C0]">Not joined</span>
                       )}
                     </td>
                   )}
