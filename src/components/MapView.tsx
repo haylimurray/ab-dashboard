@@ -12,7 +12,16 @@ import {
 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, CircleMarker, Marker, Tooltip } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Marker, Tooltip, useMap } from "react-leaflet";
+
+// Flies the map to an advisor picked from the search box.
+function FlyTo({ target }: { target: { lat: number; lng: number; nonce: number } | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 8), { duration: 0.8 });
+  }, [target, map]);
+  return null;
+}
 
 const BENEFITS_TEAL = "#0E9AA7";
 const LOADING_COLOR = "#D5DBE8";
@@ -104,25 +113,24 @@ function MarketCard({
   const hasAdvisors = advisors.length > 0;
 
   return (
-    <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm overflow-hidden">
       <button
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#F6F8FD] dark:hover:bg-dark-hover transition-colors"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-900 dark:text-dark-text">{market.name}</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-sm font-medium text-[#0B3D91] dark:text-dark-text">{market.name}</span>
           <span
             className={`text-xs font-medium rounded-full px-2 py-0.5 ${
-              hasAdvisors ? "text-white" : "bg-gray-100 text-gray-400 dark:text-dark-muted"
+              hasAdvisors ? "bg-[#0062F5] text-white" : "bg-[#EEF2FB] text-[#9AA7C0]"
             }`}
-            style={hasAdvisors ? { backgroundColor: "#1B3A6B" } : undefined}
           >
             {advisors.length}
           </span>
         </div>
         <svg
-          className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-[#0062F5] flex-shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -130,28 +138,21 @@ function MarketCard({
       </button>
 
       {open && (
-        <div className="border-t border-gray-100 dark:border-dark-border">
+        <div className="border-t border-[#EEF2FB] dark:border-dark-border">
           {!hasAdvisors ? (
-            <p className="px-4 py-3 text-sm text-gray-400 dark:text-dark-muted italic">
-              No advisors in this market.
+            <p className="px-4 py-3 text-sm text-[#9AA7C0] dark:text-dark-muted">
+              No advisors in this market yet.
             </p>
           ) : (
-            <ul className="divide-y divide-gray-50 dark:divide-dark-border">
+            <ul className="divide-y divide-[#EEF2FB] dark:divide-dark-border">
               {advisors.map(({ advisor, distance }) => (
                 <li key={advisor.id}>
                   <button
-                    className="w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 dark:hover:bg-dark-hover transition-colors"
+                    className="w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-[#F6F8FD] dark:hover:bg-dark-hover transition-colors"
                     onClick={() => onSelectAdvisor(advisor)}
                   >
-                    <div className="min-w-0 flex-1">
-                      <span className="text-sm font-medium text-gray-900 dark:text-dark-text hover:text-airvet-blue">
-                        {advisor.name}
-                      </span>
-                      {advisor.company && (
-                        <span className="text-sm text-gray-400 dark:text-dark-muted"> · {advisor.company}</span>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-400 dark:text-dark-muted flex-shrink-0 tabular-nums">
+                    <AdvisorLine advisor={advisor} />
+                    <span className="text-xs text-[#6B7A99] dark:text-dark-muted flex-shrink-0 tabular-nums">
                       {Math.round(distance)} mi
                     </span>
                   </button>
@@ -160,6 +161,26 @@ function MarketCard({
             </ul>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Advisor name line used in the market lists: relationship dot, name, company,
+// and a small teal tag for consultant advisors.
+function AdvisorLine({ advisor, extra }: { advisor: AdvisorContact; extra?: string }) {
+  const rel = computeRelationship(advisor);
+  const color = rel.status ? RELATIONSHIP_BAR[rel.status] : LOADING_COLOR;
+  return (
+    <div className="min-w-0 flex-1 flex items-center gap-2">
+      <span className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} title={rel.status ? RELATIONSHIP_LABEL[rel.status] : undefined} />
+      <span className="min-w-0 truncate text-sm">
+        <span className="font-medium text-[#0B3D91] dark:text-dark-text">{advisor.name}</span>
+        {advisor.company && <span className="text-[#6B7A99] dark:text-dark-muted"> · {advisor.company}</span>}
+        {extra && <span className="text-[#6B7A99] dark:text-dark-muted"> · {extra}</span>}
+      </span>
+      {advisor.advisorGroup === "benefits" && (
+        <span className="flex-shrink-0 rounded-full bg-[#0E9AA7] px-2 py-px text-[10px] font-medium text-white whitespace-nowrap">Consultant Advisor</span>
       )}
     </div>
   );
@@ -178,25 +199,22 @@ function ExtendedPanel({
   if (entries.length === 0) return null;
 
   return (
-    <div className="mt-8">
-      <div className="flex items-center gap-2 mb-3">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-dark-text">
-          Extended Market — Available Across Regions
-        </h3>
-        <span className="text-xs text-gray-400 dark:text-dark-muted bg-gray-100 dark:bg-dark-hover rounded-full px-2 py-0.5">
-          {entries.length}
-        </span>
+    <div className="mt-7">
+      <div className="flex items-center gap-2.5 mb-3">
+        <h3 className="text-lg font-medium text-[#0B3D91] dark:text-dark-text">Extended market</h3>
+        <span className="rounded-full bg-[#0062F5] px-2 py-0.5 text-xs font-medium text-white">{entries.length}</span>
       </div>
-      <div className="rounded-xl border border-blue-100 dark:border-dark-border bg-blue-50/40 dark:bg-dark-card shadow-sm overflow-hidden">
+      <div className="rounded-2xl bg-white dark:bg-dark-card shadow-sm overflow-hidden">
         <button
-          className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-blue-50/80 dark:hover:bg-dark-hover transition-colors"
+          className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-[#F6F8FD] dark:hover:bg-dark-hover transition-colors"
           onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
         >
-          <p className="text-xs text-blue-700 dark:text-dark-muted italic">
-            These advisors can support across multiple markets
+          <p className="text-sm text-[#6B7A99] dark:text-dark-muted">
+            Advisors more than 100 miles from a core market, available across regions
           </p>
           <svg
-            className={`w-4 h-4 text-blue-400 dark:text-dark-muted flex-shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+            className={`w-4 h-4 text-[#0062F5] flex-shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -204,33 +222,24 @@ function ExtendedPanel({
         </button>
 
         {open && (
-          <ul className="divide-y divide-blue-100 dark:divide-dark-border border-t border-blue-100 dark:border-dark-border">
+          <ul className="divide-y divide-[#EEF2FB] dark:divide-dark-border border-t border-[#EEF2FB] dark:border-dark-border">
             {entries.map(({ advisor, nearest }) => (
               <li key={advisor.id}>
                 <button
-                  className="w-full text-left px-5 py-3 flex items-center justify-between gap-4 hover:bg-blue-50 dark:hover:bg-dark-hover transition-colors"
+                  className="w-full text-left px-5 py-3 flex items-center justify-between gap-4 hover:bg-[#F6F8FD] dark:hover:bg-dark-hover transition-colors"
                   onClick={() => onSelectAdvisor(advisor)}
                 >
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm font-medium text-gray-900 dark:text-dark-text hover:text-airvet-blue">
-                      {advisor.name}
-                    </span>
-                    {advisor.company && (
-                      <span className="text-sm text-gray-400 dark:text-dark-muted"> · {advisor.company}</span>
-                    )}
-                    {advisor.city && (
-                      <span className="text-sm text-gray-400 dark:text-dark-muted">
-                        {" · "}{advisor.city}{advisor.state ? `, ${normalizeState(advisor.state)}` : ""}
-                      </span>
-                    )}
-                  </div>
+                  <AdvisorLine
+                    advisor={advisor}
+                    extra={advisor.city ? `${advisor.city}${advisor.state ? `, ${normalizeState(advisor.state)}` : ""}` : undefined}
+                  />
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {nearest.map((m) => (
                       <span
                         key={m.name}
-                        className="text-[11px] bg-white dark:bg-dark-hover text-gray-500 dark:text-dark-muted border border-gray-200 dark:border-dark-border rounded-full px-2 py-0.5 tabular-nums whitespace-nowrap"
+                        className="text-[11px] bg-[#EEF2FB] dark:bg-dark-hover text-[#0B3D91] dark:text-dark-muted rounded-full px-2 py-0.5 tabular-nums whitespace-nowrap"
                       >
-                        {m.name} {Math.round(m.distance)}mi
+                        {m.name} {Math.round(m.distance)} mi
                       </span>
                     ))}
                   </div>
@@ -338,6 +347,30 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
 
   const unplotted = advisors.filter((a) => a.city || a.state).length - plotted.length;
 
+  // Name search: pick an advisor to zoom to their marker (or open their record if they have no map location)
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [target, setTarget] = useState<{ id: string; lat: number; lng: number; nonce: number } | null>(null);
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return advisors
+      .filter((a) => a.name.toLowerCase().includes(q))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, 8)
+      .map((a) => ({ advisor: a, point: plotted.find((p) => p.advisor.id === a.id) ?? null }));
+  }, [query, advisors, plotted]);
+
+  function pickAdvisor(a: AdvisorContact, point: PlottedAdvisor | null) {
+    setSearchOpen(false);
+    if (point) {
+      setQuery(a.name);
+      setTarget({ id: a.id, lat: point.lat, lng: point.lng, nonce: Date.now() });
+    } else {
+      onSelectAdvisor(a);
+    }
+  }
+
   if (!mounted) {
     return (
       <div className="h-[580px] rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card flex items-center justify-center">
@@ -365,7 +398,48 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
           Advisory Board
         </span>
         <h2 className="text-xl font-medium text-[#0B3D91] dark:text-dark-text">Advisor map</h2>
-        <div className="ml-auto">{typeFilter}</div>
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          {/* Name search */}
+          <div className="relative">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setSearchOpen(true); if (!e.target.value) setTarget(null); }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              placeholder="Search advisor name"
+              aria-label="Search advisors by name"
+              className="w-56 rounded-full border border-transparent bg-white dark:bg-dark-card px-3.5 py-1.5 text-xs text-[#0B3D91] dark:text-dark-text placeholder:text-[#9AA7C0] focus:outline-none focus:ring-2 focus:ring-[#0062F5]"
+            />
+            {searchOpen && query.trim() && (
+              <ul className="absolute right-0 z-[1000] mt-1 w-72 overflow-hidden rounded-xl bg-white dark:bg-dark-card shadow-lg ring-1 ring-[#EEF2FB] dark:ring-dark-border">
+                {matches.length === 0 ? (
+                  <li className="px-3 py-2 text-xs text-[#6B7A99]">No advisors match “{query.trim()}”.</li>
+                ) : (
+                  matches.map(({ advisor, point }) => (
+                    <li key={advisor.id}>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => pickAdvisor(advisor, point)}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-[#EEF2FB] dark:hover:bg-dark-hover"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-[#0B3D91] dark:text-dark-text">{advisor.name}</span>
+                          <span className="block truncate text-[11px] text-[#6B7A99]">
+                            {advisor.city ? `${advisor.city}${advisor.state ? `, ${advisor.state}` : ""}` : "No location on file"}
+                          </span>
+                        </span>
+                        {!point && <span className="flex-shrink-0 text-[10px] text-[#9AA7C0]">Not on map</span>}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
+          {typeFilter}
+        </div>
       </div>
 
       <div className="px-5 pb-5 flex flex-col gap-4">
@@ -378,6 +452,17 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
             url={darkMode ? TILE_DARK : TILE_LIGHT}
             attribution={TILE_ATTR}
           />
+          <FlyTo target={target} />
+          {/* Highlight ring around the advisor picked in search */}
+          {target && (
+            <CircleMarker
+              key={target.nonce}
+              center={[target.lat, target.lng]}
+              radius={17}
+              interactive={false}
+              pathOptions={{ color: "#0062F5", weight: 3, fillColor: "#0062F5", fillOpacity: 0.12 }}
+            />
+          )}
           {plotted.map(({ advisor, lat, lng }) => {
             const rel = computeRelationship(advisor);
             const color = rel.status ? RELATIONSHIP_BAR[rel.status] : LOADING_COLOR;
@@ -468,9 +553,10 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
 
       {/* ── Market Breakdown ─────────────────────────────────────────────── */}
       <section>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-dark-text mb-3">
-          Core Markets
-        </h2>
+        <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
+          <h2 className="text-lg font-medium text-[#0B3D91] dark:text-dark-text">Core markets</h2>
+          <span className="text-xs text-[#6B7A99] dark:text-dark-muted">Advisors within 100 miles of each hub. Dots show Relationship status.</span>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
           {coreGroups.map((group) => (
             <MarketCard
@@ -484,15 +570,15 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
         <ExtendedPanel entries={extendedEntries} onSelectAdvisor={onSelectAdvisor} />
 
         {intlPlotted.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-dark-text">International</h3>
-              <span className="text-xs text-gray-400 dark:text-dark-muted bg-gray-100 dark:bg-dark-hover rounded-full px-2 py-0.5">
+          <div className="mt-7">
+            <div className="flex items-center gap-2.5 mb-3">
+              <h3 className="text-lg font-medium text-[#0B3D91] dark:text-dark-text">International</h3>
+              <span className="rounded-full bg-[#0062F5] px-2 py-0.5 text-xs font-medium text-white">
                 {intlPlotted.length}
               </span>
             </div>
-            <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card shadow-sm overflow-hidden">
-              <ul className="divide-y divide-gray-100 dark:divide-dark-border">
+            <div className="rounded-2xl bg-white dark:bg-dark-card shadow-sm overflow-hidden">
+              <ul className="divide-y divide-[#EEF2FB] dark:divide-dark-border">
                 {intlPlotted.map(({ advisor }) => {
                   const cityKey = (advisor.city?.trim().toLowerCase() ?? "") || (advisor.state?.split(",")[0].trim().toLowerCase() ?? "");
                   const displayCity = advisor.city?.trim() || advisor.state?.split(",")[0].trim();
@@ -500,18 +586,11 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
                   return (
                     <li key={advisor.id}>
                       <button
-                        className="w-full text-left px-5 py-3 flex items-center justify-between gap-4 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+                        className="w-full text-left px-5 py-3 flex items-center justify-between gap-4 hover:bg-[#F6F8FD] dark:hover:bg-dark-hover transition-colors"
                         onClick={() => onSelectAdvisor(advisor)}
                       >
-                        <div className="min-w-0 flex-1">
-                          <span className="text-sm font-medium text-gray-900 dark:text-dark-text hover:text-airvet-blue">
-                            {advisor.name}
-                          </span>
-                          {advisor.company && (
-                            <span className="text-sm text-gray-400 dark:text-dark-muted"> · {advisor.company}</span>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-400 dark:text-dark-muted flex-shrink-0">
+                        <AdvisorLine advisor={advisor} />
+                        <span className="text-xs text-[#6B7A99] dark:text-dark-muted flex-shrink-0">
                           {displayCity}{country ? `, ${country}` : ""}
                         </span>
                       </button>
