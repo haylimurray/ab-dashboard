@@ -57,12 +57,6 @@ const DEFAULT_VIS: Record<ColId, boolean> = Object.fromEntries(
 const VIS_KEY = "ab_col_visibility_v2";
 const WIDTH_KEY = "ab_col_widths_v2";
 
-// ── Font size ─────────────────────────────────────────────────────────────────
-
-const FONT_SIZES = ["S", "M", "L"] as const;
-type FontSize = (typeof FONT_SIZES)[number];
-const FONT_CLASS: Record<FontSize, string> = { S: "text-xs", M: "text-sm", L: "text-base" };
-
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -351,12 +345,30 @@ export default function AdvisorTable({
 }: Props) {
   const [visibility, setVisibility] = useState<Record<ColId, boolean>>(DEFAULT_VIS);
   const [widths, setWidths]         = useState<Record<string, number>>({});
-  const [fontSize, setFontSize]     = useState<FontSize>("M");
   const [colsOpen, setColsOpen]     = useState(false);
   const [slackFilter, setSlackFilter] = useState<"" | "in" | "out">("");
   const shown = slackFilter
     ? advisors.filter((a) => (slackFilter === "in" ? a.inSlack : !a.inSlack))
     : advisors;
+  // Scrollbar at the top of the table, kept in sync with the real (bottom) one.
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const bodyScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [scrollW, setScrollW] = useState(0);
+  useEffect(() => {
+    const el = tableRef.current;
+    if (!el) return;
+    const update = () => setScrollW(el.scrollWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const syncScroll = (from: "top" | "body") => {
+    const a = from === "top" ? topScrollRef.current : bodyScrollRef.current;
+    const b = from === "top" ? bodyScrollRef.current : topScrollRef.current;
+    if (a && b && b.scrollLeft !== a.scrollLeft) b.scrollLeft = a.scrollLeft;
+  };
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Hydrate from localStorage after mount (SSR-safe)
@@ -373,10 +385,6 @@ export default function AdvisorTable({
     try {
       const w = localStorage.getItem(WIDTH_KEY);
       if (w) setWidths(JSON.parse(w));
-    } catch {}
-    try {
-      const f = localStorage.getItem("ab_font_size");
-      if (f && (["S", "M", "L"] as string[]).includes(f)) setFontSize(f as FontSize);
     } catch {}
   }, []);
 
@@ -397,11 +405,6 @@ export default function AdvisorTable({
       try { localStorage.setItem(VIS_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
-  }
-
-  function changeFontSize(s: FontSize) {
-    setFontSize(s);
-    try { localStorage.setItem("ab_font_size", s); } catch {}
   }
 
   // Column resize — throttled with rAF, persists on mouseup
@@ -526,24 +529,6 @@ export default function AdvisorTable({
             {shown.length} advisor{shown.length !== 1 ? "s" : ""}
           </span>
 
-          {/* Font size S/M/L */}
-          <div className="flex rounded-lg border border-gray-300 dark:border-dark-border divide-x divide-gray-300 dark:divide-dark-border overflow-hidden">
-            {FONT_SIZES.map((s) => (
-              <button
-                key={s}
-                onClick={() => changeFontSize(s)}
-                title={`Font size ${s}`}
-                className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  fontSize === s
-                    ? "bg-airvet-blue text-white"
-                    : "bg-white dark:bg-dark-card text-gray-500 dark:text-dark-muted hover:bg-gray-50 dark:hover:bg-dark-hover"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
           {/* Export CSV */}
           <button
             onClick={() => exportToCSV(advisors, filters.market)}
@@ -591,8 +576,16 @@ export default function AdvisorTable({
       </div>
 
       {/* ── Table ───────────────────────────────────────────────────────── */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
+      <div
+        ref={topScrollRef}
+        onScroll={() => syncScroll("top")}
+        className="overflow-x-auto overflow-y-hidden border-b border-[#EEF2FB] dark:border-dark-border"
+        aria-hidden="true"
+      >
+        <div style={{ width: scrollW, height: 1 }} />
+      </div>
+      <div ref={bodyScrollRef} onScroll={() => syncScroll("body")} className="overflow-x-auto">
+        <table ref={tableRef} className="min-w-full">
           <colgroup>
             {visibleCols.map((c) => (
               <col key={c.id} style={widths[c.id] ? { width: widths[c.id] } : undefined} />
@@ -604,7 +597,7 @@ export default function AdvisorTable({
               {visibleCols.map((col) => (
                 <th
                   key={col.id}
-                  className={`${TH} ${col.field ? "cursor-pointer hover:text-gray-800 transition-colors select-none" : ""}`}
+                  className={`${TH} ${col.field ? "cursor-pointer hover:text-gray-800 transition-colors select-none" : ""} ${col.id === "name" ? "sticky left-0 z-20 bg-white dark:bg-dark-bg shadow-[1px_0_0_#EEF2FB]" : ""}`}
                   style={widths[col.id] ? { width: widths[col.id] } : undefined}
                   onClick={col.field ? () => onSort(col.field!) : undefined}
                 >
@@ -625,7 +618,7 @@ export default function AdvisorTable({
             </tr>
           </thead>
 
-          <tbody className={`divide-y divide-[#EEF2FB] dark:divide-dark-border text-[#0B3D91] dark:text-dark-text ${FONT_CLASS[fontSize]}`}>
+          <tbody className={`divide-y divide-[#EEF2FB] dark:divide-dark-border text-[#0B3D91] dark:text-dark-text text-sm`}>
             {shown.length === 0 ? (
               <tr>
                 <td colSpan={visibleCols.length} className="px-3 py-10 text-center text-sm text-gray-400 dark:text-dark-muted">
@@ -637,14 +630,21 @@ export default function AdvisorTable({
                 <tr
                   key={a.id}
                   className={
-                    a.advisorGroup === "benefits"
+                    "group " + (a.advisorGroup === "benefits"
                       // Benefits advisors: light teal row tint + teal edge bar
                       ? "bg-[#E6F6F5] hover:bg-[#D9F0EE] dark:bg-teal-900/20 dark:hover:bg-teal-900/30 shadow-[inset_3px_0_0_#0E9AA7] transition-colors"
-                      : "hover:bg-slate-50/80 dark:hover:bg-dark-hover transition-colors"
+                      : "hover:bg-slate-50 dark:hover:bg-dark-hover transition-colors")
                   }
                 >
                   {visibility.name && (
-                    <td className="px-3 py-1.5 max-w-[240px] cursor-pointer" onClick={() => onSelectAdvisor(a)} title={a.email || undefined}>
+                    // Frozen first column: sticky with an opaque background that matches the row
+                    <td
+                      className={`sticky left-0 z-10 px-3 py-1.5 max-w-[240px] cursor-pointer ${
+                        a.advisorGroup === "benefits"
+                          ? "bg-[#E6F6F5] group-hover:bg-[#D9F0EE] dark:bg-teal-950 dark:group-hover:bg-teal-900 shadow-[inset_3px_0_0_#0E9AA7,1px_0_0_#EEF2FB]"
+                          : "bg-white group-hover:bg-slate-50 dark:bg-dark-card dark:group-hover:bg-dark-hover shadow-[1px_0_0_#EEF2FB]"
+                      }`}
+                      onClick={() => onSelectAdvisor(a)} title={a.email || undefined}>
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="font-medium text-[#0B3D91] dark:text-dark-text hover:text-airvet-blue hover:underline leading-snug truncate">{a.name}</span>
                         {a.advisorGroup === "benefits" && (
