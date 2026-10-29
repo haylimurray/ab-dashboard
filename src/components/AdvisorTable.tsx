@@ -263,7 +263,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
     "Name", "Email", "Company", "Title", "Location",
     "Advisor Type", "Tier", "Availability", "Connector", "Contract", "Priority",
     "Last Contacted", "Days Since Contact", "Outreach Status", "Last Touched By",
-    "Relationship", "Last Heard From", "Replies (90d)", "Asks (60d)", "Ask-heavy", "Advisor Group",
+    "Relationship", "Last Heard From", "Replies (90d)", "Asks (60d)", "Ask-heavy", "Advisor Group", "In #airvet-advisors Slack",
   ];
 
   const rows = advisors.map((a) => {
@@ -301,6 +301,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(String(a.asksLast60d ?? 0)),
       escapeCSV(rel.askHeavy ? "Yes" : ""),
       escapeCSV(a.advisorGroup === "benefits" ? "Consultant Advisor" : "Advisor"),
+      escapeCSV(a.inSlack ? "Yes" : "No"),
     ].join(",");
   });
 
@@ -531,7 +532,7 @@ export default function AdvisorTable({
 
           {/* Export CSV */}
           <button
-            onClick={() => exportToCSV(advisors, filters.market)}
+            onClick={() => exportToCSV(shown, filters.market)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
             title="Export visible advisors to CSV"
           >
