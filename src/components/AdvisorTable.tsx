@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AdvisorContact, SortDir, SortField } from "@/types";
 import { computeOutreachStatus } from "@/lib/health";
 import { normalizeState } from "@/lib/geocode";
+import { totalsByName, valueFor } from "@/lib/advisorValue";
 import RelationshipBadge from "./RelationshipBadge";
 import {
   RELATIONSHIP_LABEL,
@@ -16,7 +17,7 @@ import {
 type ColId =
   | "name" | "title" | "advisorType" | "tier" | "location" | "lastContacted"
   | "daysSinceContact" | "healthScore" | "lastReply" | "outreachDetail"
-  | "availability" | "connector" | "slack"
+  | "availability" | "connector" | "slack" | "dealValue"
   | "contract" | "priority" | "salesStatus" | "status";
 
 interface ColDef {
@@ -34,6 +35,7 @@ const COLS: ColDef[] = [
   { id: "lastContacted",    label: "Last Contacted",  field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
   { id: "healthScore",      label: "Relationship",    field: "relationship",    alwaysVisible: true },
+  { id: "dealValue",        label: "Deal value" },
   { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
   { id: "availability",     label: "Availability" },
   { id: "slack",            label: "Slack: #airvet-advisors" },
@@ -348,6 +350,26 @@ export default function AdvisorTable({
   const [widths, setWidths]         = useState<Record<string, number>>({});
   const [colsOpen, setColsOpen]     = useState(false);
   const [slackFilter, setSlackFilter] = useState<"" | "in" | "out">("");
+  // Closed-won AB deal totals per advisor, for the $ / $$ / $$$ column
+  const [dealTotals, setDealTotals] = useState<ReturnType<typeof totalsByName> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/deals/ab-influenced", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d?.deals) setDealTotals(totalsByName(d.deals)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  // Popover for the $ badge (fixed-position so the table's scroll area can't clip it)
+  const [valuePop, setValuePop] = useState<{ name: string; x: number; y: number; v: NonNullable<ReturnType<typeof valueFor>> } | null>(null);
+  useEffect(() => {
+    if (!valuePop) return;
+    const close = () => setValuePop(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
+  }, [valuePop]);
   const shown = slackFilter
     ? advisors.filter((a) => (slackFilter === "in" ? a.inSlack : !a.inSlack))
     : advisors;
@@ -444,6 +466,34 @@ export default function AdvisorTable({
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl border border-transparent dark:border-dark-border shadow-sm">
+      {valuePop && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setValuePop(null)} />
+          <div
+            className="fixed z-50 w-80 overflow-hidden rounded-2xl bg-white dark:bg-dark-card shadow-xl ring-1 ring-[#EEF2FB] dark:ring-dark-border"
+            style={{ left: valuePop.x, top: valuePop.y }}
+          >
+            <div className="bg-[#EEF2FB] dark:bg-dark-bg px-4 py-3">
+              <p className="text-xs font-medium text-[#5B6B8C] dark:text-dark-muted">{valuePop.name} · closed won with AB</p>
+              <p className="mt-0.5 text-2xl font-medium text-[#0B3D91] dark:text-dark-text tabular-nums">
+                ${valuePop.v.total.toLocaleString("en-US")}
+              </p>
+              <p className="text-xs text-[#6B7A99] dark:text-dark-muted">
+                {valuePop.v.deals} deal{valuePop.v.deals !== 1 ? "s" : ""}
+              </p>
+            </div>
+            <ul className="max-h-56 divide-y divide-[#EEF2FB] dark:divide-dark-border overflow-y-auto">
+              {valuePop.v.list.map((d, i) => (
+                <li key={i} className="flex items-center justify-between gap-3 px-4 py-2 text-sm text-[#0B3D91] dark:text-dark-text">
+                  <span className="truncate">{d.name}</span>
+                  <span className="shrink-0 tabular-nums text-[#5B6B8C] dark:text-dark-muted">${d.amount.toLocaleString("en-US")}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="h-1.5 bg-[#0062F5]" />
+          </div>
+        </>
+      )}
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#EEF2FB] dark:border-dark-border bg-white dark:bg-dark-bg rounded-t-2xl">
@@ -699,6 +749,32 @@ export default function AdvisorTable({
                                   : "Never heard from"}
                             </span>
                           </>
+                        );
+                      })()}
+                    </td>
+                  )}
+                  {visibility.dealValue && (
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {(() => {
+                        const v = dealTotals ? valueFor(a.firstName, a.lastName, dealTotals) : null;
+                        if (!v) return <span className="text-xs text-[#9AA7C0]">{dealTotals ? "—" : "…"}</span>;
+                        const money = v.total >= 1_000_000 ? `$${(v.total / 1_000_000).toFixed(1)}M` : `$${Math.round(v.total / 1000)}K`;
+                        return (
+                          <button
+                            type="button"
+                            title={`${money} closed won across ${v.deals} AB deal${v.deals !== 1 ? "s" : ""} — click for details`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const r = e.currentTarget.getBoundingClientRect();
+                              const x = Math.min(r.left, window.innerWidth - 336);
+                              const y = r.bottom + 6 + 300 > window.innerHeight ? Math.max(8, r.top - 306) : r.bottom + 6;
+                              setValuePop(valuePop?.name === a.name ? null : { name: a.name, x, y, v });
+                            }}
+                            className="inline-flex items-center rounded-full bg-[#EEF2FB] px-2.5 py-0.5 text-xs font-semibold tracking-wide hover:ring-2 hover:ring-[#0062F5]/30 dark:bg-dark-hover"
+                          >
+                            <span className="text-[#0062F5]">{"$".repeat(v.tier)}</span>
+                            <span className="text-[#C5CEE0]">{"$".repeat(3 - v.tier)}</span>
+                          </button>
                         );
                       })()}
                     </td>
