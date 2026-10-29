@@ -413,6 +413,8 @@ const DEAL_PROPERTIES = [
   "deal_source",
   "deal_source_category",
   "advisory_board_member",
+  "deal_source_drill_down",
+  "closed_won_reason",
   "hs_is_closed_won",
   "hs_is_closed",
   "createdate",
@@ -499,6 +501,7 @@ export const MANUAL_ADVISOR_OVERRIDES: Record<string, string> = {
   "33171640834": "Conor Sweeney",        // MasterClass — "Conor made intro"
   "32822823717": "Paaras Parker",        // Kroger - KC — "Paaras helped pass along a note"
   "35163977857": "Christina Seafort",    // Monster Beverage - AB — "Christina is on AB"
+  "59184049493": "Adam Mesh",            // KPMG LLP — drill-down: "Adam Mesh" (was a typo, "Adam Tesh", when first audited)
   "64248528820": "Timothy Hourigan", // Home Depot US — drill-down: "Tim Hourigan intro to Casey Richter"
   "60715071303": "Timothy Hourigan", // Home Depot Mexico 2027 — drill-down: "Tim Hourigan introduction"
   "63835113498": "Jaime Stack",      // Sevita — drill-down is literally "Jaime Stack"
@@ -520,6 +523,15 @@ export const MANUAL_ADVISOR_OVERRIDES: Record<string, string> = {
   "22863752052": "Jordan Backman",   // AMC Networks - JR — "Lauren introduced me to Jordan"
   "31662311050": "Martin Robatti",   // BNY Mellon - JR — "David Landman intro'ed us to Martin"
   "38774299817": "Marissa Andrada",  // Krispy Kreme - JR — "Got introduced by Marisa to Jim" (jobtitle also says Board Member, Krispy Kreme)
+  // 10/29/26 re-audit
+  "13046520139": "Kathleen Harris",  // Weight Watchers — "Intro from Kathleen Harris"
+  "66440437309": "Chetna Singh",     // SAP America - JR — "BW was introduced to SAP Americas team by Chetna"
+  "63222834509": "Chetna Singh",     // SAP America - JR — "BW was introduced to SAP Americas team by Chetna"
+  "63222344809": "Chetna Singh",     // SAP China - JR — "BW was introduced by Chetna to Ishan"
+  "63222397027": "Chetna Singh",     // SAP India - JR — "BW reached out to Chetna and got us an intro"
+  "18294218901": "Todd Helms",       // Mueller Water Products — "Meeting with Todd Helms"
+  "42712828445": "Jaime Stack",      // Under Armour - JR — "Jaime wants to get Airvet in for a small population"
+  "51515366779": "Mandy Clark",      // First American Financial — "Personal Connection with FA/Mandy"
 };
 
 // Deal stage ID → label across every deal pipeline (2023-2027 + Renewals).
