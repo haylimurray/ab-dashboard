@@ -88,7 +88,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   return <span className="ml-1 text-airvet-blue">{dir === "asc" ? "↑" : "↓"}</span>;
 }
 
-const TH = "px-3 py-2.5 text-left text-xs font-bold text-gray-500 dark:text-dark-muted uppercase tracking-wider whitespace-nowrap cursor-pointer select-none hover:text-gray-800 dark:hover:text-dark-text transition-colors";
+const TH = "px-3 py-3 text-left text-xs font-medium text-[#5B6B8C] dark:text-dark-muted whitespace-nowrap cursor-pointer select-none hover:text-[#0B3D91] dark:hover:text-dark-text transition-colors";
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -100,6 +100,7 @@ export default function AbDealsView() {
   const [yearFilter, setYearFilter]   = useState<string>(""); // "" = all time
   const [sort, setSort]       = useState<{ field: string; dir: SortDir }>({ field: "createdDate", dir: "desc" });
   const [exportOpen, setExportOpen] = useState(false);
+  const [reviewOnly, setReviewOnly] = useState(false); // only deals with a suggested (uncredited) advisor
 
   const fetchData = useCallback(async (force = false) => {
     setLoading(true);
@@ -155,6 +156,7 @@ export default function AbDealsView() {
       : stageFilter === "Late Stage"
         ? yearFiltered.filter((d) => d.isLateStage)
         : yearFiltered.filter((d) => d.stageLabel === stageFilter);
+    if (reviewOnly) rows = rows.filter((d) => d.suggestedAdvisor);
     rows.sort((a, b) => {
       let av: string | number = "", bv: string | number = "";
       switch (sort.field) {
@@ -173,7 +175,7 @@ export default function AbDealsView() {
       return 0;
     });
     return rows;
-  }, [yearFiltered, stageFilter, sort]);
+  }, [yearFiltered, stageFilter, sort, reviewOnly]);
 
   if (loading && !data) {
     return (
@@ -221,14 +223,16 @@ export default function AbDealsView() {
     contracting: lateDeals.filter((d) => /contracting/i.test(d.dealStage ?? "")).length,
   };
 
-  const fileTag = `${yearFilter || "All-time"}_${new Date().toISOString().slice(0, 10)}`;
+  const reviewCount = yearFiltered.filter((d) => d.suggestedAdvisor).length;
+
+  const fileTag =`${yearFilter || "All-time"}_${new Date().toISOString().slice(0, 10)}`;
 
   // Export 1: the deals currently shown (respects year + status filters and sort)
   function exportDeals() {
-    const header = ["Deal", "Status", "Stage", "Late stage", "Amount", "Advisor", "Source", "Created"];
+    const header = ["Deal", "Status", "Stage", "Late stage", "Amount", "Advisor", "Suggested advisor (to review)", "Source", "Created"];
     const body = sorted.map((d) => [
       d.name, d.stageLabel, d.dealStage ?? "", d.isLateStage ? "Yes" : "", d.amount ?? "",
-      d.advisoryBoardMember ?? "Unattributed", d.dealSource ?? "", isoDate(d.createdDate),
+      d.advisoryBoardMember ?? "Unattributed", d.suggestedAdvisor?.name ?? "", d.dealSource ?? "", isoDate(d.createdDate),
     ]);
     const tag = stageFilter ? `${fileTag}_${stageFilter.replace(/\s+/g, "-")}` : fileTag;
     downloadCsv(`AB_Influenced_Deals_${tag}.csv`, [header, ...body]);
@@ -279,25 +283,34 @@ export default function AbDealsView() {
   ];
 
   return (
-    <>
+    // Airvet-branded frame (matches Map + Advisor table): lavender surface, white cards, navy + blue stripe
+    <div className="rounded-2xl overflow-hidden bg-[#EEF2FB] dark:bg-dark-bg/60 border border-transparent dark:border-dark-border">
+      <div className="flex flex-wrap items-center gap-3 px-5 pt-4 pb-3">
+        <span className="rounded-full bg-white dark:bg-dark-card px-3.5 py-1 text-[13px] font-medium text-[#0B3D91] dark:text-dark-text">
+          Advisory Board
+        </span>
+        <h2 className="text-xl font-medium text-[#0B3D91] dark:text-dark-text">AB-influenced deals</h2>
+      </div>
+
+      <div className="px-5 pb-5 space-y-4">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {cards.map((card) => {
           const active = stageFilter === card.filterKey;
           return (
             <button
               key={card.label}
               onClick={() => setStageFilter(active ? "" : card.filterKey)}
-              className={`${card.bg} rounded-xl border border-gray-200 dark:border-dark-border px-5 py-4 shadow text-left transition-all ${
-                active ? "ring-2 ring-airvet-blue" : "hover:shadow-md"
+              className={`bg-white dark:bg-dark-card rounded-2xl shadow-sm px-5 py-4 text-left transition-all ${
+                active ? "ring-2 ring-[#0062F5]" : "hover:shadow-md"
               }`}
-              style={{ borderLeft: `4px solid ${card.accent}` }}
             >
-              <p className="text-xs font-semibold text-gray-500 dark:text-dark-muted uppercase tracking-wider">
+              <p className="flex items-center gap-2 text-xs font-medium text-[#5B6B8C] dark:text-dark-muted">
+                <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: card.accent }} />
                 {card.label}
               </p>
-              <p className={`mt-1.5 text-4xl font-extrabold ${card.text}`}>{card.count}</p>
-              <p className="mt-0.5 text-xs text-gray-400 dark:text-dark-muted">{formatCompact(card.amount)}</p>
+              <p className="mt-1.5 text-4xl font-medium text-[#0B3D91] dark:text-dark-text tabular-nums">{card.count}</p>
+              <p className="mt-0.5 text-xs text-[#6B7A99] dark:text-dark-muted">{formatCompact(card.amount)}</p>
               {card.sub && <p className="mt-0.5 text-[11px] font-medium text-amber-700/80 dark:text-amber-400/80">{card.sub}</p>}
             </button>
           );
@@ -305,23 +318,23 @@ export default function AbDealsView() {
       </div>
 
       {/* Methodology note */}
-      <p className="text-xs text-gray-400 dark:text-dark-muted px-1 mb-4">
-        Counts deals where HubSpot&apos;s Deal Source Category is <strong className="font-medium text-gray-500 dark:text-dark-muted">&quot;AB / Community&quot;</strong>,
-        excluding deals sourced as <strong className="font-medium text-gray-500 dark:text-dark-muted">&quot;BW,&quot; &quot;Personal Connection,&quot;</strong> or{" "}
-        <strong className="font-medium text-gray-500 dark:text-dark-muted">&quot;Intro (non AB Member) / Referral&quot;</strong> — those are generally Brandon&apos;s own
+      <p className="text-xs text-[#6B7A99] dark:text-dark-muted px-1">
+        Counts deals where HubSpot&apos;s Deal Source Category is <strong className="font-medium text-[#0B3D91] dark:text-dark-text">&quot;AB / Community&quot;</strong>,
+        excluding deals sourced as <strong className="font-medium text-[#0B3D91] dark:text-dark-text">&quot;BW,&quot; &quot;Personal Connection,&quot;</strong> or{" "}
+        <strong className="font-medium text-[#0B3D91] dark:text-dark-text">&quot;Intro (non AB Member) / Referral&quot;</strong> — those are generally Brandon&apos;s own
         network or a non-advisor referral, not an actual advisory board connection. A handful of deals in those excluded sources were manually
         confirmed via Notes/Email review to have genuine AB involvement and are included anyway (10/1/26 audit). Only{" "}
-        <strong className="font-medium text-gray-500 dark:text-dark-muted">{data.namedAdvisorCount} of {data.total}</strong> have
+        <strong className="font-medium text-[#0B3D91] dark:text-dark-text">{data.namedAdvisorCount} of {data.total}</strong> have
         a specific advisor credited (the &quot;Advisor&quot; column below) — most are flagged as AB-influenced without a name attached yet.
       </p>
 
       {/* Table card */}
-      <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg">
+      <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-transparent dark:border-dark-border">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#EEF2FB] dark:border-dark-border bg-white dark:bg-dark-bg rounded-t-2xl">
           <select
             value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)}
-            className="text-xs font-medium text-gray-600 dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-airvet-blue"
+            className="text-xs font-medium text-[#0B3D91] dark:text-dark-muted border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-card px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-airvet-blue"
           >
             <option value="">All time</option>
             {availableYears.map((y) => (
@@ -340,7 +353,21 @@ export default function AbDealsView() {
               </button>
             </div>
           )}
-          <span className="ml-auto text-xs text-gray-400 dark:text-dark-muted">
+          {reviewCount > 0 && (
+            <button
+              onClick={() => setReviewOnly((v) => !v)}
+              title="Deals with no advisor credited where a roster name appears in the source drill-down or closed-won reason"
+              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                reviewOnly
+                  ? "border-amber-400 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                  : "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-transparent dark:text-amber-300"
+              }`}
+            >
+              {reviewCount} suggested advisor{reviewCount !== 1 ? "s" : ""} to review
+              {reviewOnly && <span>✕</span>}
+            </button>
+          )}
+          <span className="ml-auto text-xs text-[#6B7A99] dark:text-dark-muted">
             {sorted.length} deal{sorted.length !== 1 ? "s" : ""}
           </span>
           <div className="relative">
@@ -384,7 +411,7 @@ export default function AbDealsView() {
 
         <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
           <table className="min-w-full">
-            <thead className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border sticky top-0">
+            <thead className="bg-white dark:bg-dark-bg border-b border-[#EEF2FB] dark:border-dark-border sticky top-0 z-10">
               <tr>
                 {[
                   { label: "Deal",     field: "name" },
@@ -406,10 +433,10 @@ export default function AbDealsView() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+            <tbody className="divide-y divide-[#EEF2FB] dark:divide-dark-border">
               {sorted.map((d) => (
-                <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
-                  <td className="px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text max-w-[240px] truncate">{d.name}</td>
+                <tr key={d.id} className="hover:bg-[#EEF2FB]/60 dark:hover:bg-dark-hover transition-colors">
+                  <td className="px-3 py-2.5 text-sm font-medium text-[#0B3D91] dark:text-dark-text max-w-[240px] truncate">{d.name}</td>
                   <td className="px-3 py-2.5">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stagePill(d.stageLabel)}`}>
                       {d.stageLabel}
@@ -423,12 +450,22 @@ export default function AbDealsView() {
                       {d.dealStage ?? "—"}
                     </span>
                   </td>
-                  <td className="px-3 py-2.5 text-sm text-gray-600 dark:text-dark-muted whitespace-nowrap">{formatMoney(d.amount)}</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-600 dark:text-dark-muted whitespace-nowrap">
-                    {d.advisoryBoardMember ?? <span className="text-gray-300 dark:text-dark-border">Unattributed</span>}
+                  <td className="px-3 py-2.5 text-sm text-[#0B3D91] dark:text-dark-muted whitespace-nowrap tabular-nums">{formatMoney(d.amount)}</td>
+                  <td className="px-3 py-2.5 text-sm text-[#0B3D91] dark:text-dark-muted whitespace-nowrap">
+                    {d.advisoryBoardMember ?? (d.suggestedAdvisor ? (
+                      <span
+                        className="inline-flex items-center gap-1.5"
+                        title={`Found in HubSpot (${d.suggestedAdvisor.match}): "${d.suggestedAdvisor.source}"`}
+                      >
+                        <span className="italic text-amber-700 dark:text-amber-400">{d.suggestedAdvisor.name}?</span>
+                        <span className="rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Suggested</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[#9AA7C0]">Unattributed</span>
+                    ))}
                   </td>
-                  <td className="px-3 py-2.5 text-xs text-gray-400 dark:text-dark-muted whitespace-nowrap">{d.dealSource ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-400 dark:text-dark-muted whitespace-nowrap">{formatDate(d.createdDate)}</td>
+                  <td className="px-3 py-2.5 text-xs text-[#6B7A99] dark:text-dark-muted whitespace-nowrap">{d.dealSource ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-xs text-[#6B7A99] dark:text-dark-muted whitespace-nowrap">{formatDate(d.createdDate)}</td>
                 </tr>
               ))}
               {sorted.length === 0 && (
@@ -442,6 +479,9 @@ export default function AbDealsView() {
           </table>
         </div>
       </div>
-    </>
+      </div>
+      <div className="h-2.5 bg-[#0B3D91]" />
+      <div className="h-2.5 bg-[#0062F5]" />
+    </div>
   );
 }

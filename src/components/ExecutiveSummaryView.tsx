@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AbInfluencedDealsData, AdvisorContact, RequestsData } from "@/types";
 import { computeOutreachStatus } from "@/lib/health";
+import { tierFor } from "@/lib/advisorValue";
 import {
   ASK_HEAVY_FLAG,
   RELATIONSHIP_BAR,
@@ -104,6 +105,32 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
     return { relCounts: counts, askHeavyCount: askHeavy };
   }, [advisors]);
 
+  // Closed-won revenue by credited advisor (same rules as the $ / $$ / $$$ column in the advisor table)
+  const wins = useMemo(() => {
+    if (!deals) return null;
+    const by = new Map<string, { name: string; total: number; list: { name: string; amount: number }[] }>();
+    let wonTotal = 0;
+    let wonDeals = 0;
+    let creditedDeals = 0;
+    let creditedTotal = 0;
+    for (const d of deals.deals) {
+      if (!d.isClosedWon) continue;
+      wonDeals++;
+      wonTotal += d.amount ?? 0;
+      if (!d.advisoryBoardMember) continue;
+      creditedDeals++;
+      creditedTotal += d.amount ?? 0;
+      const cur = by.get(d.advisoryBoardMember) ?? { name: d.advisoryBoardMember, total: 0, list: [] };
+      cur.total += d.amount ?? 0;
+      cur.list.push({ name: d.name, amount: d.amount ?? 0 });
+      by.set(d.advisoryBoardMember, cur);
+    }
+    const ranked = Array.from(by.values()).filter((a) => a.total > 0).sort((x, y) => y.total - x.total);
+    const tiers = { 3: 0, 2: 0, 1: 0 } as Record<1 | 2 | 3, number>;
+    ranked.forEach((a) => { tiers[tierFor(a.total)]++; });
+    return { ranked, tiers, wonTotal, wonDeals, creditedDeals, creditedTotal };
+  }, [deals]);
+
   const total = advisors.length;
   const respondingCount = relCounts.highlyEngaged + relCounts.responsive;
   const respondingPct = total > 0 ? Math.round((respondingCount / total) * 100) : 0;
@@ -173,6 +200,52 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
           </span>
         </div>
       </div>
+
+      {/* Advisor impact — closed-won revenue credited to advisors */}
+      {wins && wins.ranked.length > 0 && (
+        <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm overflow-hidden mb-6">
+          <div className="flex flex-wrap items-start justify-between gap-3 bg-[#EEF2FB] dark:bg-dark-bg px-5 py-4">
+            <div>
+              <p className="text-xs font-medium text-[#5B6B8C] dark:text-dark-muted">Advisor impact</p>
+              <p className="mt-0.5 text-2xl font-medium text-[#0B3D91] dark:text-dark-text tabular-nums">
+                {formatCompact(wins.creditedTotal)} <span className="text-sm text-[#6B7A99] dark:text-dark-muted">closed won with a named advisor</span>
+              </p>
+              <p className="text-xs text-[#6B7A99] dark:text-dark-muted">
+                {wins.creditedDeals} of {wins.wonDeals} closed-won deals · {wins.wonTotal > 0 ? Math.round((wins.creditedTotal / wins.wonTotal) * 100) : 0}% of {formatCompact(wins.wonTotal)} closed won is credited to an advisor
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-[#0B3D91] dark:text-dark-text">
+              {([3, 2, 1] as const).map((t) => (
+                <span key={t} className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-dark-card px-2.5 py-1 font-semibold">
+                  <span><span className="text-[#0062F5]">{"$".repeat(t)}</span><span className="text-[#C5CEE0]">{"$".repeat(3 - t)}</span></span>
+                  <span className="font-medium text-[#5B6B8C] dark:text-dark-muted">{wins.tiers[t]}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <ul className="divide-y divide-[#EEF2FB] dark:divide-dark-border">
+            {wins.ranked.slice(0, 8).map((a) => {
+              const t = tierFor(a.total);
+              const pct = (a.total / wins.ranked[0].total) * 100;
+              return (
+                <li key={a.name} className="px-5 py-2.5" title={a.list.map((d) => `${d.name}: $${d.amount.toLocaleString("en-US")}`).join("\n")}>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="w-14 shrink-0 text-xs font-semibold">
+                      <span className="text-[#0062F5]">{"$".repeat(t)}</span><span className="text-[#C5CEE0]">{"$".repeat(3 - t)}</span>
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-[#0B3D91] dark:text-dark-text">{a.name}</span>
+                    <span className="hidden sm:block text-xs text-[#6B7A99] dark:text-dark-muted">{a.list.length} deal{a.list.length !== 1 ? "s" : ""}</span>
+                    <span className="w-20 shrink-0 text-right tabular-nums text-[#0B3D91] dark:text-dark-text">{formatCompact(a.total)}</span>
+                  </div>
+                  <div className="mt-1.5 ml-[68px] h-1.5 rounded-full bg-[#EEF2FB] dark:bg-dark-hover">
+                    <div className="h-full rounded-full bg-[#0062F5]" style={{ width: `${pct}%` }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* BW Circle — temporarily hidden from the dashboard per request (9/30/26).
           Data/logic above (bwCircle, BW_CIRCLE) left intact so this can be
