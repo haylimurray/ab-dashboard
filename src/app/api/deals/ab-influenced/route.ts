@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAbInfluencedDeals, fetchDealStageLabels, MANUAL_ADVISOR_OVERRIDES } from "@/lib/hubspot";
+import { fetchAbInfluencedDeals, fetchAllAdvisors, fetchDealStageLabels, MANUAL_ADVISOR_OVERRIDES } from "@/lib/hubspot";
+import { buildMatcher } from "@/lib/dealAdvisorMatch";
 import type { AbInfluencedDeal, AbInfluencedDealsData } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -29,10 +30,18 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("[/api/deals/ab-influenced] Cache MISS — fetching from HubSpot");
-    const [raw, stageLabels] = await Promise.all([fetchAbInfluencedDeals(), fetchDealStageLabels()]);
+    const [raw, stageLabels, roster] = await Promise.all([
+      fetchAbInfluencedDeals(),
+      fetchDealStageLabels(),
+      fetchAllAdvisors().catch(() => []), // suggestions are optional; don't fail the tab without them
+    ]);
+    const suggest = buildMatcher(
+      roster.map((c) => ({ first: c.properties.firstname ?? "", last: c.properties.lastname ?? "" }))
+    );
 
     const deals: AbInfluencedDeal[] = raw.map((d) => {
       const p = d.properties;
+      const credited = p.advisory_board_member ?? MANUAL_ADVISOR_OVERRIDES[d.id] ?? null;
       const isClosedWon = (p.hs_is_closed_won ?? "false") === "true";
       const isClosed = (p.hs_is_closed ?? "false") === "true";
       const dealStage = p.dealstage ? (stageLabels[p.dealstage] ?? null) : null;
@@ -47,7 +56,8 @@ export async function GET(request: NextRequest) {
         isClosedWon,
         isClosed,
         dealSource: p.deal_source ?? null,
-        advisoryBoardMember: p.advisory_board_member ?? MANUAL_ADVISOR_OVERRIDES[d.id] ?? null,
+        advisoryBoardMember: credited,
+        suggestedAdvisor: credited ? null : suggest([p.deal_source_drill_down, p.closed_won_reason]),
         createdDate: p.createdate ?? null,
         closeDate: p.closedate ?? null,
       };

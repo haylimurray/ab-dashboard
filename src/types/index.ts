@@ -259,6 +259,9 @@ export interface AbInfluencedDeal {
   isClosed: boolean;
   dealSource: string | null;
   advisoryBoardMember: string | null; // specific advisor credited, if set
+  // For deals with no advisor credited: a roster name found in the drill-down / closed-won reason.
+  // A suggestion to review, never counted as credited.
+  suggestedAdvisor: { name: string; match: "full name" | "last name only"; source: string } | null;
   createdDate: string | null;
   closeDate: string | null;
 }
