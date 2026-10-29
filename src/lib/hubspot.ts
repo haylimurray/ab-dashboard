@@ -525,6 +525,7 @@ export const MANUAL_ADVISOR_OVERRIDES: Record<string, string> = {
   "38774299817": "Marissa Andrada",  // Krispy Kreme - JR — "Got introduced by Marisa to Jim" (jobtitle also says Board Member, Krispy Kreme)
   // 10/29/26 re-audit
   "66502714498": "Bruce Monte",     // YALE UNIVERSITY - JR (open, $285K) — drill-down now reads "Bruce Monte"
+  "18763595799": "Ryan Craig",      // Elevance Health - JR ($1.125M closed won) — Ryan Craig is now an AB member
   "13046520139": "Kathleen Harris",  // Weight Watchers — "Intro from Kathleen Harris"
   "66440437309": "Chetna Singh",     // SAP America - JR — "BW was introduced to SAP Americas team by Chetna"
   "63222834509": "Chetna Singh",     // SAP America - JR — "BW was introduced to SAP Americas team by Chetna"
