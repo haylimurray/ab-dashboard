@@ -55,6 +55,30 @@ function stageDetailPill(label: string | null, isLate: boolean): string {
   return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
 }
 
+function csvCell(v: string | number | null | undefined): string {
+  const s = v === null || v === undefined ? "" : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]) {
+  // BOM so Excel opens it as UTF-8
+  const csv = "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function isoDate(raw: string | null): string {
+  if (!raw) return "";
+  const d = /^\d{10,}$/.test(raw.trim()) ? new Date(Number(raw)) : new Date(raw);
+  return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+}
+
 type StageFilter = "" | AbInfluencedDeal["stageLabel"] | "Late Stage";
 
 type SortDir = "asc" | "desc";
@@ -75,6 +99,7 @@ export default function AbDealsView() {
   const [stageFilter, setStageFilter] = useState<StageFilter>("");
   const [yearFilter, setYearFilter]   = useState<string>(""); // "" = all time
   const [sort, setSort]       = useState<{ field: string; dir: SortDir }>({ field: "createdDate", dir: "desc" });
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchData = useCallback(async (force = false) => {
     setLoading(true);
@@ -196,6 +221,55 @@ export default function AbDealsView() {
     contracting: lateDeals.filter((d) => /contracting/i.test(d.dealStage ?? "")).length,
   };
 
+  const fileTag = `${yearFilter || "All-time"}_${new Date().toISOString().slice(0, 10)}`;
+
+  // Export 1: the deals currently shown (respects year + status filters and sort)
+  function exportDeals() {
+    const header = ["Deal", "Status", "Stage", "Late stage", "Amount", "Advisor", "Source", "Created"];
+    const body = sorted.map((d) => [
+      d.name, d.stageLabel, d.dealStage ?? "", d.isLateStage ? "Yes" : "", d.amount ?? "",
+      d.advisoryBoardMember ?? "Unattributed", d.dealSource ?? "", isoDate(d.createdDate),
+    ]);
+    const tag = stageFilter ? `${fileTag}_${stageFilter.replace(/\s+/g, "-")}` : fileTag;
+    downloadCsv(`AB_Influenced_Deals_${tag}.csv`, [header, ...body]);
+    setExportOpen(false);
+  }
+
+  // Export 2: summary report for the selected year (ignores the status filter)
+  function exportSummary() {
+    const rows: (string | number)[][] = [
+      ["AB-Influenced Deals summary"],
+      ["Period", yearFilter || "All time"],
+      ["Generated", new Date().toISOString().slice(0, 10)],
+      [],
+      ["Status", "Deals", "Amount"],
+      ...cards.map((c) => [c.label, c.count, c.amount]),
+      [],
+      ["Stage", "Deals", "Amount"],
+    ];
+    const byStage = new Map<string, { n: number; amt: number }>();
+    const byAdvisor = new Map<string, { n: number; amt: number; won: number }>();
+    for (const d of yearFiltered) {
+      const s = d.dealStage ?? "No stage";
+      const st = byStage.get(s) ?? { n: 0, amt: 0 };
+      st.n++; st.amt += d.amount ?? 0; byStage.set(s, st);
+      const name = d.advisoryBoardMember ?? "Unattributed";
+      const ad = byAdvisor.get(name) ?? { n: 0, amt: 0, won: 0 };
+      ad.n++; ad.amt += d.amount ?? 0;
+      if (d.stageLabel === "Closed Won") ad.won += d.amount ?? 0;
+      byAdvisor.set(name, ad);
+    }
+    Array.from(byStage.entries())
+      .sort((a, b) => stageRank(a[0]) - stageRank(b[0]))
+      .forEach(([s, v]) => rows.push([s, v.n, v.amt]));
+    rows.push([], ["Advisor", "Deals", "Amount", "Closed won amount"]);
+    Array.from(byAdvisor.entries())
+      .sort((a, b) => b[1].n - a[1].n)
+      .forEach(([name, v]) => rows.push([name, v.n, v.amt, v.won]));
+    downloadCsv(`AB_Influenced_Deals_Summary_${fileTag}.csv`, rows);
+    setExportOpen(false);
+  }
+
   const cards: { label: string; sub?: string; count: number; amount: number; filterKey: StageFilter; accent: string; bg: string; text: string }[] = [
     { label: "Total",       count: yearStats.total,          amount: yearStats.totalAmount,     filterKey: "",            accent: "#1B3A6B", bg: "bg-white dark:bg-dark-card",   text: "text-gray-900 dark:text-dark-text" },
     { label: "Open",        count: yearStats.openCount,       amount: yearStats.openAmount,      filterKey: "Open",        accent: "#0062F5", bg: "bg-blue-50 dark:bg-dark-card", text: "text-blue-700 dark:text-blue-400" },
@@ -269,6 +343,33 @@ export default function AbDealsView() {
           <span className="ml-auto text-xs text-gray-400 dark:text-dark-muted">
             {sorted.length} deal{sorted.length !== 1 ? "s" : ""}
           </span>
+          <div className="relative">
+            <button
+              onClick={() => setExportOpen((o) => !o)}
+              aria-expanded={exportOpen}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-airvet-blue rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+              </svg>
+              Export
+            </button>
+            {exportOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setExportOpen(false)} />
+                <div className="absolute right-0 z-20 mt-1.5 w-64 overflow-hidden rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card shadow-lg">
+                  <button onClick={exportDeals} className="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-dark-hover">
+                    <span className="block text-sm font-medium text-gray-900 dark:text-dark-text">Deal list (CSV)</span>
+                    <span className="block text-[11px] text-gray-400 dark:text-dark-muted">The {sorted.length} deal{sorted.length !== 1 ? "s" : ""} shown, with current filters</span>
+                  </button>
+                  <button onClick={exportSummary} className="w-full border-t border-gray-100 dark:border-dark-border px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-dark-hover">
+                    <span className="block text-sm font-medium text-gray-900 dark:text-dark-text">Summary report (CSV)</span>
+                    <span className="block text-[11px] text-gray-400 dark:text-dark-muted">Totals by status, stage and advisor for {yearFilter || "all time"}</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={() => fetchData(true)}
             disabled={loading}
