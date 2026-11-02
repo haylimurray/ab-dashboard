@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AbInfluencedDealsData, AdvisorContact, RequestsData } from "@/types";
 import { computeOutreachStatus } from "@/lib/health";
 import { tierFor } from "@/lib/advisorValue";
+import { dealUrl } from "@/lib/hubspotLinks";
 import {
   ASK_HEAVY_FLAG,
   RELATIONSHIP_BAR,
@@ -108,7 +109,7 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
   // Closed-won revenue by credited advisor (same rules as the $ / $$ / $$$ column in the advisor table)
   const wins = useMemo(() => {
     if (!deals) return null;
-    const by = new Map<string, { name: string; total: number; list: { name: string; amount: number }[] }>();
+    const by = new Map<string, { name: string; total: number; list: { id: string; name: string; amount: number }[] }>();
     let wonTotal = 0;
     let wonDeals = 0;
     let creditedDeals = 0;
@@ -122,7 +123,7 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
       creditedTotal += d.amount ?? 0;
       const cur = by.get(d.advisoryBoardMember) ?? { name: d.advisoryBoardMember, total: 0, list: [] };
       cur.total += d.amount ?? 0;
-      cur.list.push({ name: d.name, amount: d.amount ?? 0 });
+      cur.list.push({ id: d.id, name: d.name, amount: d.amount ?? 0 });
       by.set(d.advisoryBoardMember, cur);
     }
     const ranked = Array.from(by.values()).filter((a) => a.total > 0).sort((x, y) => y.total - x.total);
@@ -130,6 +131,7 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
     ranked.forEach((a) => { tiers[tierFor(a.total)]++; });
     return { ranked, tiers, wonTotal, wonDeals, creditedDeals, creditedTotal };
   }, [deals]);
+  const [openAdvisor, setOpenAdvisor] = useState<string | null>(null); // advisor row expanded to show deal links
 
   const total = advisors.length;
   const respondingCount = relCounts.highlyEngaged + relCounts.responsive;
@@ -228,18 +230,43 @@ export default function ExecutiveSummaryView({ advisors }: Props) {
               const t = tierFor(a.total);
               const pct = (a.total / wins.ranked[0].total) * 100;
               return (
-                <li key={a.name} className="px-5 py-2.5" title={a.list.map((d) => `${d.name}: $${d.amount.toLocaleString("en-US")}`).join("\n")}>
-                  <div className="flex items-center gap-3 text-sm">
+                <li key={a.name} className="px-5 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setOpenAdvisor(openAdvisor === a.name ? null : a.name)}
+                    aria-expanded={openAdvisor === a.name}
+                    title="Click to see the deals"
+                    className="flex w-full items-center gap-3 text-left text-sm"
+                  >
                     <span className="w-14 shrink-0 text-xs font-semibold">
                       <span className="text-[#0062F5]">{"$".repeat(t)}</span><span className="text-[#C5CEE0]">{"$".repeat(3 - t)}</span>
                     </span>
                     <span className="min-w-0 flex-1 truncate font-medium text-[#0B3D91] dark:text-dark-text">{a.name}</span>
                     <span className="hidden sm:block text-xs text-[#6B7A99] dark:text-dark-muted">{a.list.length} deal{a.list.length !== 1 ? "s" : ""}</span>
                     <span className="w-20 shrink-0 text-right tabular-nums text-[#0B3D91] dark:text-dark-text">{formatCompact(a.total)}</span>
-                  </div>
+                    <span aria-hidden className="text-xs text-[#9AA7C0]">{openAdvisor === a.name ? "▾" : "▸"}</span>
+                  </button>
                   <div className="mt-1.5 ml-[68px] h-1.5 rounded-full bg-[#EEF2FB] dark:bg-dark-hover">
                     <div className="h-full rounded-full bg-[#0062F5]" style={{ width: `${pct}%` }} />
                   </div>
+                  {openAdvisor === a.name && (
+                    <ul className="mt-2 ml-[68px] space-y-1">
+                      {a.list.map((d) => (
+                        <li key={d.id} className="flex items-center justify-between gap-3 text-xs">
+                          <a
+                            href={dealUrl(d.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open in HubSpot"
+                            className="truncate text-[#0B3D91] dark:text-dark-text hover:text-airvet-blue hover:underline"
+                          >
+                            {d.name} <span aria-hidden className="text-[#9AA7C0]">↗</span>
+                          </a>
+                          <span className="shrink-0 tabular-nums text-[#5B6B8C] dark:text-dark-muted">${d.amount.toLocaleString("en-US")}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               );
             })}

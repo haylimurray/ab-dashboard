@@ -5,6 +5,7 @@ import { AdvisorContact, SortDir, SortField } from "@/types";
 import { computeOutreachStatus } from "@/lib/health";
 import { normalizeState } from "@/lib/geocode";
 import { totalsByName, valueFor } from "@/lib/advisorValue";
+import { dealUrl } from "@/lib/hubspotLinks";
 import RelationshipBadge from "./RelationshipBadge";
 import {
   RELATIONSHIP_LABEL,
@@ -370,9 +371,15 @@ export default function AdvisorTable({
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
   }, [valuePop]);
-  const shown = slackFilter
-    ? advisors.filter((a) => (slackFilter === "in" ? a.inSlack : !a.inSlack))
-    : advisors;
+  const [valueFilter, setValueFilter] = useState<"" | "1" | "2" | "3" | "none">("");
+  const shown = advisors.filter((a) => {
+    if (slackFilter && (slackFilter === "in" ? !a.inSlack : a.inSlack)) return false;
+    if (valueFilter) {
+      const tier = dealTotals ? valueFor(a.firstName, a.lastName, dealTotals)?.tier : undefined;
+      if (valueFilter === "none" ? tier !== undefined : String(tier) !== valueFilter) return false;
+    }
+    return true;
+  });
   // Scrollbar at the top of the table, kept in sync with the real (bottom) one.
   const topScrollRef = useRef<HTMLDivElement>(null);
   const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -485,7 +492,15 @@ export default function AdvisorTable({
             <ul className="max-h-56 divide-y divide-[#EEF2FB] dark:divide-dark-border overflow-y-auto">
               {valuePop.v.list.map((d, i) => (
                 <li key={i} className="flex items-center justify-between gap-3 px-4 py-2 text-sm text-[#0B3D91] dark:text-dark-text">
-                  <span className="truncate">{d.name}</span>
+                  <a
+                    href={dealUrl(d.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open in HubSpot"
+                    className="truncate hover:text-airvet-blue hover:underline"
+                  >
+                    {d.name} <span aria-hidden className="text-xs text-[#9AA7C0]">↗</span>
+                  </a>
                   <span className="shrink-0 tabular-nums text-[#5B6B8C] dark:text-dark-muted">${d.amount.toLocaleString("en-US")}</span>
                 </li>
               ))}
@@ -572,6 +587,18 @@ export default function AdvisorTable({
           <option value="">Slack: All</option>
           <option value="in">Slack: In #airvet-advisors</option>
           <option value="out">Slack: Not in #airvet-advisors</option>
+        </select>
+
+        <select
+          value={valueFilter}
+          onChange={(e) => setValueFilter(e.target.value as "" | "1" | "2" | "3" | "none")}
+          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">Deal value: All</option>
+          <option value="3">$$$ (over $250K)</option>
+          <option value="2">$$ ($50K to $250K)</option>
+          <option value="1">$ (under $50K)</option>
+          <option value="none">No closed-won deals</option>
         </select>
 
         {/* Right-side controls */}

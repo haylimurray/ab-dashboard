@@ -7,7 +7,7 @@ import type { AbInfluencedDeal } from "@/types";
 export const TIER_2_MIN = 50_000;   // $$  at or above this
 export const TIER_3_MIN = 250_000;  // $$$ at or above this
 
-export interface ValueDeal { name: string; amount: number; closeDate: string | null }
+export interface ValueDeal { id: string; name: string; amount: number; closeDate: string | null }
 
 export interface AdvisorValue {
   total: number;      // closed-won $ credited
@@ -36,7 +36,7 @@ export function totalsByName(deals: AbInfluencedDeal[]): Totals {
     const cur = m.get(k) ?? { total: 0, deals: 0, list: [] };
     cur.total += d.amount ?? 0;
     cur.deals += 1;
-    cur.list.push({ name: d.name, amount: d.amount ?? 0, closeDate: d.closeDate });
+    cur.list.push({ id: d.id, name: d.name, amount: d.amount ?? 0, closeDate: d.closeDate });
     m.set(k, cur);
   }
   m.forEach((v) => v.list.sort((a, b) => b.amount - a.amount));

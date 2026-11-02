@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AbInfluencedDeal, AbInfluencedDealsData } from "@/types";
+import { dealUrl } from "@/lib/hubspotLinks";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -229,9 +230,9 @@ export default function AbDealsView() {
 
   // Export 1: the deals currently shown (respects year + status filters and sort)
   function exportDeals() {
-    const header = ["Deal", "Status", "Stage", "Late stage", "Amount", "Advisor", "Suggested advisor (to review)", "Source", "Created"];
+    const header = ["Deal", "HubSpot link", "Status", "Stage", "Late stage", "Amount", "Advisor", "Suggested advisor (to review)", "Source", "Created"];
     const body = sorted.map((d) => [
-      d.name, d.stageLabel, d.dealStage ?? "", d.isLateStage ? "Yes" : "", d.amount ?? "",
+      d.name, dealUrl(d.id), d.stageLabel, d.dealStage ?? "", d.isLateStage ? "Yes" : "", d.amount ?? "",
       d.advisoryBoardMember ?? "Unattributed", d.suggestedAdvisor?.name ?? "", d.dealSource ?? "", isoDate(d.createdDate),
     ]);
     const tag = stageFilter ? `${fileTag}_${stageFilter.replace(/\s+/g, "-")}` : fileTag;
@@ -436,7 +437,17 @@ export default function AbDealsView() {
             <tbody className="divide-y divide-[#EEF2FB] dark:divide-dark-border">
               {sorted.map((d) => (
                 <tr key={d.id} className="hover:bg-[#EEF2FB]/60 dark:hover:bg-dark-hover transition-colors">
-                  <td className="px-3 py-2.5 text-sm font-medium text-[#0B3D91] dark:text-dark-text max-w-[240px] truncate">{d.name}</td>
+                  <td className="px-3 py-2.5 text-sm font-medium text-[#0B3D91] dark:text-dark-text max-w-[240px] truncate">
+                    <a
+                      href={dealUrl(d.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open in HubSpot"
+                      className="hover:text-airvet-blue hover:underline"
+                    >
+                      {d.name}
+                    </a>
+                  </td>
                   <td className="px-3 py-2.5">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${stagePill(d.stageLabel)}`}>
                       {d.stageLabel}
