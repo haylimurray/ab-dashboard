@@ -126,7 +126,8 @@ export type SortField =
   | "healthScore"
   | "salesStatus"
   | "relationship"
-  | "lastReply";
+  | "lastReply"
+  | "dealValue";
 
 export type SortDir = "asc" | "desc";
 

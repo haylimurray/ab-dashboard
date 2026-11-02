@@ -36,7 +36,7 @@ const COLS: ColDef[] = [
   { id: "lastContacted",    label: "Last Contacted",  field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
   { id: "healthScore",      label: "Relationship",    field: "relationship",    alwaysVisible: true },
-  { id: "dealValue",        label: "Deal value" },
+  { id: "dealValue",        label: "Deal value",      field: "dealValue" },
   { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
   { id: "availability",     label: "Availability" },
   { id: "slack",            label: "Slack: #airvet-advisors" },
@@ -372,7 +372,7 @@ export default function AdvisorTable({
     return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
   }, [valuePop]);
   const [valueFilter, setValueFilter] = useState<"" | "1" | "2" | "3" | "none">("");
-  const shown = advisors.filter((a) => {
+  const filtered = advisors.filter((a) => {
     if (slackFilter && (slackFilter === "in" ? !a.inSlack : a.inSlack)) return false;
     if (valueFilter) {
       const tier = dealTotals ? valueFor(a.firstName, a.lastName, dealTotals)?.tier : undefined;
@@ -380,6 +380,17 @@ export default function AdvisorTable({
     }
     return true;
   });
+  // Deal value sort: first click = highest closed-won total first; advisors with none always last.
+  const shown = sort.field === "dealValue" && dealTotals
+    ? [...filtered].sort((a, b) => {
+        const at = valueFor(a.firstName, a.lastName, dealTotals)?.total ?? null;
+        const bt = valueFor(b.firstName, b.lastName, dealTotals)?.total ?? null;
+        if (at === null && bt === null) return 0;
+        if (at === null) return 1;
+        if (bt === null) return -1;
+        return sort.dir === "asc" ? bt - at : at - bt;
+      })
+    : filtered;
   // Scrollbar at the top of the table, kept in sync with the real (bottom) one.
   const topScrollRef = useRef<HTMLDivElement>(null);
   const bodyScrollRef = useRef<HTMLDivElement>(null);
