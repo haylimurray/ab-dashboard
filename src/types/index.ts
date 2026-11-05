@@ -153,7 +153,8 @@ export type SortField =
   | "lastReply"
   | "dealValue"
   | "asks"
-  | "participation";
+  | "participation"
+  | "contributor";
 
 export type SortDir = "asc" | "desc";
 

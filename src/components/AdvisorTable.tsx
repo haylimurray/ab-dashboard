@@ -49,7 +49,7 @@ const COLS: ColDef[] = [
   { id: "lastContacted",    label: "Last Contacted",  field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
   { id: "participation",    label: "Participation",   field: "participation",   alwaysVisible: true },
-  { id: "contributor",      label: "Contributor type" },
+  { id: "contributor",      label: "Contributor type", field: "contributor" },
   { id: "healthScore",      label: "Responsiveness",  field: "relationship",    alwaysVisible: true },
   { id: "dealValue",        label: "Deal value",      field: "dealValue" },
   { id: "asks",             label: "AB asks",         field: "asks" },

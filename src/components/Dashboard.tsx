@@ -21,7 +21,7 @@ import AdvisorTable from "./AdvisorTable";
 import { computeOutreachStatus } from "@/lib/health";
 import { computeRelationship, countRecentAsks, relationshipRank } from "@/lib/relationship";
 import { buildAskStats } from "@/lib/advisorAsks";
-import { normalizeParticipation, participationRank } from "@/lib/participation";
+import { CONTRIBUTOR_ORDER, normalizeParticipation, participationRank, primaryContributor } from "@/lib/participation";
 import AdvisorDrawer from "./AdvisorDrawer";
 // import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
 import RequestsView from "./RequestsView";
@@ -87,6 +87,17 @@ function sortAdvisors(
         av = a.healthLoaded ? a.healthScore : (dir === "asc" ? Infinity : -Infinity);
         bv = b.healthLoaded ? b.healthScore : (dir === "asc" ? Infinity : -Infinity);
         break;
+      case "contributor": {
+        // First click = strongest first: Deal Maker, then Super Connector, then Insider, then none.
+        // Ties broken by how many types the advisor has (more first).
+        const rank = (x: AdvisorContact) => {
+          const p = primaryContributor(x.contributorTypes);
+          return (p === null ? CONTRIBUTOR_ORDER.length : CONTRIBUTOR_ORDER.indexOf(p)) * 10 - x.contributorTypes.length;
+        };
+        av = rank(a);
+        bv = rank(b);
+        break;
+      }
       case "participation":
         av = participationRank(normalizeParticipation(a.participation));
         bv = participationRank(normalizeParticipation(b.participation));
