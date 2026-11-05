@@ -1,4 +1,5 @@
 import type { AdvisorAskStats } from "@/lib/advisorAsks";
+import type { ContributorType } from "@/lib/participation";
 
 // ── Contact list (from GET /api/contacts) ────────────────────────────────────
 
@@ -43,6 +44,9 @@ export interface ContactListItem {
   requestsSuccessful: number | null;
   requestSuccessRate: number | null;    // percent; null when no completed ticket has an outcome
   lastRequestOutcome: string | null;    // Intro Made | Meeting Held | Advisor Declined | No Response | Duplicate/Cancelled
+  // Headline status + contributor types from the classifier (see src/lib/participation.ts)
+  participation: string | null;         // Active | Lapsed | Quiet
+  contributorTypes: ContributorType[];  // Deal Maker | Super Connector | Insider (may be empty)
 }
 
 export interface ContactListResponse {
@@ -148,7 +152,8 @@ export type SortField =
   | "relationship"
   | "lastReply"
   | "dealValue"
-  | "asks";
+  | "asks"
+  | "participation";
 
 export type SortDir = "asc" | "desc";
 

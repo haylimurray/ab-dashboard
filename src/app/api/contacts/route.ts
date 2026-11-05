@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchAllAdvisors } from "@/lib/hubspot";
 import { isInSlack } from "@/data/slackMembers";
 import type { ContactListItem, ContactListResponse } from "@/types";
+import { parseContributorTypes } from "@/lib/participation";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,8 @@ export async function GET(request: NextRequest) {
         requestsSuccessful:    num(p.ab_requests_successful),
         requestSuccessRate:    num(p.ab_request_success_rate),
         lastRequestOutcome:    p.ab_last_request_outcome ?? null,
+        participation:         p.ab_participation ?? null,
+        contributorTypes:      parseContributorTypes(p.ab_contributor_type),
       };
     });
 

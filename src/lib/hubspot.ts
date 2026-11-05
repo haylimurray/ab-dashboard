@@ -35,6 +35,8 @@ const PROPERTIES = [
   "ab_requests_successful",
   "ab_request_success_rate",
   "ab_last_request_outcome",
+  "ab_participation",
+  "ab_contributor_type",
 ];
 
 interface HubSpotResult {

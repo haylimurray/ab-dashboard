@@ -5,6 +5,14 @@ import type { AdvisorContact } from "@/types";
 import { computeOutreachStatus, OutreachStatus } from "@/lib/health";
 import { computeRelationship } from "@/lib/relationship";
 import { ticketUrl } from "@/lib/hubspotLinks";
+import {
+  CONTRIBUTOR_DESC,
+  CONTRIBUTOR_PILL,
+  PARTICIPATION_DESC,
+  PARTICIPATION_PILL,
+  isChampionEligible,
+  normalizeParticipation,
+} from "@/lib/participation";
 import RelationshipBadge from "./RelationshipBadge";
 
 const HUBSPOT_BASE = "https://app.hubspot.com/contacts/21696780/record/0-1";
@@ -153,7 +161,37 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
 
                 {advisor.healthLoaded ? (
                   <>
-                    <Field label="Relationship">
+                    <Field label="Participation (high value engagement)">
+                      {(() => {
+                        const p = normalizeParticipation(advisor.participation);
+                        return (
+                          <div className="space-y-2">
+                            {p ? (
+                              <div>
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PARTICIPATION_PILL[p]}`}>{p}</span>
+                                <span className="ml-2 text-xs text-gray-500 dark:text-dark-muted">{PARTICIPATION_DESC[p]}</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 dark:text-dark-muted">Not yet classified</span>
+                            )}
+                            {advisor.contributorTypes.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {advisor.contributorTypes.map((t) => (
+                                  <span key={t} title={CONTRIBUTOR_DESC[t]} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CONTRIBUTOR_PILL[t]}`}>{t}</span>
+                                ))}
+                              </div>
+                            )}
+                            {isChampionEligible(advisor) && (
+                              <div className="text-xs font-medium text-[#7A4B00] dark:text-[#F5C26B]">
+                                ★ Champion-eligible (Active with 2+ contributor types). Advisor tier is unchanged.
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </Field>
+
+                    <Field label="Responsiveness (email replies)">
                       <div className="mt-1">
                         <RelationshipBadge result={computeRelationship(advisor)} />
                       </div>
@@ -180,13 +218,13 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                         <div className="space-y-1 text-sm">
                           {advisor.totalThreads90d !== null && (
                             <div>
-                              {advisor.substantiveThreads90d ?? 0} substantive of {advisor.totalThreads90d} threads
+                              {advisor.substantiveThreads90d ?? 0} high value of {advisor.totalThreads90d} threads
                               {advisor.dealIntroThreads90d ? ` · ${advisor.dealIntroThreads90d} deal/intro` : ""}
                             </div>
                           )}
                           {advisor.lastSubstantiveDate && (
                             <div className="text-xs text-gray-500 dark:text-dark-muted">
-                              Last substantive: {formatDate(advisor.lastSubstantiveDate)}
+                              Last high value engagement: {formatDate(advisor.lastSubstantiveDate)}
                               {advisor.lastSubstantiveType ? ` (${advisor.lastSubstantiveType})` : ""}
                             </div>
                           )}

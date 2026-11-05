@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AdvisorContact } from "@/types";
+import {
+  CONTRIBUTOR_COLOR,
+  CONTRIBUTOR_ORDER,
+  NO_CONTRIBUTOR_COLOR,
+  primaryContributor,
+} from "@/lib/participation";
 import { geocodeLocation, getJitter, isInternational, normalizeState } from "@/lib/geocode";
 import {
   RELATIONSHIP_BAR,
@@ -349,6 +355,8 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
 
   // Name search: pick an advisor to zoom to their marker (or open their record if they have no map location)
   const [query, setQuery] = useState("");
+  // Pin color: by primary contributor type (default) or by email responsiveness
+  const [colorBy, setColorBy] = useState<"contributor" | "responsiveness">("contributor");
   const [searchOpen, setSearchOpen] = useState(false);
   const [target, setTarget] = useState<{ id: string; lat: number; lng: number; nonce: number } | null>(null);
   const matches = useMemo(() => {
@@ -438,6 +446,19 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
               </ul>
             )}
           </div>
+          <div className="inline-flex overflow-hidden rounded-full bg-white dark:bg-dark-card text-xs" role="group" aria-label="Color pins by">
+            {([["contributor", "Contributor type"], ["responsiveness", "Responsiveness"]] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setColorBy(k)}
+                aria-pressed={colorBy === k}
+                className={`px-3 py-1.5 ${colorBy === k ? "bg-[#0062F5] text-white" : "text-[#0B3D91] dark:text-dark-text hover:bg-[#EEF2FB] dark:hover:bg-dark-hover"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {typeFilter}
         </div>
       </div>
@@ -465,7 +486,10 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
           )}
           {plotted.map(({ advisor, lat, lng }) => {
             const rel = computeRelationship(advisor);
-            const color = rel.status ? RELATIONSHIP_BAR[rel.status] : LOADING_COLOR;
+            const primary = primaryContributor(advisor.contributorTypes);
+            const color = colorBy === "contributor"
+              ? (primary ? CONTRIBUTOR_COLOR[primary] : NO_CONTRIBUTOR_COLOR)
+              : (rel.status ? RELATIONSHIP_BAR[rel.status] : LOADING_COLOR);
             const isBenefits = advisor.advisorGroup === "benefits";
             const intl = isInternational(advisor.city, advisor.state);
             const cityKey = (advisor.city?.trim().toLowerCase() ?? "") || (advisor.state?.split(",")[0].trim().toLowerCase() ?? "");
@@ -478,7 +502,8 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
                 <div className="text-xs">
                   <div className="font-semibold">{advisor.name}</div>
                   {location && <div className="text-gray-500">{location}</div>}
-                  {rel.status && <div style={{ color }}>{RELATIONSHIP_LABEL[rel.status]}</div>}
+                  {rel.status && <div style={{ color: RELATIONSHIP_BAR[rel.status] }}>{RELATIONSHIP_LABEL[rel.status]}</div>}
+                  {advisor.contributorTypes.length > 0 && <div className="text-gray-500">{advisor.contributorTypes.join(", ")}</div>}
                   <div style={{ color: isBenefits ? BENEFITS_TEAL : "#5B6B8C" }}>
                     {isBenefits ? "Consultant advisor" : "Advisor"}
                   </div>
@@ -516,6 +541,20 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
 
       {/* Legend */}
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-1 pt-3 pb-1 text-xs text-[#0B3D91] dark:text-dark-text">
+        {colorBy === "contributor" ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {CONTRIBUTOR_ORDER.map((t) => (
+              <span key={t} className="inline-flex items-center gap-1.5">
+                <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CONTRIBUTOR_COLOR[t] }} />
+                {t}
+              </span>
+            ))}
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: NO_CONTRIBUTOR_COLOR }} />
+              No contributor type
+            </span>
+          </div>
+        ) : (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
           {RELATIONSHIP_ORDER.filter((s) => s !== "client" && s !== "paused").map((s) => (
             <span key={s} className="inline-flex items-center gap-1.5">
@@ -530,6 +569,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
             </span>
           ))}
         </div>
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#0062F5]" />
@@ -545,7 +585,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
         </div>
       </div>
       <p className="px-1 pb-1 text-[11px] text-[#6B7A99] dark:text-dark-muted">
-        Colored by Relationship status. {plotted.length} of {advisors.filter((a) => a.city || a.state).length} plotted
+        Colored by {colorBy === "contributor" ? "primary contributor type (Deal Maker, then Super Connector, then Insider)" : "email responsiveness"}. {plotted.length} of {advisors.filter((a) => a.city || a.state).length} plotted
         {intlPlotted.length > 0 && ` · ${intlPlotted.length} international`}
         {unplotted > 0 && ` · ${unplotted} city not in lookup`}
       </p>
@@ -555,7 +595,7 @@ export default function MapView({ advisors, onSelectAdvisor, darkMode = false, t
       <section>
         <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
           <h2 className="text-lg font-medium text-[#0B3D91] dark:text-dark-text">Core markets</h2>
-          <span className="text-xs text-[#6B7A99] dark:text-dark-muted">Advisors within 100 miles of each hub. Dots show Relationship status.</span>
+          <span className="text-xs text-[#6B7A99] dark:text-dark-muted">Advisors within 100 miles of each hub. Dots show email responsiveness.</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start">
           {coreGroups.map((group) => (

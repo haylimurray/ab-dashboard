@@ -7,6 +7,18 @@ import { normalizeState } from "@/lib/geocode";
 import { totalsByName, valueFor } from "@/lib/advisorValue";
 import { dealUrl, ticketUrl } from "@/lib/hubspotLinks";
 import type { AdvisorAskStats } from "@/lib/advisorAsks";
+import {
+  CONTRIBUTOR_DESC,
+  CONTRIBUTOR_ORDER,
+  CONTRIBUTOR_PILL,
+  PARTICIPATION_DESC,
+  PARTICIPATION_ORDER,
+  PARTICIPATION_PILL,
+  isChampionEligible,
+  normalizeParticipation,
+  type ContributorType,
+  type Participation,
+} from "@/lib/participation";
 import RelationshipBadge from "./RelationshipBadge";
 import {
   RELATIONSHIP_LABEL,
@@ -19,7 +31,7 @@ import {
 type ColId =
   | "name" | "title" | "advisorType" | "tier" | "location" | "lastContacted"
   | "daysSinceContact" | "healthScore" | "lastReply" | "outreachDetail"
-  | "availability" | "connector" | "slack" | "dealValue" | "asks"
+  | "availability" | "connector" | "slack" | "dealValue" | "asks" | "participation" | "contributor"
   | "contract" | "priority" | "salesStatus" | "status";
 
 interface ColDef {
@@ -36,7 +48,9 @@ const COLS: ColDef[] = [
   { id: "tier",             label: "Tier",            field: "tier" },
   { id: "lastContacted",    label: "Last Contacted",  field: "lastContacted" },
   { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
-  { id: "healthScore",      label: "Relationship",    field: "relationship",    alwaysVisible: true },
+  { id: "participation",    label: "Participation",   field: "participation",   alwaysVisible: true },
+  { id: "contributor",      label: "Contributor type" },
+  { id: "healthScore",      label: "Responsiveness",  field: "relationship",    alwaysVisible: true },
   { id: "dealValue",        label: "Deal value",      field: "dealValue" },
   { id: "asks",             label: "AB asks",         field: "asks" },
   { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
@@ -268,7 +282,8 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
     "Name", "Email", "Company", "Title", "Location",
     "Advisor Type", "Tier", "Availability", "Connector", "Contract", "Priority",
     "Last Contacted", "Days Since Contact", "Outreach Status", "Last Touched By",
-    "Relationship", "Last Heard From", "Replies (90d)", "Asks (60d)", "Ask-heavy", "Advisor Group", "In #airvet-advisors Slack",
+    "Responsiveness", "Last Heard From", "Replies (90d)", "Asks (60d)", "Ask-heavy", "Advisor Group", "In #airvet-advisors Slack",
+    "Participation", "Contributor Types", "Champion-eligible", "AB Asks (all time)", "AB Asks (12 mo)",
   ];
 
   const rows = advisors.map((a) => {
@@ -307,6 +322,11 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(rel.askHeavy ? "Yes" : ""),
       escapeCSV(a.advisorGroup === "benefits" ? "Consultant Advisor" : "Advisor"),
       escapeCSV(a.inSlack ? "Yes" : "No"),
+      escapeCSV(normalizeParticipation(a.participation) ?? ""),
+      escapeCSV(a.contributorTypes.join("; ")),
+      escapeCSV(isChampionEligible(a) ? "Yes" : ""),
+      escapeCSV(String(a.askStats?.total ?? 0)),
+      escapeCSV(String(a.askStats?.last12m ?? 0)),
     ].join(",");
   });
 
@@ -385,8 +405,19 @@ export default function AdvisorTable({
   }, [asksPop]);
   const [valueFilter, setValueFilter] = useState<"" | "1" | "2" | "3" | "none">("");
   const [asksFilter, setAsksFilter] = useState<"" | "any" | "3plus" | "recent" | "never">("");
+  const [participationFilter, setParticipationFilter] = useState<"" | Participation | "unclassified">("");
+  const [contributorFilter, setContributorFilter] = useState<"" | ContributorType | "none" | "champion">("");
   const filtered = advisors.filter((a) => {
     if (slackFilter && (slackFilter === "in" ? !a.inSlack : a.inSlack)) return false;
+    if (participationFilter) {
+      const p = normalizeParticipation(a.participation);
+      if (participationFilter === "unclassified" ? p !== null : p !== participationFilter) return false;
+    }
+    if (contributorFilter) {
+      if (contributorFilter === "none" && a.contributorTypes.length > 0) return false;
+      if (contributorFilter === "champion" && !isChampionEligible(a)) return false;
+      if (contributorFilter !== "none" && contributorFilter !== "champion" && !a.contributorTypes.includes(contributorFilter)) return false;
+    }
     if (asksFilter) {
       const total = a.askStats?.total ?? 0;
       const last12 = a.askStats?.last12m ?? 0;
@@ -681,6 +712,31 @@ export default function AdvisorTable({
         </select>
 
         <select
+          value={participationFilter}
+          onChange={(e) => setParticipationFilter(e.target.value as "" | Participation | "unclassified")}
+          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">Participation: All</option>
+          {PARTICIPATION_ORDER.map((p) => (
+            <option key={p} value={p}>{p} ({PARTICIPATION_DESC[p].toLowerCase()})</option>
+          ))}
+          <option value="unclassified">Not yet classified</option>
+        </select>
+
+        <select
+          value={contributorFilter}
+          onChange={(e) => setContributorFilter(e.target.value as "" | ContributorType | "none" | "champion")}
+          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">Contributor type: All</option>
+          {CONTRIBUTOR_ORDER.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+          <option value="champion">Champion-eligible (Active + 2 types)</option>
+          <option value="none">No contributor type</option>
+        </select>
+
+        <select
           value={asksFilter}
           onChange={(e) => setAsksFilter(e.target.value as "" | "any" | "3plus" | "recent" | "never")}
           className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
@@ -841,6 +897,45 @@ export default function AdvisorTable({
                   {visibility.tier && (
                     <td className="px-3 py-2 whitespace-nowrap">
                       <TierBadge value={a.advisorTier} />
+                      {isChampionEligible(a) && (
+                        <span
+                          title="Champion-eligible: Active participation with 2+ contributor types. Advisor tier is unchanged."
+                          className="ml-1.5 inline-flex items-center rounded-full border border-[#F5A623] bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#7A4B00] dark:bg-transparent dark:text-[#F5C26B]"
+                        >
+                          ★ Champion?
+                        </span>
+                      )}
+                    </td>
+                  )}
+                  {visibility.participation && (
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {(() => {
+                        const p = normalizeParticipation(a.participation);
+                        if (!p) return <span className="text-xs text-[#9AA7C0]">—</span>;
+                        return (
+                          <span
+                            title={PARTICIPATION_DESC[p]}
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PARTICIPATION_PILL[p]}`}
+                          >
+                            {p}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                  )}
+                  {visibility.contributor && (
+                    <td className="px-3 py-2">
+                      {a.contributorTypes.length === 0 ? (
+                        <span className="text-xs text-[#9AA7C0]">—</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {a.contributorTypes.map((t) => (
+                            <span key={t} title={CONTRIBUTOR_DESC[t]} className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${CONTRIBUTOR_PILL[t]}`}>
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                   )}
                   {visibility.lastContacted && (

@@ -21,6 +21,7 @@ import AdvisorTable from "./AdvisorTable";
 import { computeOutreachStatus } from "@/lib/health";
 import { computeRelationship, countRecentAsks, relationshipRank } from "@/lib/relationship";
 import { buildAskStats } from "@/lib/advisorAsks";
+import { normalizeParticipation, participationRank } from "@/lib/participation";
 import AdvisorDrawer from "./AdvisorDrawer";
 // import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
 import RequestsView from "./RequestsView";
@@ -85,6 +86,10 @@ function sortAdvisors(
       case "healthScore":
         av = a.healthLoaded ? a.healthScore : (dir === "asc" ? Infinity : -Infinity);
         bv = b.healthLoaded ? b.healthScore : (dir === "asc" ? Infinity : -Infinity);
+        break;
+      case "participation":
+        av = participationRank(normalizeParticipation(a.participation));
+        bv = participationRank(normalizeParticipation(b.participation));
         break;
       case "asks":
         // First click = most requested first (negated so "asc" puts the biggest counts on top)

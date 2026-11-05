@@ -32,7 +32,7 @@ export const RELATIONSHIP_ORDER: RelationshipStatus[] = [
 ];
 
 export const RELATIONSHIP_LABEL: Record<RelationshipStatus, string> = {
-  highlyEngaged: "Highly Engaged",
+  highlyEngaged: "Very Responsive", // renamed so it isn't confused with High Value Engagement
   responsive:    "Responsive",
   slow:          "Slow to Respond",
   notResponding: "Not Responding",
