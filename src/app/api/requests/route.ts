@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAllTickets } from "@/lib/hubspot";
+import { fetchAllTickets, fetchTicketContactAssociations } from "@/lib/hubspot";
 import type { PipelineStage, RequestsData, TicketItem } from "@/types";
 import { requestTypeLabel } from "@/lib/advisorAsks";
 
@@ -13,15 +13,14 @@ let cacheExpiresAt = 0;
 const STAGE_LABELS: Record<string, string> = {
   "1": "New",
   "2": "In Progress",
-  "3": "In Flight",
   "4": "Completed",
 };
 
+// "In Flight" (stage 3) was removed from the HubSpot pipeline on 2026-11-05.
 const PIPELINE_STAGES: PipelineStage[] = [
   { id: "1", label: "New",         displayOrder: 0 },
   { id: "2", label: "In Progress", displayOrder: 1 },
-  { id: "3", label: "In Flight",   displayOrder: 2 },
-  { id: "4", label: "Completed",   displayOrder: 3 },
+  { id: "4", label: "Completed",   displayOrder: 2 },
 ];
 
 function stripHtml(raw: string | null): string | null {
@@ -71,6 +70,8 @@ export async function GET(request: NextRequest) {
     const seenOwnerIds = Array.from(new Set(raw.map(t => t.properties.hubspot_owner_id).filter(Boolean)));
     console.log("[/api/requests] hubspot_owner_ids on tickets:", seenOwnerIds);
 
+    const assoc = await fetchTicketContactAssociations(raw.map((t) => t.id));
+
     const tickets: TicketItem[] = raw.map((t) => {
       const p = t.properties;
       const stageId = p.hs_pipeline_stage ?? null;
@@ -89,6 +90,9 @@ export async function GET(request: NextRequest) {
         preferredDeliveryDate: p.preferred_delivery_date ?? null,
         notes:                 [stripHtml(p.hs_ticket_body ?? null), stripHtml(p.notescontext ?? null)]
                                  .filter(Boolean).join(" — ") || null,
+        outcome:               p.outcome ?? null,
+        advisorEmail:          p.advisor_email ?? null,
+        contactIds:            assoc.get(t.id) ?? [],
         targetAdvisorText:     p.target_advisor ?? null,
         abTeamNotes:           stripHtml(p.ab_team_notes ?? null),
         abTeamResponse:        p.ab_team_response ?? null,

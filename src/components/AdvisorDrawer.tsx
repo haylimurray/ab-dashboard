@@ -175,6 +175,32 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                       {advisor.asksLast60d} {advisor.asksLast60d === 1 ? "request" : "requests"}
                     </Field>
 
+                    {(advisor.totalThreads90d !== null || advisor.requestsTotal !== null) && (
+                      <Field label="Conversation quality (90 days)">
+                        <div className="space-y-1 text-sm">
+                          {advisor.totalThreads90d !== null && (
+                            <div>
+                              {advisor.substantiveThreads90d ?? 0} substantive of {advisor.totalThreads90d} threads
+                              {advisor.dealIntroThreads90d ? ` · ${advisor.dealIntroThreads90d} deal/intro` : ""}
+                            </div>
+                          )}
+                          {advisor.lastSubstantiveDate && (
+                            <div className="text-xs text-gray-500 dark:text-dark-muted">
+                              Last substantive: {formatDate(advisor.lastSubstantiveDate)}
+                              {advisor.lastSubstantiveType ? ` (${advisor.lastSubstantiveType})` : ""}
+                            </div>
+                          )}
+                          {advisor.requestsTotal !== null && (
+                            <div className="text-xs text-gray-500 dark:text-dark-muted">
+                              {advisor.requestsSuccessful ?? 0} of {advisor.requestsTotal} requests successful
+                              {advisor.requestSuccessRate !== null ? ` (${Math.round(advisor.requestSuccessRate)}%)` : ""}
+                              {advisor.lastRequestOutcome ? ` · last outcome: ${advisor.lastRequestOutcome}` : ""}
+                            </div>
+                          )}
+                        </div>
+                      </Field>
+                    )}
+
                     <Field label="Times requested (all time)">
                       {advisor.askStats ? (
                         <div className="space-y-2">

@@ -113,6 +113,9 @@ export default function RequestDrawer({ ticket, onClose }: Props) {
                 <Field label="Target Advisor">
                   {ticket.targetAdvisor ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
                 </Field>
+                <Field label="Outcome">
+                  {ticket.outcome ?? <span className="text-gray-300 dark:text-dark-border">Not recorded</span>}
+                </Field>
                 <Field label="Target Contact / Company">
                   {ticket.targetContactCompany ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
                 </Field>
@@ -122,6 +125,13 @@ export default function RequestDrawer({ ticket, onClose }: Props) {
                 {ticket.priority && ticket.priority !== "NONE" && (
                   <Field label="Priority">
                     <span className="capitalize">{ticket.priority.toLowerCase()}</span>
+                  </Field>
+                )}
+                {ticket.abTeamNotes && (
+                  <Field label="AB Team Notes">
+                    <p className="text-sm text-gray-700 dark:text-dark-text whitespace-pre-wrap leading-relaxed">
+                      {ticket.abTeamNotes}
+                    </p>
                   </Field>
                 )}
                 {ticket.notes && (

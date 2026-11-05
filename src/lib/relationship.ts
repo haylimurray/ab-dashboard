@@ -6,7 +6,8 @@ import type { AdvisorContact, TicketItem } from "@/types";
 // in the advisor drawer; see computeOutreachStatus in health.ts.)
 //
 //   Highly Engaged  replied in the last 30 days AND (2+ emails from them in 90 days
-//                   OR a meeting booked in the last 90 days)
+//                   OR a meeting booked in the last 90 days) AND at least 1 substantive
+//                   thread in 90 days (ab_substantive_threads_90d; ignored while blank)
 //   Responsive      replied within the last 90 days
 //   Slow to Respond last reply 91-365 days ago
 //   Not Responding  we've reached out, but no reply in over a year (or ever)
@@ -123,7 +124,13 @@ export function computeRelationship(a: AdvisorContact, now = Date.now()): Relati
   const replied30 = daysSinceReply !== null && daysSinceReply <= 30;
   const replied90 = daysSinceReply !== null && daysSinceReply <= 90;
 
-  if (replied30 && (a.inboundEmailCount90d >= 2 || metRecently)) {
+  // Highly Engaged also needs at least one substantive conversation in 90 days (not just
+  // scheduling or pleasantries). That count is written weekly by the interaction classifier.
+  // If it hasn't been populated for this advisor yet (null), fall back to the old rule so
+  // advisors aren't demoted just because the data is missing.
+  const substantive = a.substantiveThreads90d;
+  const hasSubstance = substantive === null || substantive === undefined || substantive >= 1;
+  if (replied30 && (a.inboundEmailCount90d >= 2 || metRecently) && hasSubstance) {
     const reason = a.inboundEmailCount90d >= 2
       ? `${a.inboundEmailCount90d} replies in 90 days`
       : "Booked a meeting";

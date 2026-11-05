@@ -25,6 +25,16 @@ const PROPERTIES = [
   "advisor_start_date", // HubSpot label: "AB Start Date"
   "hs_sales_email_last_replied",
   "engagements_last_meeting_booked",
+  // Written weekly by the advisor-interaction-classifier skill (added 2026-11-05)
+  "ab_last_substantive_date",
+  "ab_last_substantive_type",
+  "ab_substantive_threads_90d",
+  "ab_total_threads_90d",
+  "ab_dealintro_threads_90d",
+  "ab_requests_total",
+  "ab_requests_successful",
+  "ab_request_success_rate",
+  "ab_last_request_outcome",
 ];
 
 interface HubSpotResult {
@@ -383,6 +393,8 @@ const TICKET_PROPERTIES = [
   "ab_team_notes",
   "ab_team_response",
   "target_advisor",
+  "advisor_email",
+  "outcome",
 ];
 
 interface RawPipelineStage { id: string; label: string; displayOrder: number }
@@ -638,6 +650,37 @@ export async function fetchAbInfluencedDeals(): Promise<HubSpotResult[]> {
     if (!source || !NON_AB_DEAL_SOURCES.includes(source)) return true;
     return MANUALLY_CONFIRMED_AB_DEAL_IDS.has(d.id);
   });
+}
+
+// ticket id -> associated contact ids (advisors are associated to the tickets that request them).
+// Best-effort: returns an empty map if the call fails so the Requests tab still loads.
+export async function fetchTicketContactAssociations(ticketIds: string[]): Promise<Map<string, string[]>> {
+  const token = process.env.HUBSPOT_TOKEN;
+  const map = new Map<string, string[]>();
+  if (!token || ticketIds.length === 0) return map;
+  try {
+    for (let i = 0; i < ticketIds.length; i += BATCH_SIZE) {
+      const inputs = ticketIds.slice(i, i + BATCH_SIZE).map((id) => ({ id }));
+      const res = await fetch(`${BASE}/crm/v3/associations/tickets/contacts/batch/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ inputs }),
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        console.warn(`[hubspot] ticket->contact associations ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      for (const r of data.results ?? []) {
+        const ids: string[] = (r.to ?? []).map((t: { id: string | number }) => String(t.id));
+        if (ids.length) map.set(String(r.from.id), ids);
+      }
+    }
+  } catch (err) {
+    console.warn("[hubspot] ticket->contact associations failed:", err instanceof Error ? err.message : String(err));
+  }
+  return map;
 }
 
 export async function fetchAllTickets(pipelineId: string): Promise<HubSpotResult[]> {

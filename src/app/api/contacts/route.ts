@@ -9,7 +9,14 @@ const TIER_LABELS: Record<string, string> = {
   Hot:  "Champion",
   Warm: "Advocate",
   Cold: "Member",
+  "Client Advisor": "Client Advisor",
 };
+
+function num(raw: string | null | undefined): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
 
 function normalizeTier(raw: string | null): string | null {
   if (!raw) return null;
@@ -75,6 +82,15 @@ export async function GET(request: NextRequest) {
         jobTitle: p.jobtitle ?? null,
         lastRepliedDate: p.hs_sales_email_last_replied ?? null,
         lastMeetingBooked: p.engagements_last_meeting_booked ?? null,
+        lastSubstantiveDate:   p.ab_last_substantive_date ?? null,
+        lastSubstantiveType:   p.ab_last_substantive_type ?? null,
+        substantiveThreads90d: num(p.ab_substantive_threads_90d),
+        totalThreads90d:       num(p.ab_total_threads_90d),
+        dealIntroThreads90d:   num(p.ab_dealintro_threads_90d),
+        requestsTotal:         num(p.ab_requests_total),
+        requestsSuccessful:    num(p.ab_requests_successful),
+        requestSuccessRate:    num(p.ab_request_success_rate),
+        lastRequestOutcome:    p.ab_last_request_outcome ?? null,
       };
     });
 

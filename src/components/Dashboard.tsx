@@ -262,7 +262,7 @@ export default function Dashboard() {
   );
 
   const askStats = useMemo(
-    () => (requests ? buildAskStats(requests.tickets, contacts.map((c) => ({ id: c.id, name: c.name }))) : {}),
+    () => (requests ? buildAskStats(requests.tickets, contacts.map((c) => ({ id: c.id, name: c.name, email: c.email }))) : {}),
     [requests, contacts]
   );
 

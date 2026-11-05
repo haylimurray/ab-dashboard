@@ -5,7 +5,8 @@ import { AdvisorContact, SortDir, SortField } from "@/types";
 import { computeOutreachStatus } from "@/lib/health";
 import { normalizeState } from "@/lib/geocode";
 import { totalsByName, valueFor } from "@/lib/advisorValue";
-import { dealUrl } from "@/lib/hubspotLinks";
+import { dealUrl, ticketUrl } from "@/lib/hubspotLinks";
+import type { AdvisorAskStats } from "@/lib/advisorAsks";
 import RelationshipBadge from "./RelationshipBadge";
 import {
   RELATIONSHIP_LABEL,
@@ -372,6 +373,16 @@ export default function AdvisorTable({
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
   }, [valuePop]);
+  // Popover for the AB asks count (same pattern as the $ badge)
+  const [asksPop, setAsksPop] = useState<{ name: string; x: number; y: number; s: AdvisorAskStats } | null>(null);
+  useEffect(() => {
+    if (!asksPop) return;
+    const close = () => setAsksPop(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
+  }, [asksPop]);
   const [valueFilter, setValueFilter] = useState<"" | "1" | "2" | "3" | "none">("");
   const [asksFilter, setAsksFilter] = useState<"" | "any" | "3plus" | "recent" | "never">("");
   const filtered = advisors.filter((a) => {
@@ -494,6 +505,53 @@ export default function AdvisorTable({
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl border border-transparent dark:border-dark-border shadow-sm">
+      {asksPop && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setAsksPop(null)} />
+          <div
+            className="fixed z-50 w-96 overflow-hidden rounded-2xl bg-white dark:bg-dark-card shadow-xl ring-1 ring-[#EEF2FB] dark:ring-dark-border"
+            style={{ left: asksPop.x, top: asksPop.y }}
+          >
+            <div className="bg-[#EEF2FB] dark:bg-dark-bg px-4 py-3">
+              <p className="text-xs font-medium text-[#5B6B8C] dark:text-dark-muted">{asksPop.name} · AB requests</p>
+              <p className="mt-0.5 text-2xl font-medium text-[#0B3D91] dark:text-dark-text tabular-nums">{asksPop.s.total}</p>
+              <p className="text-xs text-[#6B7A99] dark:text-dark-muted">
+                {asksPop.s.last12m} in the last 12 months · {asksPop.s.last60d} in the last 60 days
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {Object.entries(asksPop.s.byType).map(([type, n]) => (
+                  <span key={type} className="rounded-full bg-white px-2 py-0.5 text-[11px] text-[#0B3D91] dark:bg-dark-hover dark:text-dark-muted">
+                    {type} · {n}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <ul className="max-h-64 divide-y divide-[#EEF2FB] dark:divide-dark-border overflow-y-auto">
+              {asksPop.s.tickets.map((t) => (
+                <li key={t.id} className="px-4 py-2 text-sm text-[#0B3D91] dark:text-dark-text">
+                  <a
+                    href={ticketUrl(t.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open ticket in HubSpot"
+                    className="block truncate hover:text-airvet-blue hover:underline"
+                  >
+                    {t.subject ?? t.type} <span aria-hidden className="text-xs text-[#9AA7C0]">↗</span>
+                  </a>
+                  <span className="text-xs text-[#5B6B8C] dark:text-dark-muted">
+                    {t.date ? new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                    {" · "}{t.type}
+                    {t.response ? ` · ${t.response}` : ""}
+                    {t.via === "text" ? " · named in notes" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="h-1.5 bg-[#0062F5]" />
+          </div>
+        </>
+      )}
+
       {valuePop && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setValuePop(null)} />
@@ -846,13 +904,21 @@ export default function AdvisorTable({
                         if (!s) return <span className="text-xs text-[#9AA7C0]">—</span>;
                         const types = Object.entries(s.byType).map(([k, n]) => `${k}: ${n}`).join(", ");
                         return (
-                          <span
-                            title={`${s.total} request${s.total !== 1 ? "s" : ""} all time · ${s.last12m} in the last 12 months · ${s.last60d} in the last 60 days\n${types}`}
-                            className="inline-flex items-baseline gap-1"
+                          <button
+                            type="button"
+                            title={`${s.total} request${s.total !== 1 ? "s" : ""} all time · ${s.last12m} in the last 12 months · ${s.last60d} in the last 60 days\n${types}\nClick for tickets`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const r = e.currentTarget.getBoundingClientRect();
+                              const x = Math.min(r.left, window.innerWidth - 400);
+                              const y = r.bottom + 6 + 360 > window.innerHeight ? Math.max(8, r.top - 366) : r.bottom + 6;
+                              setAsksPop(asksPop?.name === a.name ? null : { name: a.name, x, y, s });
+                            }}
+                            className="inline-flex items-baseline gap-1.5 rounded-full bg-[#EEF2FB] px-2.5 py-0.5 hover:ring-2 hover:ring-[#0062F5]/30 dark:bg-dark-hover"
                           >
-                            <span className="text-sm font-semibold text-[#0B3D91] dark:text-white">{s.total}</span>
+                            <span className="text-sm font-semibold text-[#0062F5]">{s.total}</span>
                             <span className="text-[11px] text-[#4A5568] dark:text-dark-muted">{s.last12m} in 12 mo</span>
-                          </span>
+                          </button>
                         );
                       })()}
                     </td>

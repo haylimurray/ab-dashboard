@@ -23,7 +23,7 @@ function getRequestTypePill(requestType: string | null): string {
   const lower = requestType.toLowerCase();
   if (lower.includes("connection"))                        return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400";
   if (lower.includes("intro") || lower.includes("meeting")) return "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400";
-  if (lower.includes("dinner"))                            return "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400";
+  if (lower.includes("dinner") || lower.includes("event") || lower.includes("advice")) return "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400";
   if (lower.includes("content"))                           return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400";
   if (lower.includes("reference"))                         return "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400";
   return "bg-gray-100 text-gray-600 dark:bg-dark-hover dark:text-dark-muted";
@@ -136,6 +136,7 @@ export default function RequestsView() {
         case "targetContactCompany":  av = (a.targetContactCompany ?? "").toLowerCase(); bv = (b.targetContactCompany ?? "").toLowerCase(); break;
         case "preferredDeliveryDate": av = a.preferredDeliveryDate ?? ""; bv = b.preferredDeliveryDate ?? ""; break;
         case "stageName":             av = a.stageName.toLowerCase();     bv = b.stageName.toLowerCase();     break;
+        case "outcome":               av = (a.outcome ?? "").toLowerCase(); bv = (b.outcome ?? "").toLowerCase(); break;
       }
       if (av === bv) return 0;
       const cmp = av < bv ? -1 : 1;
@@ -239,6 +240,7 @@ export default function RequestsView() {
                   { label: "Company",        field: "targetContactCompany" },
                   { label: "Delivery Date",  field: "preferredDeliveryDate" },
                   { label: "Status",         field: "stageName" },
+                  { label: "Outcome",        field: "outcome" },
                   { label: "Notes",          field: "" },
                 ].map(({ label, field }) => (
                   <th
@@ -257,7 +259,7 @@ export default function RequestsView() {
             <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-3 py-10 text-center text-sm text-gray-400 dark:text-dark-muted">
+                  <td colSpan={10} className="px-3 py-10 text-center text-sm text-gray-400 dark:text-dark-muted">
                     No requests found.
                   </td>
                 </tr>
@@ -296,6 +298,9 @@ export default function RequestsView() {
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStagePill(t.stageName)}`}>
                         {t.stageName}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-600 dark:text-dark-text">
+                      {t.outcome ?? <span className="text-gray-300 dark:text-dark-border">—</span>}
                     </td>
                     <td className="px-3 py-2.5 max-w-[200px]">
                       <span className="text-xs text-gray-500 dark:text-dark-muted line-clamp-2">

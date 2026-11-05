@@ -33,6 +33,16 @@ export interface ContactListItem {
   jobTitle: string | null;
   lastRepliedDate: string | null;   // HubSpot hs_sales_email_last_replied — last email received from the advisor (any Airvet sender)
   lastMeetingBooked: string | null; // HubSpot engagements_last_meeting_booked
+  // Interaction-quality properties written weekly by the advisor-interaction-classifier (null = not yet populated)
+  lastSubstantiveDate: string | null;
+  lastSubstantiveType: string | null;   // Deal/Intro | Meeting/Strategic | Event | Content
+  substantiveThreads90d: number | null;
+  totalThreads90d: number | null;
+  dealIntroThreads90d: number | null;
+  requestsTotal: number | null;
+  requestsSuccessful: number | null;
+  requestSuccessRate: number | null;    // percent; null when no completed ticket has an outcome
+  lastRequestOutcome: string | null;    // Intro Made | Meeting Held | Advisor Declined | No Response | Duplicate/Cancelled
 }
 
 export interface ContactListResponse {
@@ -110,6 +120,9 @@ export interface TicketItem {
   targetContactCompany: string | null;
   preferredDeliveryDate: string | null;
   notes: string | null;
+  outcome: string | null;           // Intro Made | Meeting held | Advisor declined | No Response | Duplicate/cancelled
+  advisorEmail: string | null;      // advisor_email, captured on new requests
+  contactIds: string[];             // contacts associated to the ticket (advisors are linked here)
   targetAdvisorText: string | null; // free-text "Target Advisor" property
   abTeamNotes: string | null;
   abTeamResponse: string | null;
