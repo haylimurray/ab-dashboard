@@ -20,6 +20,7 @@ import RelationshipKey from "./RelationshipKey";
 import AdvisorTable from "./AdvisorTable";
 import { computeOutreachStatus } from "@/lib/health";
 import { computeRelationship, countRecentAsks, relationshipRank } from "@/lib/relationship";
+import { buildAskStats } from "@/lib/advisorAsks";
 import AdvisorDrawer from "./AdvisorDrawer";
 // import NewsIntelligence from "./NewsIntelligence"; // temporarily disabled
 import RequestsView from "./RequestsView";
@@ -84,6 +85,11 @@ function sortAdvisors(
       case "healthScore":
         av = a.healthLoaded ? a.healthScore : (dir === "asc" ? Infinity : -Infinity);
         bv = b.healthLoaded ? b.healthScore : (dir === "asc" ? Infinity : -Infinity);
+        break;
+      case "asks":
+        // First click = most requested first (negated so "asc" puts the biggest counts on top)
+        av = -(a.askStats?.total ?? 0);
+        bv = -(b.askStats?.total ?? 0);
         break;
       case "salesStatus":  av = a.salesStatus?.toLowerCase() ?? ""; bv = b.salesStatus?.toLowerCase() ?? ""; break;
       case "relationship":
@@ -255,6 +261,11 @@ export default function Dashboard() {
     [requests, contacts]
   );
 
+  const askStats = useMemo(
+    () => (requests ? buildAskStats(requests.tickets, contacts.map((c) => ({ id: c.id, name: c.name }))) : {}),
+    [requests, contacts]
+  );
+
   const advisors: AdvisorContact[] = useMemo(
     () =>
       contacts.map((c) => ({
@@ -262,8 +273,9 @@ export default function Dashboard() {
         healthLoaded: c.id in health,
         ...(health[c.id] ?? HEALTH_DEFAULTS),
         asksLast60d: askCounts[c.id] ?? 0,
+        askStats: askStats[c.id],
       })),
-    [contacts, health, askCounts]
+    [contacts, health, askCounts, askStats]
   );
 
   // Employer vs benefits advisors — the type filter applies to the table, summary bar and map

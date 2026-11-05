@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllTickets } from "@/lib/hubspot";
 import type { PipelineStage, RequestsData, TicketItem } from "@/types";
+import { requestTypeLabel } from "@/lib/advisorAsks";
 
 export const dynamic = "force-dynamic";
 
@@ -81,12 +82,16 @@ export async function GET(request: NextRequest) {
         priority:              p.hs_ticket_priority ?? null,
         createdDate:           p.createdate ?? null,
         ownerId:               p.hubspot_owner_id ?? null,
-        requestType:           p.request_type ?? null,
+        requestType:           p.request_type ? requestTypeLabel(p.request_type) : null,
         submittedBy:           ownerMap[String(p.hubspot_owner_id ?? "")] ?? p.hubspot_owner_id ?? null,
         targetAdvisor:         p.advisor_requested ?? null,
         targetContactCompany:  p.target_contact_company ?? null,
         preferredDeliveryDate: p.preferred_delivery_date ?? null,
-        notes:                 stripHtml(p.hs_ticket_body ?? null),
+        notes:                 [stripHtml(p.hs_ticket_body ?? null), stripHtml(p.notescontext ?? null)]
+                                 .filter(Boolean).join(" — ") || null,
+        targetAdvisorText:     p.target_advisor ?? null,
+        abTeamNotes:           stripHtml(p.ab_team_notes ?? null),
+        abTeamResponse:        p.ab_team_response ?? null,
       };
     });
 

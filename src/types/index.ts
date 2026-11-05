@@ -1,3 +1,5 @@
+import type { AdvisorAskStats } from "@/lib/advisorAsks";
+
 // ── Contact list (from GET /api/contacts) ────────────────────────────────────
 
 export type AdvisorGroup = "employer" | "benefits";
@@ -82,6 +84,8 @@ export interface AdvisorContact extends ContactListItem {
   recentEmails: EmailTouch[];
   // AB requests (tickets) targeting this advisor in the last 60 days — filled in client-side
   asksLast60d: number;
+  // All-time / 12-month request counts, type breakdown and ticket list — filled in client-side
+  askStats?: AdvisorAskStats;
 }
 
 // ── Requests / ticket pipeline ───────────────────────────────────────────────
@@ -106,6 +110,9 @@ export interface TicketItem {
   targetContactCompany: string | null;
   preferredDeliveryDate: string | null;
   notes: string | null;
+  targetAdvisorText: string | null; // free-text "Target Advisor" property
+  abTeamNotes: string | null;
+  abTeamResponse: string | null;
 }
 
 export interface RequestsData {
@@ -127,7 +134,8 @@ export type SortField =
   | "salesStatus"
   | "relationship"
   | "lastReply"
-  | "dealValue";
+  | "dealValue"
+  | "asks";
 
 export type SortDir = "asc" | "desc";
 

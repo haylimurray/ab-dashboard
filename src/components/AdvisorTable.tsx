@@ -18,7 +18,7 @@ import {
 type ColId =
   | "name" | "title" | "advisorType" | "tier" | "location" | "lastContacted"
   | "daysSinceContact" | "healthScore" | "lastReply" | "outreachDetail"
-  | "availability" | "connector" | "slack" | "dealValue"
+  | "availability" | "connector" | "slack" | "dealValue" | "asks"
   | "contract" | "priority" | "salesStatus" | "status";
 
 interface ColDef {
@@ -37,6 +37,7 @@ const COLS: ColDef[] = [
   { id: "daysSinceContact", label: "Days Since",      field: "daysSinceContact" },
   { id: "healthScore",      label: "Relationship",    field: "relationship",    alwaysVisible: true },
   { id: "dealValue",        label: "Deal value",      field: "dealValue" },
+  { id: "asks",             label: "AB asks",         field: "asks" },
   { id: "outreachDetail",   label: "Outreach Detail", field: "healthScore" },
   { id: "availability",     label: "Availability" },
   { id: "slack",            label: "Slack: #airvet-advisors" },
@@ -372,8 +373,17 @@ export default function AdvisorTable({
     return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
   }, [valuePop]);
   const [valueFilter, setValueFilter] = useState<"" | "1" | "2" | "3" | "none">("");
+  const [asksFilter, setAsksFilter] = useState<"" | "any" | "3plus" | "recent" | "never">("");
   const filtered = advisors.filter((a) => {
     if (slackFilter && (slackFilter === "in" ? !a.inSlack : a.inSlack)) return false;
+    if (asksFilter) {
+      const total = a.askStats?.total ?? 0;
+      const last12 = a.askStats?.last12m ?? 0;
+      if (asksFilter === "any" && total < 1) return false;
+      if (asksFilter === "3plus" && total < 3) return false;
+      if (asksFilter === "recent" && last12 < 1) return false;
+      if (asksFilter === "never" && total > 0) return false;
+    }
     if (valueFilter) {
       const tier = dealTotals ? valueFor(a.firstName, a.lastName, dealTotals)?.tier : undefined;
       if (valueFilter === "none" ? tier !== undefined : String(tier) !== valueFilter) return false;
@@ -612,6 +622,18 @@ export default function AdvisorTable({
           <option value="none">No closed-won deals</option>
         </select>
 
+        <select
+          value={asksFilter}
+          onChange={(e) => setAsksFilter(e.target.value as "" | "any" | "3plus" | "recent" | "never")}
+          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
+        >
+          <option value="">AB asks: All</option>
+          <option value="any">Requested at least once</option>
+          <option value="3plus">Requested 3+ times</option>
+          <option value="recent">Requested in last 12 months</option>
+          <option value="never">Never requested</option>
+        </select>
+
         {/* Right-side controls */}
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-gray-400 dark:text-dark-muted hidden sm:block">
@@ -813,6 +835,24 @@ export default function AdvisorTable({
                             <span className="text-[#0062F5]">{"$".repeat(v.tier)}</span>
                             <span className="text-[#C5CEE0]">{"$".repeat(3 - v.tier)}</span>
                           </button>
+                        );
+                      })()}
+                    </td>
+                  )}
+                  {visibility.asks && (
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {(() => {
+                        const s = a.askStats;
+                        if (!s) return <span className="text-xs text-[#9AA7C0]">—</span>;
+                        const types = Object.entries(s.byType).map(([k, n]) => `${k}: ${n}`).join(", ");
+                        return (
+                          <span
+                            title={`${s.total} request${s.total !== 1 ? "s" : ""} all time · ${s.last12m} in the last 12 months · ${s.last60d} in the last 60 days\n${types}`}
+                            className="inline-flex items-baseline gap-1"
+                          >
+                            <span className="text-sm font-semibold text-[#0B3D91] dark:text-white">{s.total}</span>
+                            <span className="text-[11px] text-[#4A5568] dark:text-dark-muted">{s.last12m} in 12 mo</span>
+                          </span>
                         );
                       })()}
                     </td>

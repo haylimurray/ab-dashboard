@@ -379,6 +379,10 @@ const TICKET_PROPERTIES = [
   "target_contact_company",
   "preferred_delivery_date",
   "hs_ticket_body",
+  "notescontext",
+  "ab_team_notes",
+  "ab_team_response",
+  "target_advisor",
 ];
 
 interface RawPipelineStage { id: string; label: string; displayOrder: number }

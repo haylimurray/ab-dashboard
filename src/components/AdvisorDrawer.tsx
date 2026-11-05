@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import type { AdvisorContact } from "@/types";
 import { computeOutreachStatus, OutreachStatus } from "@/lib/health";
 import { computeRelationship } from "@/lib/relationship";
+import { ticketUrl } from "@/lib/hubspotLinks";
 import RelationshipBadge from "./RelationshipBadge";
 
 const HUBSPOT_BASE = "https://app.hubspot.com/contacts/21696780/record/0-1";
@@ -172,6 +173,42 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
 
                     <Field label="AB Requests (last 60 days)">
                       {advisor.asksLast60d} {advisor.asksLast60d === 1 ? "request" : "requests"}
+                    </Field>
+
+                    <Field label="Times requested (all time)">
+                      {advisor.askStats ? (
+                        <div className="space-y-2">
+                          <div>
+                            {advisor.askStats.total} total · {advisor.askStats.last12m} in the last 12 months
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {Object.entries(advisor.askStats.byType).map(([type, n]) => (
+                              <span key={type} className="rounded-full bg-[#EEF2FB] px-2 py-0.5 text-xs text-[#0B3D91] dark:bg-dark-hover dark:text-dark-muted">
+                                {type} · {n}
+                              </span>
+                            ))}
+                          </div>
+                          <ul className="space-y-1 text-xs text-gray-600 dark:text-dark-muted">
+                            {advisor.askStats.tickets.slice(0, 5).map((t) => (
+                              <li key={t.id}>
+                                {formatDate(t.date)} ·{" "}
+                                <a
+                                  href={ticketUrl(t.id)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[#0062F5] hover:underline"
+                                >
+                                  {t.subject ?? t.type}
+                                </a>
+                                {t.response ? ` (${t.response})` : ""}
+                                {t.via === "text" ? " · named in notes" : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 dark:text-dark-muted">Not requested in any ticket</span>
+                      )}
                     </Field>
 
                     <hr className="border-gray-100 dark:border-dark-border" />
