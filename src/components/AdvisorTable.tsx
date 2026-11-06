@@ -15,6 +15,7 @@ import {
   PARTICIPATION_ORDER,
   PARTICIPATION_PILL,
   isChampionEligible,
+  suggestTierChange,
   normalizeParticipation,
   type ContributorType,
   type Participation,
@@ -283,7 +284,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
     "Advisor Type", "Tier", "Availability", "Connector", "Contract", "Priority",
     "Last Contacted", "Days Since Contact", "Outreach Status", "Last Touched By",
     "Responsiveness", "Last Heard From", "Replies (90d)", "Asks (60d)", "Ask-heavy", "Advisor Group", "In #airvet-advisors Slack",
-    "Participation", "Contributor Types", "Champion-eligible", "AB Asks (all time)", "AB Asks (12 mo)",
+    "Participation", "Contributor Types", "Suggested tier change", "AB Asks (all time)", "AB Asks (12 mo)",
   ];
 
   const rows = advisors.map((a) => {
@@ -324,7 +325,7 @@ function exportToCSV(advisors: AdvisorContact[], market: string) {
       escapeCSV(a.inSlack ? "Yes" : "No"),
       escapeCSV(normalizeParticipation(a.participation) ?? ""),
       escapeCSV(a.contributorTypes.join("; ")),
-      escapeCSV(isChampionEligible(a) ? "Yes" : ""),
+      escapeCSV((() => { const sg = suggestTierChange(a); return sg ? `${sg.direction === "promote" ? "Promote" : "Demote"} to ${sg.tier}` : ""; })()),
       escapeCSV(String(a.askStats?.total ?? 0)),
       escapeCSV(String(a.askStats?.last12m ?? 0)),
     ].join(",");
@@ -407,6 +408,40 @@ export default function AdvisorTable({
   const [asksFilter, setAsksFilter] = useState<"" | "any" | "3plus" | "recent" | "never">("");
   const [participationFilter, setParticipationFilter] = useState<"" | Participation | "unclassified">("");
   const [contributorFilter, setContributorFilter] = useState<"" | ContributorType | "none" | "champion">("");
+  // Toolbar: shared control style, "More filters" popover, clear-all
+  const CTRL = "text-xs border border-gray-300 dark:border-dark-border rounded-lg px-2.5 py-1.5 bg-white dark:bg-dark-card text-[#0B3D91] dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue";
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e: MouseEvent) => { if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
+  }, [moreOpen]);
+  const OUTREACH_LABEL: Record<string, string> = { active: "Recently contacted", due: "Due for a touch", overdue: "Overdue", client: "Client", paused: "Paused" };
+  const VALUE_LABEL: Record<string, string> = { "3": "$$$", "2": "$$", "1": "$", none: "No closed-won deals" };
+  const ASKS_LABEL: Record<string, string> = { any: "Requested at least once", "3plus": "Requested 3+ times", recent: "Requested in last 12 months", never: "Never requested" };
+  const CONTRIB_FILTER_LABEL = (v: string) => (v === "champion" ? "Champion-eligible" : v === "none" ? "No contributor type" : v);
+  const activeChips: { key: string; label: string; clear: () => void }[] = [
+    filters.tier && { key: "tier", label: `Tier: ${filters.tier}`, clear: () => onFilterChange("tier", "") },
+    participationFilter && { key: "participation", label: `Participation: ${participationFilter === "unclassified" ? "Not yet classified" : participationFilter}`, clear: () => setParticipationFilter("") },
+    contributorFilter && { key: "contributor", label: `Contributor: ${CONTRIB_FILTER_LABEL(contributorFilter)}`, clear: () => setContributorFilter("") },
+    filters.relationship && { key: "relationship", label: `Responsiveness: ${filters.relationship === "askHeavy" ? "Ask-heavy" : RELATIONSHIP_LABEL[filters.relationship as keyof typeof RELATIONSHIP_LABEL] ?? filters.relationship}`, clear: () => onFilterChange("relationship", "") },
+    valueFilter && { key: "value", label: `Deal value: ${VALUE_LABEL[valueFilter]}`, clear: () => setValueFilter("") },
+    asksFilter && { key: "asks", label: `AB asks: ${ASKS_LABEL[asksFilter]}`, clear: () => setAsksFilter("") },
+    filters.outreachStatus && { key: "outreach", label: `Outreach: ${OUTREACH_LABEL[filters.outreachStatus] ?? filters.outreachStatus}`, clear: () => onFilterChange("outreachStatus", "") },
+    filters.market && { key: "market", label: `Market: ${filters.market}`, clear: () => onFilterChange("market", "") },
+    filters.connector && { key: "connector", label: `Connector: ${filters.connector}`, clear: () => onFilterChange("connector", "") },
+    filters.availability && { key: "availability", label: `Availability: ${filters.availability}`, clear: () => onFilterChange("availability", "") },
+    slackFilter && { key: "slack", label: slackFilter === "in" ? "Slack: In #airvet-advisors" : "Slack: Not in #airvet-advisors", clear: () => setSlackFilter("") },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
+  const moreActive = activeChips.length; // badge on the Filters button counts every dropdown filter (not search)
+  const clearAllFilters = () => {
+    for (const k of ["search", "tier", "relationship", "outreachStatus", "market", "connector", "availability"]) onFilterChange(k, "");
+    setSlackFilter(""); setValueFilter(""); setAsksFilter(""); setParticipationFilter(""); setContributorFilter("");
+  };
   const filtered = advisors.filter((a) => {
     if (slackFilter && (slackFilter === "in" ? !a.inSlack : a.inSlack)) return false;
     if (participationFilter) {
@@ -621,132 +656,128 @@ export default function AdvisorTable({
       )}
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#EEF2FB] dark:border-dark-border bg-white dark:bg-dark-bg rounded-t-2xl">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3 border-b border-[#EEF2FB] dark:border-dark-border bg-white dark:bg-dark-bg rounded-t-2xl">
         <input
           type="search"
           placeholder="Search name, email, title, or company…"
           value={filters.search}
           onChange={(e) => onFilterChange("search", e.target.value)}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue w-52"
+          className={`${CTRL} w-72 max-w-full`}
         />
-        <select
-          value={filters.tier}
-          onChange={(e) => onFilterChange("tier", e.target.value)}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">All Tiers</option>
-          {uniqueTiers.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <select
-          value={filters.relationship}
-          onChange={(e) => onFilterChange("relationship", e.target.value)}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">All Relationships</option>
-          {RELATIONSHIP_ORDER.map((s) => (
-            <option key={s} value={s}>{RELATIONSHIP_LABEL[s]}</option>
-          ))}
-          <option value="askHeavy">Ask-heavy</option>
-        </select>
-        <select
-          value={filters.outreachStatus}
-          onChange={(e) => onFilterChange("outreachStatus", e.target.value)}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">All Outreach Timing</option>
-          <option value="active">Recently Contacted</option>
-          <option value="due">Due for a Touch</option>
-          <option value="overdue">Overdue</option>
-          <option value="client">Client</option>
-          <option value="paused">Paused</option>
-        </select>
-        <select
-          value={filters.market}
-          onChange={(e) => onFilterChange("market", e.target.value)}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">All Markets</option>
-          {uniqueMarkets.map((m) => <option key={m}>{m}</option>)}
-        </select>
-        <select
-          value={filters.connector}
-          onChange={(e) => onFilterChange("connector", e.target.value)}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">All Connectors</option>
-          <option value="Yes">Yes</option>
-          <option value="Conditional">Conditional</option>
-          <option value="No">No</option>
-        </select>
-        <select
-          value={filters.availability}
-          onChange={(e) => onFilterChange("availability", e.target.value)}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">All Availability</option>
-          <option value="Open to Requests">Open</option>
-          <option value="Possibility of Requests">Possible</option>
-          <option value="No Requests">No Requests</option>
-        </select>
 
-        <select
-          value={slackFilter}
-          onChange={(e) => setSlackFilter(e.target.value as "" | "in" | "out")}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">Slack: All</option>
-          <option value="in">Slack: In #airvet-advisors</option>
-          <option value="out">Slack: Not in #airvet-advisors</option>
-        </select>
-
-        <select
-          value={valueFilter}
-          onChange={(e) => setValueFilter(e.target.value as "" | "1" | "2" | "3" | "none")}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">Deal value: All</option>
-          <option value="3">$$$ (over $250K)</option>
-          <option value="2">$$ ($50K to $250K)</option>
-          <option value="1">$ (under $50K)</option>
-          <option value="none">No closed-won deals</option>
-        </select>
-
-        <select
-          value={participationFilter}
-          onChange={(e) => setParticipationFilter(e.target.value as "" | Participation | "unclassified")}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">Participation: All</option>
-          {PARTICIPATION_ORDER.map((p) => (
-            <option key={p} value={p}>{p} ({PARTICIPATION_DESC[p].toLowerCase()})</option>
-          ))}
-          <option value="unclassified">Not yet classified</option>
-        </select>
-
-        <select
-          value={contributorFilter}
-          onChange={(e) => setContributorFilter(e.target.value as "" | ContributorType | "none" | "champion")}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">Contributor type: All</option>
-          {CONTRIBUTOR_ORDER.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-          <option value="champion">Champion-eligible (Active + 2 types)</option>
-          <option value="none">No contributor type</option>
-        </select>
-
-        <select
-          value={asksFilter}
-          onChange={(e) => setAsksFilter(e.target.value as "" | "any" | "3plus" | "recent" | "never")}
-          className="text-sm border border-gray-300 dark:border-dark-border rounded-lg px-3 py-1.5 bg-white dark:bg-dark-card dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-airvet-blue"
-        >
-          <option value="">AB asks: All</option>
-          <option value="any">Requested at least once</option>
-          <option value="3plus">Requested 3+ times</option>
-          <option value="recent">Requested in last 12 months</option>
-          <option value="never">Never requested</option>
-        </select>
+        {/* Single Filters menu: every filter lives here */}
+        <div className="relative" ref={moreRef}>
+          <button
+            type="button"
+            onClick={() => setMoreOpen((o) => !o)}
+            aria-expanded={moreOpen}
+            className={`${CTRL} inline-flex items-center gap-1.5 ${moreActive > 0 ? "border-[#0062F5] text-[#0062F5]" : ""}`}
+          >
+            Filters
+            {moreActive > 0 && (
+              <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0062F5] px-1 text-[10px] font-semibold text-white">{moreActive}</span>
+            )}
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {moreOpen && (
+            <div className="absolute left-0 z-30 mt-1.5 w-[34rem] max-w-[92vw] rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card p-3 shadow-lg">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Tier
+                  <select value={filters.tier} onChange={(e) => onFilterChange("tier", e.target.value)} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    {uniqueTiers.map((t) => <option key={t}>{t}</option>)}
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Participation
+                  <select value={participationFilter} onChange={(e) => setParticipationFilter(e.target.value as "" | Participation | "unclassified")} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    {PARTICIPATION_ORDER.map((p) => (<option key={p} value={p}>{p}</option>))}
+                    <option value="unclassified">Not yet classified</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Contributor type
+                  <select value={contributorFilter} onChange={(e) => setContributorFilter(e.target.value as "" | ContributorType | "none" | "champion")} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    {CONTRIBUTOR_ORDER.map((t) => (<option key={t} value={t}>{t}</option>))}
+                    <option value="champion">Champion-eligible</option>
+                    <option value="none">No contributor type</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Responsiveness
+                  <select value={filters.relationship} onChange={(e) => onFilterChange("relationship", e.target.value)} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    {RELATIONSHIP_ORDER.map((s) => (<option key={s} value={s}>{RELATIONSHIP_LABEL[s]}</option>))}
+                    <option value="askHeavy">Ask-heavy</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Deal value
+                  <select value={valueFilter} onChange={(e) => setValueFilter(e.target.value as "" | "1" | "2" | "3" | "none")} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    <option value="3">$$$ (over $250K)</option>
+                    <option value="2">$$ ($50K to $250K)</option>
+                    <option value="1">$ (under $50K)</option>
+                    <option value="none">No closed-won deals</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">AB asks
+                  <select value={asksFilter} onChange={(e) => setAsksFilter(e.target.value as "" | "any" | "3plus" | "recent" | "never")} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    <option value="any">Requested at least once</option>
+                    <option value="3plus">Requested 3+ times</option>
+                    <option value="recent">Requested in last 12 months</option>
+                    <option value="never">Never requested</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Outreach timing
+                  <select value={filters.outreachStatus} onChange={(e) => onFilterChange("outreachStatus", e.target.value)} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    <option value="active">Recently contacted</option>
+                    <option value="due">Due for a touch</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="client">Client</option>
+                    <option value="paused">Paused</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Market
+                  <select value={filters.market} onChange={(e) => onFilterChange("market", e.target.value)} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    {uniqueMarkets.map((m) => <option key={m}>{m}</option>)}
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Connector
+                  <select value={filters.connector} onChange={(e) => onFilterChange("connector", e.target.value)} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    <option value="Yes">Yes</option>
+                    <option value="Conditional">Conditional</option>
+                    <option value="No">No</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Availability
+                  <select value={filters.availability} onChange={(e) => onFilterChange("availability", e.target.value)} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    <option value="Open to Requests">Open</option>
+                    <option value="Possibility of Requests">Possible</option>
+                    <option value="No Requests">No requests</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[#5B6B8C] dark:text-dark-muted">Slack
+                  <select value={slackFilter} onChange={(e) => setSlackFilter(e.target.value as "" | "in" | "out")} className={`${CTRL} mt-1 w-full`}>
+                    <option value="">All</option>
+                    <option value="in">In #airvet-advisors</option>
+                    <option value="out">Not in #airvet-advisors</option>
+                  </select>
+                </label>
+              </div>
+              {moreActive > 0 && (
+                <div className="mt-3 flex justify-end">
+                  <button type="button" onClick={clearAllFilters} className="text-xs font-medium text-[#0062F5] hover:underline">Clear all</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Right-side controls */}
         <div className="ml-auto flex items-center gap-2">
@@ -799,6 +830,26 @@ export default function AdvisorTable({
           </div>
         </div>
       </div>
+
+      {/* Active filter chips */}
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-[#EEF2FB] dark:border-dark-border bg-white dark:bg-dark-bg">
+          {activeChips.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={c.clear}
+              title="Remove filter"
+              className="inline-flex items-center gap-1 rounded-full bg-[#EEF2FB] px-2.5 py-0.5 text-[11px] text-[#0B3D91] hover:bg-[#E1ECFF] dark:bg-dark-hover dark:text-dark-text"
+            >
+              {c.label} <span aria-hidden className="text-[#9AA7C0]">✕</span>
+            </button>
+          ))}
+          <button type="button" onClick={clearAllFilters} className="ml-1 text-[11px] font-medium text-[#0062F5] hover:underline">
+            Clear all
+          </button>
+        </div>
+      )}
 
       {/* ── Table ───────────────────────────────────────────────────────── */}
       <div
@@ -897,14 +948,18 @@ export default function AdvisorTable({
                   {visibility.tier && (
                     <td className="px-3 py-2 whitespace-nowrap">
                       <TierBadge value={a.advisorTier} />
-                      {isChampionEligible(a) && (
-                        <span
-                          title="Champion-eligible: Active participation with 2+ contributor types. Advisor tier is unchanged."
-                          className="ml-1.5 inline-flex items-center rounded-full border border-[#F5A623] bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#7A4B00] dark:bg-transparent dark:text-[#F5C26B]"
-                        >
-                          ★ Champion?
-                        </span>
-                      )}
+                      {(() => {
+                        const sg = suggestTierChange(a);
+                        if (!sg) return null;
+                        return (
+                          <span
+                            title={`Suggested tier: ${sg.tier}. ${sg.reason}. Advisor tier in HubSpot is unchanged.`}
+                            className="ml-1.5 inline-flex items-center rounded-full border border-[#F5A623] bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#7A4B00] dark:bg-transparent dark:text-[#F5C26B] whitespace-nowrap"
+                          >
+                            {sg.direction === "promote" ? "↑" : "↓"} {sg.tier}?
+                          </span>
+                        );
+                      })()}
                     </td>
                   )}
                   {visibility.participation && (
