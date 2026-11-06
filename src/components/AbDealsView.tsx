@@ -275,6 +275,9 @@ export default function AbDealsView() {
     setExportOpen(false);
   }
 
+  // Share of the total (count or dollars) for each category card
+  const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "0%");
+
   const cards: { label: string; sub?: string; count: number; amount: number; filterKey: StageFilter; accent: string; bg: string; text: string }[] = [
     { label: "Total",       count: yearStats.total,          amount: yearStats.totalAmount,     filterKey: "",            accent: "#1B3A6B", bg: "bg-white dark:bg-dark-card",   text: "text-gray-900 dark:text-dark-text" },
     { label: "Open",        count: yearStats.openCount,       amount: yearStats.openAmount,      filterKey: "Open",        accent: "#0062F5", bg: "bg-blue-50 dark:bg-dark-card", text: "text-blue-700 dark:text-blue-400" },
@@ -310,8 +313,18 @@ export default function AbDealsView() {
                 <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: card.accent }} />
                 {card.label}
               </p>
-              <p className="mt-1.5 text-4xl font-medium text-[#0B3D91] dark:text-dark-text tabular-nums">{card.count}</p>
-              <p className="mt-0.5 text-xs text-[#6B7A99] dark:text-dark-muted">{formatCompact(card.amount)}</p>
+              <p className="mt-1.5 flex items-baseline gap-1.5">
+                <span className="text-4xl font-medium text-[#0B3D91] dark:text-dark-text tabular-nums">{card.count}</span>
+                {card.filterKey !== "" && (
+                  <span className="text-xs text-[#6B7A99] dark:text-dark-muted tabular-nums">
+                    of {yearStats.total} · {pct(card.count, yearStats.total)}
+                  </span>
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-[#6B7A99] dark:text-dark-muted tabular-nums">
+                {formatCompact(card.amount)}
+                {card.filterKey !== "" && ` of ${formatCompact(yearStats.totalAmount)} · ${pct(card.amount, yearStats.totalAmount)}`}
+              </p>
               {card.sub && <p className="mt-0.5 text-[11px] font-medium text-amber-700/80 dark:text-amber-400/80">{card.sub}</p>}
             </button>
           );
