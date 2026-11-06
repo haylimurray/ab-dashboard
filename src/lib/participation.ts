@@ -81,3 +81,49 @@ export function primaryContributor(types: ContributorType[]): ContributorType | 
 export function isChampionEligible(a: { participation: string | null; contributorTypes: ContributorType[] }): boolean {
   return normalizeParticipation(a.participation) === "Active" && a.contributorTypes.length >= 2;
 }
+
+// ── Tier suggestions (shown only when the current tier looks wrong) ───────────
+// Never changes advisor_status. Client Advisors and advisors without a tier (benefits advisors)
+// are left alone. Advisors not yet classified get no suggestion.
+//
+//   Champion  and not eligible  -> suggest Advocate (Active or Lapsed) or Member (Quiet)
+//   Advocate  and Quiet         -> suggest Member
+//   Advocate/Member and eligible -> suggest Champion
+export interface TierSuggestion {
+  direction: "promote" | "demote";
+  tier: "Champion" | "Advocate" | "Member";
+  reason: string;
+}
+
+export function suggestTierChange(a: {
+  advisorTier: string | null;
+  participation: string | null;
+  contributorTypes: ContributorType[];
+}): TierSuggestion | null {
+  const p = normalizeParticipation(a.participation);
+  if (!p) return null;
+  const tier = a.advisorTier;
+  const eligible = isChampionEligible(a);
+
+  if (tier === "Champion") {
+    if (eligible) return null;
+    if (p === "Quiet") return { direction: "demote", tier: "Member", reason: "Quiet: no high value engagement in 12 months" };
+    return {
+      direction: "demote",
+      tier: "Advocate",
+      reason: p === "Lapsed"
+        ? "Lapsed: last high value engagement was 91 to 365 days ago"
+        : "Active, but fewer than 2 contributor types",
+    };
+  }
+  if (tier === "Advocate") {
+    if (eligible) return { direction: "promote", tier: "Champion", reason: "Active with 2+ contributor types" };
+    if (p === "Quiet") return { direction: "demote", tier: "Member", reason: "Quiet: no high value engagement in 12 months" };
+    return null;
+  }
+  if (tier === "Member") {
+    if (eligible) return { direction: "promote", tier: "Champion", reason: "Active with 2+ contributor types" };
+    return null;
+  }
+  return null;
+}

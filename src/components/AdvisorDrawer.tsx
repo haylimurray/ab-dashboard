@@ -10,7 +10,7 @@ import {
   CONTRIBUTOR_PILL,
   PARTICIPATION_DESC,
   PARTICIPATION_PILL,
-  isChampionEligible,
+  suggestTierChange,
   normalizeParticipation,
 } from "@/lib/participation";
 import RelationshipBadge from "./RelationshipBadge";
@@ -181,11 +181,15 @@ export default function AdvisorDrawer({ advisor, onClose }: Props) {
                                 ))}
                               </div>
                             )}
-                            {isChampionEligible(advisor) && (
-                              <div className="text-xs font-medium text-[#7A4B00] dark:text-[#F5C26B]">
-                                ★ Champion-eligible (Active with 2+ contributor types). Advisor tier is unchanged.
-                              </div>
-                            )}
+                            {(() => {
+                              const sg = suggestTierChange(advisor);
+                              if (!sg) return null;
+                              return (
+                                <div className="text-xs font-medium text-[#7A4B00] dark:text-[#F5C26B]">
+                                  {sg.direction === "promote" ? "↑" : "↓"} Suggested tier: {sg.tier}. {sg.reason}. Advisor tier in HubSpot is unchanged.
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })()}
